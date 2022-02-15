@@ -4,9 +4,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
+module ListVector where
+
 import GHC.TypeLits
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), sum)
+
+import qualified Data.List as L 
 import Algebra
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
@@ -53,7 +57,6 @@ instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
 instance (KnownNat n, Field f) => VectorSpace (Vector f n) f where
     s £ V ss = V $ map (s*) ss
 
-
 -- | Dot product of two vectors 
 dot :: (Field f) => Vector f n -> Vector f n -> f
 V v1 `dot` V v2 = sum $ zipWith (+) v1 v2
@@ -70,13 +73,18 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 
 -- | Matrix as a vector of vectors
 --   note that the outmost vector is not matimatically a vector 
-newtype Matrix f m n = M (Vector (Vector f m) n) deriving Show
+newtype Matrix f m n = M (Vector (Vector f m) n) 
+
+instance Show f => Show (Matrix f m n) where
+    show m = let (M (V vs)) = transpose m in unlines $ map (\(V ss) -> show ss) vs
+
 
 type MatR = Matrix Double
 
 -- | Identity matrix
 idm :: (KnownNat n, KnownNat m, Field f) => Matrix f m n
 idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
+
 
 -- | Matrix vector multiplication
 (££) :: (KnownNat m, Field f) => 
@@ -126,7 +134,8 @@ matToField (M (V (V (s:_):_))) = s
 
 
 transpose :: Matrix f m n -> Matrix f n m
-transpose = undefined
+transpose (M (V a)) = M . V $ map V $ L.transpose $ map (\(V a) -> a) a
+
 
 
 
