@@ -24,7 +24,7 @@ import Algebra
 -- Vector definitions
 
 -- | Dependent typed vector
-newtype Vector f (n :: Nat) = V [f] deriving (Show)
+newtype Vector f (n :: Nat) = V [f] deriving (Show, Eq)
 
 type VecR = Vector Double
 
@@ -73,7 +73,7 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 
 -- | Matrix as a vector of vectors
 --   note that the outmost vector is not matimatically a vector 
-newtype Matrix f m n = M (Vector (Vector f m) n) 
+newtype Matrix f m n = M (Vector (Vector f m) n)  deriving (Eq)
 
 instance Show f => Show (Matrix f m n) where
     show m = let (M (V vs)) = transpose m in unlines $ map (\(V ss) -> show ss) vs
@@ -124,6 +124,8 @@ instance ToMat f 1 n (Vector f n) where
 instance ToMat f m n (Matrix f m n) where
     toMat = id
     
+instance (KnownNat m, KnownNat n, AddGroup f) => ToMat f m n [[f]] where
+    toMat ls = M . vec $ map vec ls
 
 -- Convert Matrices to objects 
 matToVec :: Matrix f n 1 -> Vector f n
@@ -136,7 +138,25 @@ matToField (M (V (V (s:_):_))) = s
 transpose :: Matrix f m n -> Matrix f n m
 transpose (M (V a)) = M . V $ map V $ L.transpose $ map (\(V a) -> a) a
 
+get :: Matrix f m n -> (Int, Int) -> f
+get (M (V a)) (x,y) = map (\(V a) -> a) a !! x !! y
+
+unPack :: Matrix f m n -> [[f]]
+unPack (M (V a)) = map (\(V a) -> a) a 
+
+pack :: [[f]] -> Matrix f m n 
+pack = M . V . map V
 
 
-
+utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
+utf m = trans 
+    where trans = transpose . pack $ sort $ f $ unPack $ transpose m
+          f []     = []
+          f (x:[]) = let (x', n) = pivot x in [x']
+          f (x:xs) = let (x', n) = pivot x in x' : (f $ map (reduce n x') xs)
+          pivot [] = ([],-1) 
+          pivot (x:xs) | x == zero = let (ys, n) = pivot xs in (x:ys, n + 1)
+                       | otherwise = (map (/x) (x:xs), 0 :: Int)
+          reduce n p x = zipWith (-) x (map ((x!!n)*) p)
+          sort = L.sortOn (length . takeWhile (==zero))
 
