@@ -149,8 +149,8 @@ pack = M . V . map V
 
 
 utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
-utf m = trans 
-    where trans = transpose . pack $ sort $ f $ unPack $ transpose m
+utf = transpose . pack . sort . f . unPack . transpose 
+    where 
           f []     = []
           f (x:[]) = let (x', n) = pivot x in [x']
           f (x:xs) = let (x', n) = pivot x in x' : (f $ map (reduce n x') xs)
