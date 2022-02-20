@@ -3,12 +3,13 @@
 {-# LANGUAGE TypeOperators #-} 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module ListVector where
 
 import GHC.TypeLits
 import qualified Prelude
-import Prelude hiding ((+), (-), (*), (/), sum)
+import Prelude hiding ((+), (-), (*), (/), sum, (**))
 
 import qualified Data.List as L 
 import Algebra
@@ -75,11 +76,11 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 --   note that the outmost vector is not matimatically a vector 
 newtype Matrix f m n = M (Vector (Vector f m) n)  deriving (Eq)
 
+type MatR = Matrix Double
+
 instance Show f => Show (Matrix f m n) where
     show m = let (M (V vs)) = transpose m in unlines $ map (\(V ss) -> show ss) vs
 
-
-type MatR = Matrix Double
 
 -- | Identity matrix
 idm :: (KnownNat n, KnownNat m, Field f) => Matrix f m n
@@ -107,9 +108,18 @@ instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) f where
     s £ M (V vs) = M . V $ map (s£) vs
 
 
+-- | Defines a unified multiplication between scalars, vectors and matrices
+class Mult a b c | a b -> c where
+    (**) :: a -> b -> c
+
+instance                          Field f  => Mult f              f              f              where (**) = (*)
+instance (KnownNat n,             Field f) => Mult f              (Vector f n)   (Vector f n)   where (**) = (£)
+instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Vector f n)   (Vector f m)   where (**) = (££)
+instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Matrix f n o) (Matrix f m o) where (**) = (£££)
+
 
 -- Convert objects to Matrices
-class ToMat f m n x where
+class ToMat f m n x | x -> f where
     toMat :: x -> Matrix f m n
 
 instance ToMat Double 1 1 Double where
@@ -126,6 +136,7 @@ instance ToMat f m n (Matrix f m n) where
     
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat f m n [[f]] where
     toMat ls = M . vec $ map vec ls
+
 
 -- Convert Matrices to objects 
 matToVec :: Matrix f n 1 -> Vector f n
@@ -159,4 +170,5 @@ utf = transpose . pack . sort . f . unPack . transpose
                        | otherwise = (map (/x) (x:xs), 0 :: Int)
           reduce n p x = zipWith (-) x (map ((x!!n)*) p)
           sort = L.sortOn (length . takeWhile (==zero))
+
 
