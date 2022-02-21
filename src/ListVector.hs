@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-} 
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-} 
+{-# LANGUAGE TypeFamilies #-} 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -113,28 +114,34 @@ class Mult a b c | a b -> c where
     (**) :: a -> b -> c
 
 instance                          Field f  => Mult f              f              f              where (**) = (*)
-instance (KnownNat n,             Field f) => Mult f              (Vector f n)   (Vector f n)   where (**) = (£)
+instance (VectorSpace v f)                 => Mult f              v   v                         where (**) = (£)
 instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Vector f n)   (Vector f m)   where (**) = (££)
 instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Matrix f n o) (Matrix f m o) where (**) = (£££)
 
 
 -- Convert objects to Matrices
-class ToMat f m n x | x -> f where
-    toMat :: x -> Matrix f m n
+class ToMat m n x where
+    type Under x --The underling type (often a field) of x  
+    toMat :: x -> Matrix (Under x) m n
 
-instance ToMat Double 1 1 Double where
-    toMat s = M (V [V [s]])
+instance (KnownNat m, KnownNat n) => ToMat m n Double where
+    type Under Double = Double
+    toMat s = s £ idm
 
-instance ToMat f n 1 (Vector f n) where
+instance ToMat n 1 (Vector f n) where
+    type Under (Vector f n) = f
     toMat v = M (V [v])
 
-instance ToMat f 1 n (Vector f n) where
+instance ToMat 1 n (Vector f n) where
+    type Under (Vector f n) = f
     toMat (V ss) = M . V $ map (\s -> V [s]) ss
 
-instance ToMat f m n (Matrix f m n) where
+instance ToMat m n (Matrix f m n) where
+    type Under (Matrix f m n) = f
     toMat = id
     
-instance (KnownNat m, KnownNat n, AddGroup f) => ToMat f m n [[f]] where
+instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
+    type Under [[f]] = f
     toMat ls = M . vec $ map vec ls
 
 
