@@ -47,8 +47,8 @@ e i = V (replicate (i-1) zero ++ (one : repeat zero)) + zero
 
 
 -- | Definition of a VectorSpace
-class (Field s, AddGroup v) => VectorSpace v s where
-    (£) :: s -> v -> v
+class (AddGroup v) => VectorSpace v where
+    (£) :: Under v -> v -> v
 
 -- Vector is a vector space over a field
 instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
@@ -56,7 +56,7 @@ instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
     V as - V bs = V $ zipWith (-) as bs
     zero = zeroVec
 
-instance (KnownNat n, Field f) => VectorSpace (Vector f n) f where
+instance (KnownNat n, Field f) => VectorSpace (Vector f n) where
     s £ V ss = V $ map (s*) ss
 
 -- | Dot product of two vectors 
@@ -105,7 +105,7 @@ instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
     M (V as) - M (V bs) = M . V $ zipWith (-) as bs
     zero = let v = V $ replicate (vecLen v) zero in M v
 
-instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) f where
+instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) where
     s £ M (V vs) = M . V $ map (s£) vs
 
 
@@ -114,58 +114,65 @@ class Mult a b c | a b -> c where
     (**) :: a -> b -> c
 
 instance                          Field f  => Mult f              f              f              where (**) = (*)
-instance (VectorSpace v f)                 => Mult f              v   v                         where (**) = (£)
+instance (VectorSpace v, Under v ~ f)      => Mult f              v   v                         where (**) = (£)
 instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Vector f n)   (Vector f m)   where (**) = (££)
 instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Matrix f n o) (Matrix f m o) where (**) = (£££)
 
 
--- Convert objects to Matrices
+-- | The underling type (often a field) of x  
+type family   Under x 
+type instance Under Double         = Double
+type instance Under (Vector f _)   = f
+type instance Under (Matrix f _ _) = f
+type instance Under [[f]]          = f
+type instance Under [Vector f _]   = f
+type instance Under (_ -> f)       = f
+
+-- | Converts objects to and from Matrices.
+--   Requires that the object is an instance of the type family Under.
 class ToMat m n x where
-    type Under x --The underling type (often a field) of x  
-    toMat :: x -> Matrix (Under x) m n
+    toMat   :: x -> Matrix (Under x) m n
+    fromMat :: Matrix (Under x) m n -> x
 
 instance (KnownNat m, KnownNat n) => ToMat m n Double where
-    type Under Double = Double
     toMat s = s £ idm
+    fromMat (M (V (V (s:_):_))) = s
 
 instance ToMat n 1 (Vector f n) where
-    type Under (Vector f n) = f
     toMat v = M (V [v])
+    fromMat (M (V [v])) = v
 
 instance ToMat 1 n (Vector f n) where
-    type Under (Vector f n) = f
-    toMat (V ss) = M . V $ map (\s -> V [s]) ss
+    toMat   (V ss) = M . V $ map (\s -> V [s]) ss
+    fromMat (M (V vs)) = V $ map (\(V (x:_)) -> x) vs
 
 -- | Diagonal matrix
 instance (KnownNat n, Field f) => ToMat n n (Vector f n) where
-    type Under (Vector f n) = f
     toMat (V ss) = M . V $ zipWith (\s i-> s £ e i) ss [1..]
+    fromMat m = vec $ zipWith (!!) (fromMat m) [0..]
 
 instance ToMat m n (Matrix f m n) where
-    type Under (Matrix f m n) = f
     toMat = id
+    fromMat = id
+
+instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [Vector f m] where
+    toMat vs = M . vec $ vs
+    fromMat (M (V vs)) = vs
     
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
-    type Under [[f]] = f
-    toMat ls = M . vec $ map vec ls
+    toMat = M . vec . map vec 
+    fromMat = unPack
 
-
--- Convert Matrices to objects 
-matToVec :: Matrix f n 1 -> Vector f n
-matToVec (M (V [v])) = v
-
-matToField :: Matrix f 1 1 -> f
-matToField (M (V (V (s:_):_))) = s
 
 
 transpose :: Matrix f m n -> Matrix f n m
-transpose (M (V a)) = M . V $ map V $ L.transpose $ map (\(V a) -> a) a
+transpose = pack . L.transpose . unPack
 
 get :: Matrix f m n -> (Int, Int) -> f
-get (M (V a)) (x,y) = map (\(V a) -> a) a !! x !! y
+get m (x,y) = unPack m !! x !! y
 
 unPack :: Matrix f m n -> [[f]]
-unPack (M (V a)) = map (\(V a) -> a) a 
+unPack (M (V vs)) = map (\(V a) -> a) vs 
 
 pack :: [[f]] -> Matrix f m n 
 pack = M . V . map V
@@ -184,10 +191,9 @@ utf = transpose . pack . sort . f . unPack . transpose
           sort = L.sortOn (length . takeWhile (==zero))
 
 
--- | Takes a vector and a basis and returns and returns the linear combination
-eval :: VectorSpace v f => Vector f n -> Vector v n -> v 
+-- | Takes a vector and a basis and returns the linear combination
+eval :: (VectorSpace v, Under v ~ f) => Vector f n -> Vector v n -> v 
 eval (V fs) (V vs) = sum $ zipWith (£) fs vs
-
 
 
 
