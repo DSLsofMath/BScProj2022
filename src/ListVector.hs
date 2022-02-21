@@ -136,6 +136,11 @@ instance ToMat 1 n (Vector f n) where
     type Under (Vector f n) = f
     toMat (V ss) = M . V $ map (\s -> V [s]) ss
 
+-- | Diagonal matrix
+instance (KnownNat n, Field f) => ToMat n n (Vector f n) where
+    type Under (Vector f n) = f
+    toMat (V ss) = M . V $ zipWith (\s i-> s £ e i) ss [1..]
+
 instance ToMat m n (Matrix f m n) where
     type Under (Matrix f m n) = f
     toMat = id
@@ -177,5 +182,12 @@ utf = transpose . pack . sort . f . unPack . transpose
                        | otherwise = (map (/x) (x:xs), 0 :: Int)
           reduce n p x = zipWith (-) x (map ((x!!n)*) p)
           sort = L.sortOn (length . takeWhile (==zero))
+
+
+-- | Takes a vector and a basis and returns and returns the linear combination
+eval :: VectorSpace v f => Vector f n -> Vector v n -> v 
+eval (V fs) (V vs) = sum $ zipWith (£) fs vs
+
+
 
 

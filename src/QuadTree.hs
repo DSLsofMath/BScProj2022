@@ -62,12 +62,12 @@ instance (Num a) => Num (Matrx a) where
 -- Reprsents a matrix size n*n where n = 4^Nat4
 data Nat4 = Nil | Succ Nat4
 
-type family Pred (n :: Nat4) :: Nat4
-type instance Pred (Succ n)  = n
+type family Pred (n :: Nat4) :: Nat4 where
+     Pred (Succ n)  = n
 
-type family ToNat (n :: Nat4) :: Nat
-type instance ToNat Nil = 1
-type instance ToNat (Succ n)  = 4 * ToNat n
+type family ToNat (n :: Nat4) :: Nat where
+     ToNat Nil = 1
+     ToNat (Succ n)  = 4 * ToNat n
 
 
 type Quad :: Nat4 -> Type -> Type
