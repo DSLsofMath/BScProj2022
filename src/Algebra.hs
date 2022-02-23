@@ -1,5 +1,6 @@
-{-# Language TypeSynonymInstances #-}
 {-# Language FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
+
 
 module Algebra where 
 
@@ -48,21 +49,30 @@ sum :: (Foldable t, AddGroup a) => t a -> a
 sum = foldr (+) zero 
 
 
+-- | The underlying type (often a field) of x  
+type family   Under x 
+type instance Under Double         = Double
+type instance Under (_ -> f)       = f
+type instance Under [[f]]          = f
+
+-- | Definition of a VectorSpace
+class (AddGroup v) => VectorSpace v where
+    (£) :: Under v -> v -> v
+
+
+
 -- Instance definitions
 instance AddGroup Int       where (+) = (P.+); (-) = (P.-); zero = 0
 instance AddGroup Integer   where (+) = (P.+); (-) = (P.-); zero = 0
 instance AddGroup Double    where (+) = (P.+); (-) = (P.-); zero = 0
 instance AddGroup Rational  where (+) = (P.+); (-) = (P.-); zero = 0
 instance AddGroup Exp       where (+) = (:+:); neg = Negate; zero = Const 0
+instance AddGroup b => AddGroup (a -> b)  where 
+    f + g = \x -> f x + g x; neg f = \x -> neg (f x); zero = const zero
 
 instance Field Double       where (*) = (P.*); (/) = (P./); one = 1
 instance Field Rational     where (*) = (P.*); (/) = (P./); one = 1
 instance Field Exp          where (*) = (:*:); recip = Recip; one = Const 1
-
-
-instance AddGroup b => AddGroup (a -> b)  where 
-    f + g = \x -> f x + g x; neg f = \x -> neg (f x); zero = const zero
-
 instance Field b => Field (a -> b)  where 
     f * g = \x -> f x * f x; recip f = \x -> recip (f x); one = const one
 

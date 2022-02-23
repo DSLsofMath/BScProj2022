@@ -1,18 +1,19 @@
-{-# LANGUAGE DataKinds #-} 
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeOperators #-} 
-{-# LANGUAGE TypeFamilies #-} 
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE TypeApplications #-}
+
 
 module ListVector where
 
 import GHC.TypeLits
 import qualified Prelude
-import Prelude hiding ((+), (-), (*), (/), sum, (**))
+import Prelude hiding ((+), (-), (*), (/), sum, (**), span)
 
-import qualified Data.List as L 
+import qualified Data.List as L
 import Algebra
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
@@ -46,10 +47,6 @@ e :: (KnownNat n, Field f) => Int -> Vector f n
 e i = V (replicate (i-1) zero ++ (one : repeat zero)) + zero
 
 
--- | Definition of a VectorSpace
-class (AddGroup v) => VectorSpace v where
-    (£) :: Under v -> v -> v
-
 -- Vector is a vector space over a field
 instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
     V as + V bs = V $ zipWith (+) as bs
@@ -65,8 +62,8 @@ V v1 `dot` V v2 = sum $ zipWith (+) v1 v2
 
 -- | Cross product of two vectors of size 3
 cross :: (Field f) => Vector f 3 -> Vector f 3 -> Vector f 3
-V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2, 
-                                       a3*b1-a1*b3, 
+V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
+                                       a3*b1-a1*b3,
                                        a1*b2-a2*b1]
 
 
@@ -84,17 +81,17 @@ instance Show f => Show (Matrix f m n) where
 
 
 -- | Identity matrix
-idm :: (KnownNat n, KnownNat m, Field f) => Matrix f m n
+idm :: (KnownNat n, Field f) => Matrix f n n
 idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
 
 -- | Matrix vector multiplication
-(££) :: (KnownNat m, Field f) => 
-                    Matrix f m n -> Vector f n -> Vector f m 
+(££) :: (KnownNat m, Field f) =>
+                    Matrix f m n -> Vector f n -> Vector f m
 M (V vs) ££ (V ss) = sum $ zipWith (£) ss vs
 
 -- | Matrix matrix multiplication
-(£££) :: (KnownNat a, Field f) => 
+(£££) :: (KnownNat a, Field f) =>
                     Matrix f a b -> Matrix f b c -> Matrix f a c
 m £££ M (V vs) = M . V $ map (m££) vs
 
@@ -119,14 +116,10 @@ instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Vector f n)  
 instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Matrix f n o) (Matrix f m o) where (**) = (£££)
 
 
--- | The underling type (often a field) of x  
-type family   Under x 
-type instance Under Double         = Double
+
 type instance Under (Vector f _)   = f
 type instance Under (Matrix f _ _) = f
-type instance Under [[f]]          = f
 type instance Under [Vector f _]   = f
-type instance Under (_ -> f)       = f
 
 -- | Converts objects to and from Matrices.
 --   Requires that the object is an instance of the type family Under.
@@ -134,7 +127,7 @@ class ToMat m n x where
     toMat   :: x -> Matrix (Under x) m n
     fromMat :: Matrix (Under x) m n -> x
 
-instance (KnownNat m, KnownNat n) => ToMat m n Double where
+instance (KnownNat n) => ToMat n n Double where
     toMat s = s £ idm
     fromMat (M (V (V (s:_):_))) = s
 
@@ -157,10 +150,10 @@ instance ToMat m n (Matrix f m n) where
 
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [Vector f m] where
     toMat vs = M . vec $ vs
-    fromMat (M (V vs)) = vs
-    
+    fromMat = matToList
+
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
-    toMat = M . vec . map vec 
+    toMat = M . vec . map vec
     fromMat = unPack
 
 
@@ -172,19 +165,28 @@ get :: Matrix f m n -> (Int, Int) -> f
 get m (x,y) = unPack m !! x !! y
 
 unPack :: Matrix f m n -> [[f]]
-unPack (M (V vs)) = map (\(V a) -> a) vs 
+unPack (M (V vs)) = map (\(V a) -> a) vs
 
-pack :: [[f]] -> Matrix f m n 
+pack :: [[f]] -> Matrix f m n
 pack = M . V . map V
+
+-- | Analogous to (++)
+--   useful for Ex. Guassian elimination
+append :: Matrix f m n1 -> Matrix f m n2 -> Matrix f m (n1+n2)
+append m1 m2 = pack $ unPack m1 ++ unPack m2
+
+-- | Converts a Matrix to a list of Vectors 
+matToList :: Matrix f m n -> [Vector f m]
+matToList (M (V vs)) = vs
 
 
 utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
-utf = transpose . pack . sort . f . unPack . transpose 
-    where 
+utf = transpose . pack . sort . f . unPack . transpose
+    where
           f []     = []
           f (x:[]) = let (x', n) = pivot x in [x']
           f (x:xs) = let (x', n) = pivot x in x' : (f $ map (reduce n x') xs)
-          pivot [] = ([],-1) 
+          pivot [] = ([],-1)
           pivot (x:xs) | x == zero = let (ys, n) = pivot xs in (x:ys, n + 1)
                        | otherwise = (map (/x) (x:xs), 0 :: Int)
           reduce n p x = zipWith (-) x (map ((x!!n)*) p)
@@ -192,8 +194,44 @@ utf = transpose . pack . sort . f . unPack . transpose
 
 
 -- | Takes a vector and a basis and returns the linear combination
-eval :: (VectorSpace v, Under v ~ f) => Vector f n -> Vector v n -> v 
+--   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
+eval :: (VectorSpace v, Under v ~ f) => Vector f n -> Vector v n -> v
 eval (V fs) (V vs) = sum $ zipWith (£) fs vs
 
 
+-- | Checks if a vector is in the span of a list of vectors
+--   Normaly span is defined as a set, but here we use it as a condition such that
+--   span [w1..wn] v = v `elem` span(w1..w2)
+span :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
+span m v = all (\x -> pivotLen x /= 1) . L.transpose . unPack . utf $ append m v'
+    where v' = M (V @_ @1 [v]) -- Forces the matrix to size n 1
+          pivotLen xs = length (dropWhile (==zero) xs)
 
+-- | Checks that m1 spans atleast as much as m2 
+spans :: (KnownNat m, KnownNat n2, Eq f, Field f) => Matrix f m n1 -> Matrix f m n2 -> Bool
+m1 `spans` m2 = all (span m1) (matToList m2)
+
+-- | Checks that m spans the whole vectorSpace
+spansSpace :: (KnownNat m, Eq f, Field f) => Matrix f m n -> Bool
+spansSpace m = m `spans` idm
+
+-- | For each vector in a matrix, returns the vector and the remaining matrix
+separate :: (KnownNat m, KnownNat n, AddGroup f) => Matrix f m n -> [(Matrix f m n, Vector f m)]
+separate m = map (\(m',v) -> (toMat m',v)) $ separate' [] (matToList m)
+    where separate' :: [Vector f m] -> [Vector f m] -> [([Vector f m], Vector f m)]
+          separate' _   []     = []
+          separate' acc (x:[]) = [(acc,     x)]
+          separate' acc (x:xs) = (acc++xs, x) : separate' (acc++[x]) xs
+
+-- | Checks if the vectors in a matrix are linearly independant
+linIndep :: (KnownNat m, KnownNat n, Eq f, Field f) => Matrix f m n -> Bool
+linIndep m = not . any (uncurry span) $ separate m
+
+
+-- 2.27
+-- Definition: basis
+-- A basis of V is a list of vectors in V that is linearly independent and spans V
+
+-- | Checks if the vectors in a matrix forms a basis of their vectorSpace
+basis :: (KnownNat m, KnownNat n, Eq f, Field f) => Matrix f m n -> Bool
+basis m = spansSpace m && linIndep m

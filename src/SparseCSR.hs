@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+
 
 module SparseCSR where
 
@@ -19,7 +21,8 @@ data CSR f (m :: Nat) (n :: Nat) = CSR { elems :: [f],
 
 deriving instance Show f => Show (CSR f m n)
 
-instance (KnownNat m, KnownNat n, AddGroup f) => ToMat f m n (CSR f m n) where
+type instance Under (CSR f m n) = f
+instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n (CSR f m n) where
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
 
 -- Test Matrix
