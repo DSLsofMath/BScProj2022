@@ -1,0 +1,18 @@
+* 2022-02-24: Patrik
++ Good to see several Haskell files with LinAlg-material, but it is a
+  bit hard to know how to test it. Please add test cases and perhaps a
+  top-level makefile or .cabal-file which makes it easy to run a
+  test-suite.
++ General comment: pleas keep the number of "local definitions" down
+  to make specification and testing easier. As an example:
+  [[file:ListVector.hs utf]] has f, pivot, reduce and sort locally
+  defined, which means that none of them be be tested in isolation.
++ Similarly, avoid giving function definitions in instance
+  declarations: keep them down to the bare minimum - ideally something
+  lik method=methodDefinition. The reason is basically the same as for
+  the previous bullet. Example 1 [[file:ListVector.hs::V as + V bs = V $ zipWith (+) as bs][zipWith]] is probably safe here, but it
+  would be better if this was mentioned in a comment at the definition
+  of addVector, which then takes care of calling zipWith. Example 2
+  [[file:QuadTree.hs::instance AddGroup a => AddGroup (Quad n a)][addQuad]] needs a separate definition (to make sure all cases
+  are covered, etc.)
+ 
