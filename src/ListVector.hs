@@ -31,6 +31,7 @@ newtype Vector f (n :: Nat) = V [f] deriving (Show, Eq)
 
 type VecR = Vector Double
 
+lenTest = V[1,2,3]::VecR 3
 vecLen :: KnownNat n => Vector f n -> Int
 vecLen v = fromInteger $ natVal v
 
@@ -57,10 +58,16 @@ instance (KnownNat n, Field f) => VectorSpace (Vector f n) where
     s £ V ss = V $ map (s*) ss
 
 -- | Dot product of two vectors 
+v1 = V [2,7,1]::VecR 3
+v2 = V [8,2,8]::VecR 3
+-- är dot prod rätt def?
 dot :: (Field f) => Vector f n -> Vector f n -> f
 V v1 `dot` V v2 = sum $ zipWith (+) v1 v2
 
 -- | Cross product of two vectors of size 3
+
+
+testCross = cross v1 v2 == V[7*8-1*2, 1*8-2*8, 2*2-7*8]
 cross :: (Field f) => Vector f 3 -> Vector f 3 -> Vector f 3
 V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
                                        a3*b1-a1*b3,
