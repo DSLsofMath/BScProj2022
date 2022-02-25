@@ -5,7 +5,7 @@
 module Algebra where 
 
 import qualified Prelude as P
-import Prelude hiding ((+), (-), (*), (/), sum, recip)
+import Prelude hiding ((+), (-), (*), (/), sum, product, recip)
 type R = Double
 
 data Exp =  Const R
@@ -34,6 +34,9 @@ class AddGroup a where
 
     zero :: a
 
+sum :: (Foldable t, AddGroup a) => t a -> a
+sum = foldr (+) zero 
+
 class AddGroup a => Field a where
     (*) :: a -> a -> a
 
@@ -44,9 +47,6 @@ class AddGroup a => Field a where
     recip a = one / a
 
     one :: a
-
-sum :: (Foldable t, AddGroup a) => t a -> a
-sum = foldr (+) zero 
 
 
 -- | The underlying type (often a field) of x  

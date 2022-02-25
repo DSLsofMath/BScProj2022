@@ -11,7 +11,7 @@ module ListVector where
 
 import GHC.TypeLits
 import qualified Prelude
-import Prelude hiding ((+), (-), (*), (/), sum, (**), span)
+import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
 
 import qualified Data.List as L
 import Algebra
@@ -169,7 +169,9 @@ instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [Vector f m] where
 
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
     toMat = M . vec . map vec
-    fromMat = unPack
+    fromMat = unpack
+
+
 
 -- test transpose
 m1 :: Matrix Double 3 3
@@ -177,20 +179,20 @@ m1 = toMat [[1,1,1],[2,2,2],[3,3,3]]::MatR 3 3
 testtran = transpose m1 == (toMat [[1,2,3],[1,2,3],[1,2,3]])
 
 transpose :: Matrix f m n -> Matrix f n m
-transpose = pack . L.transpose . unPack
+transpose = pack . L.transpose . unpack
 
 -- test get
 testget = get m1 (1,1) == 2      -- m1 row 1, col 1
 
 get :: Matrix f m n -> (Int, Int) -> f
-get m (x,y) = unPack m !! x !! y
+get m (x,y) = unpack m !! x !! y
 
 -- matrix to array and back
-testunpack = unPack m1 == [[1,1,1],[2,2,2],[3,3,3]]
-testpack = pack(unPack m1) == m1
+testunpack = unpack m1 == [[1,1,1],[2,2,2],[3,3,3]]
+testpack = pack(unpack m1) == m1
 
-unPack :: Matrix f m n -> [[f]]
-unPack (M (V vs)) = map (\(V a) -> a) vs
+unpack :: Matrix f m n -> [[f]]
+unpack (M (V vs)) = map (\(V a) -> a) vs
 
 pack :: [[f]] -> Matrix f m n
 pack = M . V . map V
@@ -204,7 +206,7 @@ m2 = toMat[[4,4,4]] :: MatR 3 1
 testappend = append m1 m2 == (toMat [[1,1,1],[2,2,2],[3,3,3],[4,4,4]]:: MatR 3 4)
 
 append :: Matrix f m n1 -> Matrix f m n2 -> Matrix f m (n1+n2)
-append m1 m2 = pack $ unPack m1 ++ unPack m2
+append m1 m2 = pack $ unpack m1 ++ unpack m2
 
 -- | Converts a Matrix to a list of Vectors 
 matToList :: Matrix f m n -> [Vector f m]
@@ -212,7 +214,7 @@ matToList (M (V vs)) = vs
 
 
 utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
-utf = transpose . pack . sort . f . unPack . transpose
+utf = transpose . pack . sort . f . unpack . transpose
     where
           f []     = []
           f (x:[]) = let (x', n) = pivot x in [x']
@@ -223,6 +225,56 @@ utf = transpose . pack . sort . f . unPack . transpose
           reduce n p x = zipWith (-) x (map ((x!!n)*) p)
           sort = L.sortOn (length . takeWhile (==zero))
 
+type Index = Int 
+-- | Represents elementary row operations
+data ElimOp a = Swap Index Index | Mul Index a | MulAdd Index Index a
+
+elimOpToMat :: (KnownNat n, Field f) => ElimOp f -> Matrix f n n
+elimOpToMat (Swap x y) = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
+    where e' i | i == x    = e y
+               | i == y    = e x
+               | otherwise = e i
+elimOpToMat (Mul x n)  = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
+    where e' i | i == x    = n £ e i
+               | otherwise = e i
+elimOpToMat (MulAdd x y n) = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
+    where e' i | i == x    = e i + (n £ e y)
+               | otherwise = e i
+
+m :: Matrix Double 3 4
+m = toMat [[2, -3, -2],[1, -1, 1],[-1, 2, 2],[8, -11, -3]]
+
+es :: [ElimOp Double]
+es = [MulAdd 1 2 (3/2), MulAdd 1 3 1, MulAdd 2 3 (-4), MulAdd 3 2 (1/2), MulAdd 3 1 (-1), Mul 2 2, Mul 3 (-1), MulAdd 2 1 (-1), Mul 1 (1/2)]
+
+foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
+foldElemOps = foldr (flip (£££)) idm . map elimOpToMat 
+
+
+-- !! Work in progress
+-- Doesn't work for m n matricies where m is larger than n
+ref :: (KnownNat m, Eq f, Field f) => Matrix f m n -> [ElimOp f]
+ref mat = ref' mat 0
+
+ref' :: (KnownNat m, Eq f, Field f) => Matrix f m n -> Index -> [ElimOp f]
+ref' mat i | i >= length lm = []
+           | otherwise     = do
+                let q = pivot (lm!!i)
+                let mulOp = Mul (i+1) (recip (lm!!i!!q))
+                let addOp = [MulAdd (i+1) (j+1) (neg (lm!!j!!q)) | j <- [(i+1)..(length lm-1)]]
+                let t = mulOp:addOp
+                t ++ ref' (foldElemOps t £££ mat) (i+1)
+                where
+                    lm = unpack $ transpose mat
+
+pivot :: (Eq f, Field f) => [f] -> Int
+pivot [] = 0
+pivot (x:xs) | x == zero = 1 + pivot xs
+             | otherwise = 0
+
+
+jordan :: (Eq f, Field f) => Matrix f m n -> [ElimOp f]
+jordan = undefined
 
 -- | Takes a vector and a basis and returns the linear combination
 --   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
@@ -234,7 +286,7 @@ eval (V fs) (V vs) = sum $ zipWith (£) fs vs
 --   Normaly span is defined as a set, but here we use it as a condition such that
 --   span [w1..wn] v = v `elem` span(w1..w2)
 span :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
-span m v = all (\x -> pivotLen x /= 1) . L.transpose . unPack . utf $ append m v'
+span m v = all (\x -> pivotLen x /= 1) . L.transpose . unpack . utf $ append m v'
     where v' = M (V @_ @1 [v]) -- Forces the matrix to size n 1
           pivotLen xs = length (dropWhile (==zero) xs)
 
