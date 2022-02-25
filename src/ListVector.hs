@@ -58,16 +58,20 @@ instance (KnownNat n, Field f) => VectorSpace (Vector f n) where
     s £ V ss = V $ map (s*) ss
 
 -- | Dot product of two vectors 
+v1, v2 :: Vector Double 3
 v1 = V [2,7,1]::VecR 3
 v2 = V [8,2,8]::VecR 3
--- är dot prod rätt def?
+-- är dot prod rätt def? ändra till zipWith(*)
+-- test dot product
+testdot = dot v1 v2 == 2*8 + 7*2 + 8*1
+
 dot :: (Field f) => Vector f n -> Vector f n -> f
-V v1 `dot` V v2 = sum $ zipWith (+) v1 v2
+V v1 `dot` V v2 = sum $ zipWith (*) v1 v2
 
 -- | Cross product of two vectors of size 3
+-- test cross product
+testross = cross v1 v2 == V[7*8-1*2, 1*8-2*8, 2*2-7*8]
 
-
-testCross = cross v1 v2 == V[7*8-1*2, 1*8-2*8, 2*2-7*8]
 cross :: (Field f) => Vector f 3 -> Vector f 3 -> Vector f 3
 V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
                                        a3*b1-a1*b3,
@@ -88,6 +92,10 @@ instance Show f => Show (Matrix f m n) where
 
 
 -- | Identity matrix
+--id3x3
+idm3x3 :: Matrix Double 3 3
+idm3x3 = idm :: MatR 3 3
+
 idm :: (KnownNat n, Field f) => Matrix f n n
 idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
@@ -163,13 +171,23 @@ instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
     toMat = M . vec . map vec
     fromMat = unPack
 
-
+-- test transpose
+m1 :: Matrix Double 3 3
+m1 = toMat [[1,1,1],[2,2,2],[3,3,3]]::MatR 3 3
+testtran = transpose m1 == (toMat [[1,2,3],[1,2,3],[1,2,3]])
 
 transpose :: Matrix f m n -> Matrix f n m
 transpose = pack . L.transpose . unPack
 
+-- test get
+testget = get m1 (1,1) == 2      -- m1 row 1, col 1
+
 get :: Matrix f m n -> (Int, Int) -> f
 get m (x,y) = unPack m !! x !! y
+
+-- matrix to array and back
+testunpack = unPack m1 == [[1,1,1],[2,2,2],[3,3,3]]
+testpack = pack(unPack m1) == m1
 
 unPack :: Matrix f m n -> [[f]]
 unPack (M (V vs)) = map (\(V a) -> a) vs
@@ -179,6 +197,12 @@ pack = M . V . map V
 
 -- | Analogous to (++)
 --   useful for Ex. Guassian elimination
+m2 :: Matrix Double 3 1
+m2 = toMat[[4,4,4]] :: MatR 3 1
+
+-- append adds m2 as the last col, new matrix = 3 rows, 4 cols
+testappend = append m1 m2 == (toMat [[1,1,1],[2,2,2],[3,3,3],[4,4,4]]:: MatR 3 4)
+
 append :: Matrix f m n1 -> Matrix f m n2 -> Matrix f m (n1+n2)
 append m1 m2 = pack $ unPack m1 ++ unPack m2
 
