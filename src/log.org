@@ -1,3 +1,19 @@
+* 2022-02-26: Patrik
++ Nice to see the Demo file appearing. A good test of the cross
+  product is to check that it is orthogonal to both incoming vectors:
+  dot v (cross v w) == dot w (cross v w) == 0.
++ [[In ListVector.hs]] I would expect elimOpToMat to take the syntax
+  (ElimOp a) to another semantics: a "Matrix transformer": a function
+  from a matrix to a matrix carrying out the operation. Then I guess
+  the current definition would be (eval op) applied to the identity
+  matrix (idm). [But it could also be applied to a rectangular
+  "augmented" matrix to do the first part of the linear equation
+  solving.]
++ Then the corresponding evalElimOps for a list of type [ElimOp a]
+  would just do foldr (.) id . map eval (or something like that).
++ span: you can say that you actually define the set, but because it
+  is infinite, you choose represent the set by a predicate (the
+  characteristic function of the set).
 * 2022-02-24: Patrik
 + Good to see several Haskell files with LinAlg-material, but it is a
   bit hard to know how to test it. Please add test cases and perhaps a
