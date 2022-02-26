@@ -49,12 +49,20 @@ subTest = v2 - v3 == vec [2-8,7-2,1-8]
 -- test dot product
 dotProd = dot v2 v3 == 2*8 + 7*2 + 1*8
 
+
+
 -- | Cross product of two vectors of size 3
 -- test cross product
-
+{-
+A good test of the cross
+product is to check that it is orthogonal to both incoming vectors:
+dot v (cross v w) == dot w (cross v w) == 0
+-}
 crossProd = cross v2 v3 == vec [7*8-1*2, 1*8-2*8, 2*2-7*8]
 
 
+orth = dot v2 (cross v2 v3) == dot v3 (cross v2 v3)
+                            && dot v2 (cross v2 v3) == 0
 
 {- 
 Ax = B
