@@ -13,7 +13,7 @@ import ListVector hiding (v1,v2,m1,m2)
 
 import qualified Prelude
 import Prelude hiding ((*),(+),(/),(-))
-import Test.QuickCheck
+--import Test.QuickCheck
 -- To run QuickCheck:
 -- type ":set -package QuickCheck" in the ghci prompt
 
@@ -71,6 +71,7 @@ orth = dot v2 (cross v2 v3) == dot v3 (cross v2 v3)
                             && dot v2 (cross v2 v3) == 0
 
 {- 
+A system of linear equations can be represented in matrix form using a coefficient matrix, a variable matrix, and a constant matrix
 Ax = B
 
 System of equations
@@ -80,6 +81,36 @@ System of equations
 
 -}
 
+-- Column vectors of coefficients
+vx, vy, vz, vb :: VecR 3
+vx = vec [2,-3,-2] :: VecR 3
+vy = vec [1,-1,1]  :: VecR 3
+vz = vec [-1,2,2]  :: VecR 3
+
+vb = vec [8,-11,-3] :: VecR 3
+
+
+-- A matrix
+aM :: MatR 3 3
+aM =  (mx `append` my) `append` mz
+    where
+        mx = toMat [vx] :: MatR 3 1
+        my = toMat [vy] :: MatR 3 1
+        mz = toMat [vz] :: MatR 3 1
+
+
+-- B matrix
+bM :: MatR 3 1
+bM = toMat [vb] :: MatR 3 1
+
+-- Augmented matrix
+augM :: MatR 3 4
+augM = aM `append` bM
+
+-- Triangular form
+triM :: MatR 3 4
+triM = utf augM
+{- 
 -- A matrix
 aM :: Matrix Double 3 3
 aM = toMat [[2,-3,-2],[1,-1,1],[-1,2,2]] :: MatR 3 3
@@ -94,3 +125,4 @@ augM = append aM bM
 
 -- Triangular form
 triM = utf augM
+-}
