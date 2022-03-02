@@ -89,7 +89,6 @@ vz = vec [-1,2,2]  :: VecR 3
 
 vb = vec [8,-11,-3] :: VecR 3
 
-
 -- A matrix
 aM :: MatR 3 3
 aM =  (mx `append` my) `append` mz
@@ -98,11 +97,15 @@ aM =  (mx `append` my) `append` mz
         my = toMat [vy] :: MatR 3 1
         mz = toMat [vz] :: MatR 3 1
 
-
 -- B matrix
 bM :: MatR 3 1
 bM = toMat [vb] :: MatR 3 1
 
+{-      A      b
+    |2  1 -1 | 8 |
+    |3 -1  2 |-11|
+    |2  1  2 |-3 |
+-}
 -- Augmented matrix
 augM :: MatR 3 4
 augM = aM `append` bM
