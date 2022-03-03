@@ -285,18 +285,17 @@ elimOpToFunc e = pack . L.transpose  . f . L.transpose . unpack
 foldElemOpsFunc :: Field f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
 foldElemOpsFunc = foldr (flip (.)) id . map elimOpToFunc
 
-            
 
 -- | Generate a trace of ElimOps from reducing a matrix to upper Echelon form
 utfTrace :: (Field f) => Matrix f m n -> [ElimOp f]
 utfTrace m0 = case separateCols m0 of
       []               -> []
       (V (x:xs), m):_  -> let 
-                      trace = mul x : zipWith mulAdd xs [2..] 
-                      in case (m, separateRows (foldElemOpsFunc trace m)) of
-                         (M (V []), _        ) -> trace
-                         (_,        []       ) -> trace
-                         (_,        (_,m'):_ ) -> trace ++ (map incIndex $ utfTrace m')
+                      trace  = mul x : zipWith mulAdd xs [2..] 
+                      augM = foldElemOpsFunc trace m
+                      in trace ++ case (m, separateRows augM) of
+                         (M (V (_:_)), (_,m'):_ ) -> map incIndex $ utfTrace m'
+                         _                        -> []
     where
         mulAdd s j = MulAdd 1 j (neg s)
         mul s = Mul 1 (recip s)
