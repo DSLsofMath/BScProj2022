@@ -113,6 +113,9 @@ augM = aM `append` bM
 -- Triangular form
 triM :: MatR 3 4
 triM = utf augM
+
+solvedSystem :: [Double]
+solvedSystem = solvesys augM
 {- 
 -- A matrix
 aM :: Matrix Double 3 3
