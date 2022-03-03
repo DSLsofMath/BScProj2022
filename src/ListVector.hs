@@ -318,3 +318,19 @@ linIndep m = not . any (uncurry span) $ separate m
 -- | Checks if the vectors in a matrix forms a basis of their vectorSpace
 basis :: (KnownNat m, KnownNat n, Eq f, Field f) => Matrix f m n -> Bool
 basis m = spansSpace m && linIndep m
+
+
+-- | Solve systems of equations
+--   Check in Demo.hs how to use
+solve :: (Field f) => [[f]] -> [f]
+solve m = foldr next [last (last m)] (init m)
+    where
+        next row found = let
+            subpart = init $ drop (length m - length found) row
+            solved = last row - sum (zipWith (*) found subpart)
+            in solved : found
+
+-- | apply when solving systems of equations
+--   each element in list represents variable values
+solvesys :: (Eq f, Field f) => Matrix f n m -> [f]
+solvesys = solve . unpack . transpose . utf
