@@ -189,7 +189,7 @@ transpose = pack . L.transpose . unpack
 -- test get
 testget = get m1 (1,1) == 2      -- m1 row 1, col 1
 
-get :: Matrix f m n -> (Int, Int) -> f
+get :: Matrix f m n -> (Index, Index) -> f
 get m (x,y) = unpack m !! x !! y
 
 -- matrix to array and back
@@ -232,8 +232,12 @@ utf = transpose . pack . sort . f . unpack . transpose
 
 type Index = Int 
 -- | Represents elementary row operations
-data ElimOp a = Swap Index Index | Mul Index a | MulAdd Index Index a
+data ElimOp a = Swap Index Index 
+              | Mul Index a 
+              | MulAdd Index Index a
+              deriving (Show, Eq)
 
+-- | Representation of an elementary row operation as a matrix 
 elimOpToMat :: (KnownNat n, Field f) => ElimOp f -> Matrix f n n
 elimOpToMat (Swap x y) = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
     where e' i | i == x    = e y
@@ -254,6 +258,53 @@ es = [MulAdd 1 2 (3/2), MulAdd 1 3 1, MulAdd 2 3 (-4), MulAdd 3 2 (1/2), MulAdd 
 
 foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
 foldElemOps = foldr (flip (£££)) idm . map elimOpToMat 
+
+
+-- | Representation of an elementary row operation as a function 
+--   The reason that we unpack all the way to list is to avoid a KnownNat constraint
+elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
+elimOpToFunc e = pack . L.transpose  . f . L.transpose . unpack
+    where f m = case e of
+            Swap i j     -> let 
+                            (i', j') = (min i j - 1, max i j - 1)
+                            (m1,x:xs) = splitAt i' m
+                            (xs',y:m2) = splitAt (j' - i'-1) xs
+                            in m1++y:xs'++x:m2
+            Mul i s      -> let
+                            (m1,x:m2) = splitAt (i-1) m
+                            in m1++(map (s*) x): m2
+            MulAdd i j s -> let 
+                            (i', j') = (i - 1, j - 1)
+                            (_,x:_) = splitAt i' m
+                            (m1,y:m2) = splitAt j' m
+                            y' = zipWith (+) y (map (s*) x)
+                            in m1++y':m2
+
+-- | Reduces a trace of elimOps to a single function
+--   TODO: We should add a rewrite rule such that fold elemOpToFunc only packs and unpacks once
+foldElemOpsFunc :: Field f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
+foldElemOpsFunc = foldr (flip (.)) id . map elimOpToFunc
+
+            
+
+-- | Generate a trace of ElimOps from reducing a matrix to upper Echelon form
+utfTrace :: (Field f) => Matrix f m n -> [ElimOp f]
+utfTrace m0 = case separateCols m0 of
+      []               -> []
+      (V (x:xs), m):_  -> let 
+                      trace = mul x : zipWith mulAdd xs [2..] 
+                      in case (m, separateRows (foldElemOpsFunc trace m)) of
+                         (M (V []), _        ) -> trace
+                         (_,        []       ) -> trace
+                         (_,        (_,m'):_ ) -> trace ++ (map incIndex $ utfTrace m')
+    where
+        mulAdd s j = MulAdd 1 j (neg s)
+        mul s = Mul 1 (recip s)
+        
+        incIndex :: ElimOp f -> ElimOp f
+        incIndex (Swap i j)     = Swap (i+1) (j+1)
+        incIndex (Mul i s)      = Mul (i+1) s
+        incIndex (MulAdd i j s) = MulAdd (i+1) (j+1) s
 
 
 -- !! Work in progress
