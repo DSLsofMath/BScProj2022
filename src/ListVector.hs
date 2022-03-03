@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeApplications #-}
@@ -25,6 +26,10 @@ import Algebra
 
 -------------------------------------------
 -- Vector definitions
+
+-- PROPOSAL: change the type of vector to be 
+-- Vector f n = Matrix f n 1
+-- to make the code more general
 
 -- | Dependent typed vector
 newtype Vector f (n :: Nat) = V [f] deriving (Show, Eq)
@@ -298,17 +303,32 @@ m1 `spans` m2 = all (span m1) (matToList m2)
 spansSpace :: (KnownNat m, Eq f, Field f) => Matrix f m n -> Bool
 spansSpace m = m `spans` idm
 
--- | For each vector in a matrix, returns the vector and the remaining matrix
-separate :: (KnownNat m, KnownNat n, AddGroup f) => Matrix f m n -> [(Matrix f m n, Vector f m)]
-separate m = map (\(m',v) -> (toMat m',v)) $ separate' [] (matToList m)
-    where separate' :: [Vector f m] -> [Vector f m] -> [([Vector f m], Vector f m)]
+-- | Seperates the first column from a matrix and returns it as a Vector along with the remaining Matrix
+--   SeparateCol is safe since the given matrix has width >= 1
+separateCol :: ( n ~ (n+1)-1 ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
+separateCol = head . separateCols
+
+-- | For each column vector in a matrix, returns the vector and the remaining matrix
+separateCols :: Matrix f m n -> [(Vector f m, Matrix f m (n-1))]
+separateCols m = map (\(v, m') -> (v, M (V m'))) $ separate' [] (matToList m)
+    where separate' :: [Vector f m] -> [Vector f m] -> [(Vector f m, [Vector f m])]
           separate' _   []     = []
-          separate' acc (x:[]) = [(acc,     x)]
-          separate' acc (x:xs) = (acc++xs, x) : separate' (acc++[x]) xs
+          separate' acc (v:[]) = [(v,     acc)]
+          separate' acc (v:vs) =  (v, acc++vs) : separate' (acc++[v]) vs
+
+
+-- | Seperates the first row from a matrix and returns it as a Vector along with the remaining Matrix
+--   SeparateRow is safe since the given matrix has width >= 1
+separateRow :: ( m ~ (m+1)-1 ) => Matrix f (m+1) n -> (Vector f n, Matrix f m n)
+separateRow = head . separateRows
+
+-- | For each row vector in a matrix, returns the vector and the remaining matrix
+separateRows :: Matrix f m n -> [(Vector f n, Matrix f (m-1) n)]
+separateRows = map (\(v, m) -> (v, transpose m)) . separateCols . transpose
 
 -- | Checks if the vectors in a matrix are linearly independant
-linIndep :: (KnownNat m, KnownNat n, Eq f, Field f) => Matrix f m n -> Bool
-linIndep m = not . any (uncurry span) $ separate m
+linIndep :: (Eq f, Field f) => Matrix f m n -> Bool
+linIndep = not . any (\(v, m) -> m `span` v ) . separateCols 
 
 
 -- 2.27
@@ -316,7 +336,7 @@ linIndep m = not . any (uncurry span) $ separate m
 -- A basis of V is a list of vectors in V that is linearly independent and spans V
 
 -- | Checks if the vectors in a matrix forms a basis of their vectorSpace
-basis :: (KnownNat m, KnownNat n, Eq f, Field f) => Matrix f m n -> Bool
+basis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
 basis m = spansSpace m && linIndep m
 
 
