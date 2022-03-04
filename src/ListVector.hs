@@ -227,17 +227,9 @@ matToList :: Matrix f m n -> [Vector f m]
 matToList (M (V vs)) = vs
 
 
-utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
-utf = transpose . pack . sort . f . unpack . transpose
-    where
-          f []     = []
-          f (x:[]) = let (x', n) = pivot x in [x']
-          f (x:xs) = let (x', n) = pivot x in x' : (f $ map (reduce n x') xs)
-          pivot [] = ([],-1)
-          pivot (x:xs) | x == zero = let (ys, n) = pivot xs in (x:ys, n + 1)
-                       | otherwise = (map (/x) (x:xs), 0 :: Int)
-          reduce n p x = zipWith (-) x (map ((x!!n)*) p)
-          sort = L.sortOn (length . takeWhile (==zero))
+-------------------------------------------
+-- Elementary row operations definition 
+-- Reduction and equation solver functions
 
 type Index = Int 
 -- | Represents elementary row operations
@@ -312,7 +304,20 @@ foldElemOpsFunc :: Field f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
 foldElemOpsFunc = foldr (flip (.)) id . map elimOpToFunc
 
 
--- | Generate a trace of ElimOps from reducing a matrix to upper Echelon form
+-- | Transform a matrix to upper triangular form
+utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
+utf = transpose . pack . sort . f . unpack . transpose
+    where
+          f []     = []
+          f (x:[]) = let (x', n) = pivot x in [x']
+          f (x:xs) = let (x', n) = pivot x in x' : (f $ map (reduce n x') xs)
+          pivot [] = ([],-1)
+          pivot (x:xs) | x == zero = let (ys, n) = pivot xs in (x:ys, n + 1)
+                       | otherwise = (map (/x) (x:xs), 0 :: Int)
+          reduce n p x = zipWith (-) x (map ((x!!n)*) p)
+          sort = L.sortOn (length . takeWhile (==zero))
+
+-- | Generate a trace of ElimOps from reducing a matrix to upper triangular form
 utfTrace :: (Field f, Eq f) => Matrix f m n -> [ElimOp f]
 utfTrace m0 = case separateCols m0 of
       []               -> []
@@ -327,8 +332,8 @@ utfTrace m0 = case separateCols m0 of
         mul s = Mul 1 (recip s)
         
         incIndex :: ElimOp f -> ElimOp f
-        incIndex (Swap i j)     = Swap (i+1) (j+1)
-        incIndex (Mul i s)      = Mul (i+1) s
+        incIndex (Swap i j)     = Swap   (i+1) (j+1)
+        incIndex (Mul i s)      = Mul    (i+1)       s
         incIndex (MulAdd i j s) = MulAdd (i+1) (j+1) s
 
 
@@ -356,6 +361,27 @@ pivot (x:xs) | x == zero = 1 + pivot xs
 
 jordan :: (Eq f, Field f) => Matrix f m n -> [ElimOp f]
 jordan = undefined
+
+
+-- | Solve systems of equations
+--   Check in Demo.hs how to use
+solve :: (Field f) => [[f]] -> [f]
+solve m = foldr next [last (last m)] (init m)
+    where
+        next row found = let
+            subpart = init $ drop (length m - length found) row
+            solved = last row - sum (zipWith (*) found subpart)
+            in solved : found
+
+-- | apply when solving systems of equations
+--   each element in list represents variable values
+solvesys :: (Eq f, Field f) => Matrix f n m -> [f]
+solvesys = solve . unpack . transpose . utf
+
+
+-------------------------------------------
+-- Properties on Finite-Dimensional Vector Spaces
+-- Span, linear independence and basis
 
 -- | Takes a vector and a basis and returns the linear combination
 --   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
@@ -415,18 +441,3 @@ linIndep = not . any (\(v, m) -> m `span` v ) . separateCols
 basis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
 basis m = spansSpace m && linIndep m
 
-
--- | Solve systems of equations
---   Check in Demo.hs how to use
-solve :: (Field f) => [[f]] -> [f]
-solve m = foldr next [last (last m)] (init m)
-    where
-        next row found = let
-            subpart = init $ drop (length m - length found) row
-            solved = last row - sum (zipWith (*) found subpart)
-            in solved : found
-
--- | apply when solving systems of equations
---   each element in list represents variable values
-solvesys :: (Eq f, Field f) => Matrix f n m -> [f]
-solvesys = solve . unpack . transpose . utf
