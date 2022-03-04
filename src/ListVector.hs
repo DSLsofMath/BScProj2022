@@ -364,7 +364,7 @@ spansSpace m = m `spans` idm
 
 -- | Seperates the first column from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateCol is safe since the given matrix has width >= 1
-separateCol :: ( n ~ (n+1)-1 ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
+separateCol :: ( n ~ (n+1-1) ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
 separateCol = head . separateCols
 
 -- | For each column vector in a matrix, returns the vector and the remaining matrix
@@ -378,7 +378,7 @@ separateCols m = map (\(v, m') -> (v, M (V m'))) $ separate' [] (matToList m)
 
 -- | Seperates the first row from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateRow is safe since the given matrix has width >= 1
-separateRow :: ( m ~ (m+1)-1 ) => Matrix f (m+1) n -> (Vector f n, Matrix f m n)
+separateRow :: ( m ~ (m+1-1) ) => Matrix f (m+1) n -> (Vector f n, Matrix f m n)
 separateRow = head . separateRows
 
 -- | For each row vector in a matrix, returns the vector and the remaining matrix

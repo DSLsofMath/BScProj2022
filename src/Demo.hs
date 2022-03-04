@@ -114,8 +114,8 @@ augM = aM `append` bM
 triM :: MatR 3 4
 triM = utf augM
 
-solvedSystem :: [Double]
-solvedSystem = solvesys augM
+solvedSystem :: MatR 3 1
+solvedSystem = toMat [solvesys augM]
 {- 
 -- A matrix
 aM :: Matrix Double 3 3
@@ -130,5 +130,5 @@ augM :: Matrix Double 3 4
 augM = append aM bM
 
 -- Triangular form
-triM = utf augM
+trMiM = utf augM
 -}
