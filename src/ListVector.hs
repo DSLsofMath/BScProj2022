@@ -93,7 +93,16 @@ newtype Matrix f m n = M (Vector (Vector f m) n)  deriving (Eq)
 type MatR = Matrix Double
 
 instance Show f => Show (Matrix f m n) where
-    show m = let (M (V vs)) = transpose m in unlines $ map (\(V ss) -> show ss) vs
+    show = showMat
+
+-- Show function for matrices 
+showMat :: (Show f) => Matrix f m n -> String
+showMat m = unlines $ map (\s -> "| " ++ unwords s ++ "|") $ L.transpose $ map padCol $ unpack m
+    where
+        getLongest = maximum . map (length)
+        padString n s = (replicate (n-length s) ' ') ++ s ++ " "
+        padCol l = let s = map show l in map (padString (getLongest s)) s
+
 
 
 -- | Identity matrix
