@@ -57,6 +57,18 @@ det22 m = p1 - p2
 det33 ::  Field f => Matrix f m n -> f
 det33 m = sum (detPlus m) - sum (detMinus m)
 
+-- Determinants
+det :: Field f => Matrix f m n -> f
+det m | cols /= rows            = error "Matrix not squared"
+      | cols == 1 && rows == 1  = head $ head $ unpack m    -- det [[x]] == x
+      | cols == 2 && rows == 2  = det22 m
+      | cols == 3 && rows == 3  = det33 m
+      | otherwise = error "Not defined yet"
+    where
+        cols = length $ unpack m
+        rows = length $ head $ unpack m
+
+
 --tests, all give correct results
 idm33 = idm :: MatR 3 3 -- det33 = 1
 idm22 = idm :: MatR 2 2 -- det 22 = 1

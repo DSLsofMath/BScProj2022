@@ -13,6 +13,7 @@ import ListVector hiding (v1,v2,m1,m2)
 
 import qualified Prelude
 import Prelude hiding ((*),(+),(/),(-))
+import Eigen
 --import Test.QuickCheck
 -- To run QuickCheck:
 -- type ":set -package QuickCheck" in the ghci prompt
