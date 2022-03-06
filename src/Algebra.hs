@@ -1,4 +1,5 @@
 {-# Language FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
 
@@ -56,7 +57,7 @@ type instance Under (_ -> f)       = f
 type instance Under [[f]]          = f
 
 -- | Definition of a VectorSpace
-class (AddGroup v) => VectorSpace v where
+class (AddGroup v, AddGroup (Under v)) => VectorSpace v where
     (£) :: Under v -> v -> v
 
 
@@ -75,4 +76,9 @@ instance Field Rational     where (*) = (P.*); (/) = (P./); one = 1
 instance Field Exp          where (*) = (:*:); recip = Recip; one = Const 1
 instance Field b => Field (a -> b)  where 
     f * g = \x -> f x * f x; recip f = \x -> recip (f x); one = const one
+
+instance Field b => VectorSpace (a -> b) where
+    s £ f = \x -> s * f x
+
+
 

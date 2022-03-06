@@ -10,7 +10,7 @@
 
 module ListVector where
 
-import GHC.TypeLits
+import GHC.TypeLits hiding (type (^))
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
 
@@ -35,6 +35,10 @@ import Algebra
 newtype Vector f (n :: Nat) = V [f] deriving (Show, Eq)
 
 type VecR = Vector Double
+
+-- | Nice type notation for vectors
+--   v = vec [1,2,3,4] :: R^4
+type f ^ n = Vector f n
 
 lenTest = V[1,2,3]::VecR 3
 vecLen :: KnownNat n => Vector f n -> Int
@@ -322,20 +326,19 @@ utfTrace :: (Field f, Eq f) => Matrix f m n -> [ElimOp f]
 utfTrace m0 = case separateCols m0 of
       []               -> []
       (V (x:xs), m):_  -> let 
-                      trace  = mul x : [ mulAdd s j | (s,j) <- zip xs [2..], s /= zero ]
+                      trace  = mul x ++ [ mulAdd s j | (s,j) <- zip xs [2..], s /= zero ]
                       augM = foldElemOpsFunc trace m
                       in trace ++ case (m, separateRows augM) of
                          (M (V (_:_)), (_,m'):_ ) -> map incIndex $ utfTrace m'
                          _                        -> []
     where
         mulAdd s j = MulAdd 1 j (neg s)
-        mul s = Mul 1 (recip s)
+        mul s = if s /= one then [Mul 1 (recip s)] else []
         
         incIndex :: ElimOp f -> ElimOp f
         incIndex (Swap i j)     = Swap   (i+1) (j+1)
         incIndex (Mul i s)      = Mul    (i+1)       s
         incIndex (MulAdd i j s) = MulAdd (i+1) (j+1) s
-
 
 -- !! Work in progress
 -- Doesn't work for m n matricies where m is larger than n
