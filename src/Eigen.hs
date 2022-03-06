@@ -57,13 +57,37 @@ det22 m = p1 - p2
 det33 ::  Field f => Matrix f m n -> f
 det33 m = sum (detPlus m) - sum (detMinus m)
 
+
+m44 = toMat [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]] :: MatR 4 4
+mtest = transpose $ toMat [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]] :: MatR 4 4
+
+
+testdet = det mtest == 1693
+
+-- Determinant 4x4 for matrices
+det44 :: Field f => Matrix f m n -> f
+det44 m = a*det33 m1 - b*det33 m2 + c*det33 m3 - d*det33 m4
+    where
+        m1 = pack $ L.transpose $ drop 1 (L.transpose $ drop 1 (unpack m))
+        m2 = pack $ drop 1 (head $ unpack m) : drop 1 (unpack m1)
+        m3 = pack $ head (unpack m2) : head (unpack m1) : drop 2 (unpack m1)
+        m4 = pack $ head (unpack m2) : take 2 (unpack m1)
+        
+        row1 = head $ unpack $ transpose m  -- row1 = [a,b,c,d]
+        a  = head row1
+        b  = head $ drop 1 row1
+        c  = head $ drop 2 row1
+        d  = last row1
+
+
 -- Determinants
 det :: Field f => Matrix f m n -> f
-det m | cols /= rows            = error "Matrix not squared"
-      | cols == 1 && rows == 1  = head $ head $ unpack m    -- det [[x]] == x
-      | cols == 2 && rows == 2  = det22 m
-      | cols == 3 && rows == 3  = det33 m
-      | otherwise = error "Not defined yet"
+det m | cols /= rows = error "Matrix not squared"
+      | cols == 1    = head $ head $ unpack m    -- det [[x]] == x
+      | cols == 2    = det22 m
+      | cols == 3    = det33 m
+      | cols == 4    = det44 m
+      | otherwise    = error "Not defined yet"
     where
         cols = length $ unpack m
         rows = length $ head $ unpack m
