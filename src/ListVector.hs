@@ -392,9 +392,11 @@ solvesys = solve . unpack . transpose . utf
 -- Properties on Finite-Dimensional Vector Spaces
 -- Span, linear independence and basis
 
+type List = Vector 
+
 -- | Takes a vector and a basis and returns the linear combination
 --   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
-eval :: (VectorSpace v, Under v ~ f) => Vector f n -> Vector v n -> v
+eval :: (VectorSpace v, Under v ~ f) => Vector f n -> List v n -> v
 eval (V fs) (V vs) = sum $ zipWith (£) fs vs
 
 
@@ -447,6 +449,6 @@ linIndep = not . any (\(v, m) -> m `span` v ) . separateCols
 -- A basis of V is a list of vectors in V that is linearly independent and spans V
 
 -- | Checks if the vectors in a matrix forms a basis of their vectorSpace
-basis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
-basis m = spansSpace m && linIndep m
+isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
+isBasis m = spansSpace m && linIndep m
 

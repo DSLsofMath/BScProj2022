@@ -87,6 +87,41 @@ apply :: (b --> a) -> b -> a
 Wrap f `apply` a = toLinMapFun f a
 
 
+
+
+-- | All finite vectorspaces has a dimension
+--   and can be represented by a basis
+--   To generate a basis for a vector space v we can use TypeApplications @:
+--   basis @(v)
+--   e.g. basis @(R^2) = V [V [1.0,0.0],V [0.0,1.0]]
+--
+class VectorSpace x => Finite x where 
+    type Dim x :: Nat
+    basis :: List x (Dim x)
+
+instance (KnownNat n, Field f) => Finite (Vector f n) where
+    type Dim (Vector f n) = n
+    basis = let M bs = idm in bs
+
+
+-- | If a linear map goes from a finite space to a space with our Vector type
+--   it can be represented as a matrix
+toListMat :: (Finite b) => (b --> Vector f m) -> Matrix f m (Dim b)
+toListMat (Wrap x) = let V bs = basis in M . V $ map (toLinMapFun x) bs
+
+
+
+-- | We might be able to generalize this further such that any linear map 
+--   from and to a finite vector space can be represented as a matrix
+instance (KnownNat m, KnownNat n, Field f) => ToMat m n (Vector f n --> Vector f m) where
+    type Under' (Vector f n --> Vector f m) = f
+    toMat = toListMat 
+    fromMat = Wrap
+
+
+instance (Finite b, Show f) => Show (b --> (Vector f m)) where
+    show = show . toListMat
+
 --------------------------------------------
 ---- Instances of LinearMap
 
