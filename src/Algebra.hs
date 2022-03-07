@@ -50,16 +50,10 @@ class AddGroup a => Field a where
     one :: a
 
 
--- | The underlying type (often a field) of x  
-type family   Under x 
-type instance Under Double         = Double
-type instance Under (_ -> f)       = f
-type instance Under [[f]]          = f
-
 -- | Definition of a VectorSpace
 class (AddGroup v, AddGroup (Under v)) => VectorSpace v where
+    type Under v -- The underlying type of the VectorSpace
     (£) :: Under v -> v -> v
-
 
 
 -- Instance definitions
@@ -77,8 +71,9 @@ instance Field Exp          where (*) = (:*:); recip = Recip; one = Const 1
 instance Field b => Field (a -> b)  where 
     f * g = \x -> f x * f x; recip f = \x -> recip (f x); one = const one
 
-instance Field b => VectorSpace (a -> b) where
-    s £ f = \x -> s * f x
+instance VectorSpace b => VectorSpace (a -> b) where
+    type Under (a -> b) = Under b
+    s £ f = \x -> s £ f x
 
 
 

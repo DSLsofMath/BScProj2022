@@ -64,6 +64,7 @@ instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
     zero = zeroVec
 
 instance (KnownNat n, Field f) => VectorSpace (Vector f n) where
+    type Under (Vector f n) = f
     s £ V ss = V $ map (s*) ss
 
 -- | Dot product of two vectors 
@@ -136,6 +137,7 @@ instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
     zero = let v = V $ replicate (vecLen v) zero in M v
 
 instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) where
+    type Under (Matrix f m n) = f
     s £ M (V vs) = M . V $ map (s£) vs
 
 
@@ -150,42 +152,46 @@ instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Matrix f n o)
 
 
 
-type instance Under (Vector f _)   = f
-type instance Under (Matrix f _ _) = f
-type instance Under [Vector f _]   = f
-
 -- | Converts objects to and from Matrices.
 --   Requires that the object is an instance of the type family Under.
 class ToMat m n x where
-    toMat   :: x -> Matrix (Under x) m n
-    fromMat :: Matrix (Under x) m n -> x
+    type Under' x 
+    toMat   :: x -> Matrix (Under' x) m n
+    fromMat :: Matrix (Under' x) m n -> x
 
 instance (KnownNat n) => ToMat n n Double where
+    type Under' Double = Double
     toMat s = s £ idm
     fromMat (M (V (V (s:_):_))) = s
 
 instance ToMat n 1 (Vector f n) where
+    type Under' (Vector f n) = f
     toMat v = M (V [v])
     fromMat (M (V [v])) = v
 
 instance ToMat 1 n (Vector f n) where
+    type Under' (Vector f n) = f
     toMat   (V ss) = M . V $ map (\s -> V [s]) ss
     fromMat (M (V vs)) = V $ map (\(V (x:_)) -> x) vs
 
 -- | Diagonal matrix
 instance (KnownNat n, Field f) => ToMat n n (Vector f n) where
+    type Under' (Vector f n) = f
     toMat (V ss) = M . V $ zipWith (\s i-> s £ e i) ss [1..]
     fromMat m = vec $ zipWith (!!) (fromMat m) [0..]
 
 instance ToMat m n (Matrix f m n) where
+    type Under' (Matrix f m n) = f
     toMat = id
     fromMat = id
 
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [Vector f m] where
+    type Under' [Vector f m] = f
     toMat vs = M . vec $ vs
     fromMat = matToList
 
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
+    type Under' [[f]] = f
     toMat = M . vec . map vec
     fromMat = unpack
 
