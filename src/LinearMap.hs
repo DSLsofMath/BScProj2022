@@ -8,6 +8,7 @@
 module LinearMap where
 
 import GHC.TypeLits hiding ( type (^) )
+import Data.Coerce
 
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
@@ -33,15 +34,21 @@ data LinearMapType b a where
     
 -- | Contains the basic properties of a linear map
 --   Needed to make us of LinearMapType
-class (VectorSpace (From x), VectorSpace (To x), Under (From x) ~ Under (To x)) => LinearMap x where 
-    type To   x :: *
+class (AddGroup x, VectorSpace (From x), VectorSpace (To x), Under (From x) ~ Under (To x)) => LinearMap x where 
+    type To   x :: * 
     type From x :: *
-    toLinMap :: x -> From x -> To x
+
+    -- | Transforms the representation to a function
+    toLinMapFun :: x -> From x -> To x
+
+    -- | Optional function for more efficent compositions if the types match
+    compOwn :: (LinearMap y, Coercible x y, From x ~ To y) =>  x -> y -> From y --> To x
+    compOwn x y = Wrap x `comp` Wrap y
 
 
 -- A linear map is a vector space
 instance AddGroup (b --> a) where
-    Wrap a + Wrap b = Wrap (toLinMap a + toLinMap b)
+    Wrap a + Wrap b = Wrap (toLinMapFun a + toLinMapFun b)
     Zero   + a      = a
     a      + Zero   = a
     neg (Wrap a) = Wrap (neg a)
@@ -51,7 +58,7 @@ instance AddGroup (b --> a) where
 type instance Under (b --> a) = Under a
 
 instance (VectorSpace a) => VectorSpace (b --> a) where 
-    s £ Wrap f = Wrap (\x -> s £ (toLinMap f x))
+    s £ Wrap f = Wrap (\x -> s £ (toLinMapFun f x))
 
 
 -- An example of composing linear maps with different implementations
@@ -65,12 +72,13 @@ mf :: R^3 --> R^2
 mf = Wrap m `comp` Wrap f
 
 -- | Coposition of linear maps
+--   Alternativly we add a Comp constructor in LinearMap
 comp :: (b --> a) -> (c --> b) -> (c --> a)
-Wrap f `comp` Wrap g = Wrap $ toLinMap f . toLinMap g
+Wrap f `comp` Wrap g = Wrap $ toLinMapFun f . toLinMapFun g
 
 -- | Computes the linear map on a vector
 apply :: (b --> a) -> b -> a
-Wrap f `apply` a = toLinMap f a
+Wrap f `apply` a = toLinMapFun f a
 
 
 
@@ -78,13 +86,14 @@ Wrap f `apply` a = toLinMap f a
 instance (KnownNat m, KnownNat n, Field f) => LinearMap (Matrix f m n ) where
     type To   (Matrix f m n) = Vector f m 
     type From (Matrix f m n) = Vector f n 
-    toLinMap m = (m££)
+    toLinMapFun m = (m££)
+    -- compOwn a b = Wrap $ (a) £££ (b)
 
 
 instance (VectorSpace a, VectorSpace b, Under a ~ Under b) => LinearMap (b -> a) where
     type To   (b -> a) = a
     type From (b -> a) = b
-    toLinMap f = f 
+    toLinMapFun f = f 
 
 
 
