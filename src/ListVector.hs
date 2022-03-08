@@ -236,6 +236,9 @@ matToList :: Matrix f m n -> [Vector f m]
 matToList (M (V vs)) = vs
 
 
+getDiagonal :: Matrix f n n -> Vector f n
+getDiagonal m = V $ zipWith (!!) (unpack m) [0..]
+
 -------------------------------------------
 -- Elementary row operations definition 
 -- Reduction and equation solver functions

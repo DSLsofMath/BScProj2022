@@ -57,6 +57,9 @@ class AddGroup a => Field a where
 
     one :: a
 
+product :: (Foldable t, Field a) => t a -> a
+product = foldr (*) one
+
 
 -- | Definition of a VectorSpace
 class (AddGroup v, AddGroup (Under v)) => VectorSpace v where

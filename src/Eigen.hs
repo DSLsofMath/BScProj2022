@@ -92,6 +92,15 @@ detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do
     return $ s * detNN m'
 
 
+-- | Uses Guassian elimination to compute the determinant
+--   This algorithm is only O(n^3)
+detGauss :: (Field f, Eq f) => Matrix f n n -> f
+detGauss m = let V diag = getDiagonal utfM in product diag / traceProduct
+    where trace = utfTrace m 
+          utfM = foldElemOpsFunc trace m
+          traceProduct = product [ s | Mul _ s <- trace ]
+
+
 
 -- Determinants
 det :: Field f => Matrix f m n -> f
