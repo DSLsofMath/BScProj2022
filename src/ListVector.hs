@@ -140,6 +140,16 @@ M (V vs) ££ (V ss) = sum $ zipWith (£) ss vs
 m £££ M (V vs) = M . V $ map (m££) vs
 
 
+-- | Applies a function on each column vector
+--   Representes composition f M
+funMatComp :: (Vector f b -> Vector f a) -> Matrix f b c -> Matrix f a c
+funMatComp f (M (V vs)) = M . V $ map f vs
+
+prop_funMatComp :: (KnownNat b, KnownNat a, Field f, Eq f) => 
+    (Vector f b -> Vector f a) -> Matrix f b c -> Vector f c -> Bool
+prop_funMatComp f m v = f (m ££ v) == (f `funMatComp` m) ££ v
+
+
 -- Matrices also forms a vector space over a field
 instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
     M (V as) + M (V bs) = M . V $ zipWith (+) as bs

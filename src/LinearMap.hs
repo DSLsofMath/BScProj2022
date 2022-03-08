@@ -81,6 +81,8 @@ class (VectorSpace x, VectorSpace (From x), VectorSpace (To x),
 instance AddGroup (b --> a) where
     Wrap rA a + Wrap rB b = case (rA, rB) of 
         (Mat, Mat) -> wrap $ a + b
+        (Fun, Mat) -> wrap $ (a `funMatComp` idm)  + b
+        (Mat, Fun) -> wrap $ a + (b `funMatComp` idm)
         _          -> wrap $ toLinMapFun a + toLinMapFun b
     Zero   + a      = a
     a      + Zero   = a
@@ -113,6 +115,7 @@ Zero      `comp` _         = Zero
 _         `comp` Zero      = Zero
 Wrap rA a `comp` Wrap rB b = case (rA, rB) of
     (Mat, Mat) -> wrap $ a £££ b 
+    -- (Fun, Mat) -> Wrap Mat $ a `funMatComp` b -- Won't compile since type a might not be a vector
     (_, _) -> wrap $ toLinMapFun a . toLinMapFun b
 
 
@@ -121,12 +124,22 @@ apply :: (b --> a) -> b -> a
 Wrap _ f `apply` a = toLinMapFun f a
 
 
+-- | Lifts a function on matrices to a function on linear maps
+--   liftMat f (wrap m) == f m
+liftMatF :: (Finite b, n ~ Dim b) => (Matrix f m n -> x) -> (b --> Vector f m) -> x
+liftMatF f lm = f $ toListMat lm
+
+-- | Lifts a matrix to matrix transform to a transform on a linear map
+liftMatT :: (KnownNat n, KnownNat o, KnownNat p, Field f, Finite b, n ~ Dim b) => 
+        (Matrix f m n -> Matrix f o p) -> (b --> Vector f m) -> (Vector f p --> Vector f o)
+liftMatT f lm = wrap $ liftMatF f lm
+
+
 -- | If a linear map goes from a finite space to a space with our Vector type
 --   it can be represented as a matrix
 toListMat :: (Finite b) => (b --> Vector f m) -> Matrix f m (Dim b)
 toListMat (Wrap Mat x) = x
 toListMat (Wrap _   x) = let L bs = basis in M . V $ map (toLinMapFun x) bs
-
 
 prop_MatToFunToMat :: (KnownNat n, LinearMap (Matrix f m n), Field f, Eq f) => Matrix f m n -> Bool
 prop_MatToFunToMat m = m == toListMat (wrap (toLinMapFun m))
