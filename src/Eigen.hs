@@ -80,6 +80,19 @@ det44 m = a*det33 m1 - b*det33 m2 + c*det33 m3 - d*det33 m4
         d  = last row1
 
 
+
+-- | Determinant for any nxn matrix 
+--   The algorithm is based on Laplace expansion
+--   Note that the complexity is exponantial since it calls itself n times per iteration
+detNN :: Field f => Matrix f n n -> f
+detNN (M (V [V [x]])) = x
+detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do 
+    (V (s:_), subM) <- separateCols m      -- All combinations of columns and their remaining matrix
+    let (_, m') = head $ separateRows subM -- Removes the upper row, creating a square matrix
+    return $ s * detNN m'
+
+
+
 -- Determinants
 det :: Field f => Matrix f m n -> f
 det m | cols /= rows = error "Matrix not squared"
