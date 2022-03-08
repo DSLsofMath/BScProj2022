@@ -21,8 +21,8 @@ data CSR f (m :: Nat) (n :: Nat) = CSR { elems :: [f],
 
 deriving instance Show f => Show (CSR f m n)
 
-type instance Under (CSR f m n) = f
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n (CSR f m n) where
+    type Under' (CSR f m n) = f
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
 
 -- Test Matrix

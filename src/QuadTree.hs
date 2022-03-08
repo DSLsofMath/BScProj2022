@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
+-- {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
@@ -8,6 +8,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+module QuadTree where
 
 import Prelude hiding ((+), (-), (*), (/), sum, )
 import GHC.TypeLits
@@ -70,8 +71,8 @@ type family ToNat (n :: Nat4) :: Nat where
      ToNat (Succ n)  = 4 * ToNat n
 
 
-type Quad :: Nat4 -> Type -> Type
-data Quad n a where 
+-- type Quad :: Nat4 -> Type -> Type
+data Quad (n :: Nat4) a where 
     Zero :: Quad n a
     Scalar :: a -> Quad Nil a
     Mtx :: {
