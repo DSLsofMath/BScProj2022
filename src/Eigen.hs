@@ -144,10 +144,10 @@ sepM mat1 mat2 n = m1 : sepM mat1 m2 (n-1)
 
 dgen :: (Field f,Num f) => [Matrix f m n] -> [f]
 dgen []                                    = []
-dgen (x:xs) | (length $ unpack x) == 1     = (head $ unpack x) ++ dgen xs
-            | (length $ unpack x) == 2     = [det22 x] ++ dgen xs
-            | (length $ unpack x) == 3     = [det33 x] ++ dgen xs
-            | otherwise                    = zipWith (*) row1 (dgen (sepM x x n))
+dgen (x:xs) | n == 1     = (head $ unpack x) ++ dgen xs
+            | n == 2     = [det22 x] ++ dgen xs
+            | n == 3     = [det33 x] ++ dgen xs
+            | otherwise  = zipWith (*) row1 (dgen (sepM x x n))
                 where
                     n    = length $ unpack x
                     row1 = head $ unpack $ transpose x
