@@ -121,3 +121,42 @@ idm22 = idm :: MatR 2 2 -- det 22 = 1
 
 m22   = toMat [[10,1],[1,10]] :: MatR 2 2 -- det22 = 99
 m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] :: MatR 3 3 -- det33 = -15
+
+
+
+
+-- Other implementation for determinants of n*n matrices
+-- Generalization form of det44, seems to be quite quick
+newM :: (Field f,Num f) => [[f]] -> Int -> [[f]]
+newM m n = col1 ++ (take i m) ++ (drop (1+i) m)
+    where
+        i    = length m - n
+        col1 = drop i (take (i+1) m)
+
+
+sepM :: (Field f,Num f) => Matrix f m n -> Matrix f m n -> Int -> [Matrix f m n]
+sepM mat1 mat2 0 = []
+sepM mat1 mat2 n = m1 : sepM mat1 m2 (n-1)
+    where
+        m1 = pack $ L.transpose $ drop 1 (L.transpose $ drop 1 (unpack mat2))
+        m2 = pack $ newM (unpack mat1) (n-1)
+
+
+dgen :: (Field f,Num f) => [Matrix f m n] -> [f]
+dgen []                                    = []
+dgen (x:xs) | (length $ unpack x) == 1     = (head $ unpack x) ++ dgen xs
+            | (length $ unpack x) == 2     = [det22 x] ++ dgen xs
+            | (length $ unpack x) == 3     = [det33 x] ++ dgen xs
+            | otherwise                    = zipWith (*) row1 (dgen (sepM x x n))
+                where
+                    n    = length $ unpack x
+                    row1 = head $ unpack $ transpose x
+
+
+determinant :: (Field f, Num f) => Matrix f m n -> f
+determinant m | rows /= cols = error "Not squared matrix" 
+              | otherwise    = sum $ zipWith (*) (ones) (dgen [m])
+    where
+        cols    = length (unpack m)
+        rows    = length $ head (unpack m)
+        ones = concat $ repeat [1,-1]
