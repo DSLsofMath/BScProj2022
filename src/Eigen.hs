@@ -126,7 +126,8 @@ m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] :: MatR 3 3 -- det33 = -15
 
 
 -- Other implementation for determinants of n*n matrices
--- Generalization form of det44, seems to be quite quick
+-- Generalization form of det44, trasig, ska kika på den mer
+
 newM :: (Field f,Num f) => [[f]] -> Int -> [[f]]
 newM m n = col1 ++ (take i m) ++ (drop (1+i) m)
     where
@@ -141,17 +142,21 @@ sepM mat1 mat2 n = m1 : sepM mat1 m2 (n-1)
         m1 = pack $ L.transpose $ drop 1 (L.transpose $ drop 1 (unpack mat2))
         m2 = pack $ newM (unpack mat1) (n-1)
 
-
+-- pajar här med zipWith, kikar på imorrn
 dgen :: (Field f,Num f) => [Matrix f m n] -> [f]
 dgen []                                    = []
 dgen (x:xs) | n == 1     = (head $ unpack x) ++ dgen xs
             | n == 2     = [det22 x] ++ dgen xs
             | n == 3     = [det33 x] ++ dgen xs
-            | otherwise  = zipWith (*) row1 (dgen (sepM x x n))
+            | otherwise  = zipWith (*) row1 (dgen (sepM x x n)) ++ dgen xs
                 where
                     n    = length $ unpack x
                     row1 = head $ unpack $ transpose x
 
+
+
+
+mtry = transpose $ toMat [[7,5,1,8,9,3],[2,8,4,5,9,6],[1,9,6,2,6,9],[3,9,8,8,6,3],[1,1,6,0,3,0],[1,7,3,9,2,3]] :: MatR 6 6
 
 determinant :: (Field f, Num f) => Matrix f m n -> f
 determinant m | rows /= cols = error "Not squared matrix" 
