@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 
 module ListVector where
@@ -32,7 +33,11 @@ import Algebra
 -- to make the code more general
 
 -- | Dependent typed vector
-newtype Vector f (n :: Nat) = V [f] deriving (Show, Eq)
+newtype Vector f (n :: Nat) = Vector (List f n) deriving (Show, Eq)
+
+-- | Allows us to patternmatch the vector elements
+--   without exlicitly unwraping the underlying List
+pattern V a = Vector (L a)
 
 type VecR = Vector Double
 
@@ -67,11 +72,16 @@ instance (KnownNat n, Field f) => VectorSpace (Vector f n) where
     type Under (Vector f n) = f
     s £ V ss = V $ map (s*) ss
 
+-- | Vector is further a finite Vector Field
+instance (KnownNat n, Field f) => Finite (Vector f n) where
+    type Dim (Vector f n) = n
+    basis = let M (Vector bs) = idm in bs
+
+
 -- | Dot product of two vectors 
 v1, v2 :: Vector Double 3
 v1 = V [2,7,1]::VecR 3
 v2 = V [8,2,8]::VecR 3
--- är dot prod rätt def? ändra till zipWith(*)
 -- test dot product
 testdot = dot v1 v2 == 2*8 + 7*2 + 8*1
 
@@ -141,19 +151,8 @@ instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) where
     s £ M (V vs) = M . V $ map (s£) vs
 
 
--- | Defines a unified multiplication between scalars, vectors and matrices
-class Mult a b c | a b -> c where
-    (**) :: a -> b -> c
-
-instance                          Field f  => Mult f              f              f              where (**) = (*)
-instance (VectorSpace v, Under v ~ f)      => Mult f              v   v                         where (**) = (£)
-instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Vector f n)   (Vector f m)   where (**) = (££)
-instance (KnownNat n, KnownNat m, Field f) => Mult (Matrix f m n) (Matrix f n o) (Matrix f m o) where (**) = (£££)
-
-
-
 -- | Converts objects to and from Matrices.
---   Requires that the object is an instance of the type family Under.
+--   NOTE: Should we get rid of this class and simply define functions instead?
 class ToMat m n x where
     type Under' x 
     toMat   :: x -> Matrix (Under' x) m n
@@ -392,12 +391,10 @@ solvesys = solve . unpack . transpose . utf
 -- Properties on Finite-Dimensional Vector Spaces
 -- Span, linear independence and basis
 
-type List = Vector 
-
 -- | Takes a vector and a basis and returns the linear combination
 --   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
 eval :: (VectorSpace v, Under v ~ f) => Vector f n -> List v n -> v
-eval (V fs) (V vs) = sum $ zipWith (£) fs vs
+eval (V fs) (L vs) = sum $ zipWith (£) fs vs
 
 
 -- | Checks if a vector is in the span of a list of vectors
@@ -405,7 +402,7 @@ eval (V fs) (V vs) = sum $ zipWith (£) fs vs
 --   span [w1..wn] v = v `elem` span(w1..w2)
 span :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
 span m v = all (\x -> pivotLen x /= 1) . L.transpose . unpack . utf $ append m v'
-    where v' = M (V @_ @1 [v]) -- Forces the matrix to size n 1
+    where v' = M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
           pivotLen xs = length (dropWhile (==zero) xs)
 
 -- | Checks that m1 spans atleast as much as m2 

@@ -1,13 +1,21 @@
 {-# Language FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DataKinds #-}
 
 
 module Algebra where 
 
+import GHC.TypeLits hiding ( type (^) )
 import qualified Prelude as P
 import Prelude hiding ((+), (-), (*), (/), sum, product, recip)
+
 type R = Double
+
+
+-- | A list with a given length
+newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
+
 
 data Exp =  Const R
              |  X
@@ -54,6 +62,16 @@ class AddGroup a => Field a where
 class (AddGroup v, AddGroup (Under v)) => VectorSpace v where
     type Under v -- The underlying type of the VectorSpace
     (£) :: Under v -> v -> v
+
+-- | All finite vectorspaces has a dimension
+--   and can be represented by a basis
+--   To generate a basis for a vector space v we can use TypeApplications @:
+--   basis @(v)
+--   e.g. basis @(R^2) = V [V [1.0,0.0],V [0.0,1.0]]
+--
+class VectorSpace x => Finite x where 
+    type Dim x :: Nat
+    basis :: List x (Dim x)
 
 
 -- Instance definitions

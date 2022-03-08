@@ -9,7 +9,6 @@
 module LinearMap where
 
 import GHC.TypeLits hiding ( type (^) )
-import Data.Coerce
 
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
@@ -19,10 +18,10 @@ import Algebra
 
 
 -- | Nice notation for a linear map
+--   Especially useful for the interactive experince
 --   f :: R^3 --> R^4
 infixr 1 -->
 type b --> a = LinearMapType b a
-
 
 -- | A general interface for all linear maps
 --   By using an existential type capturing a linear map we can hidde the implementation 
@@ -33,6 +32,10 @@ data LinearMapType b a where
     -- Comp :: b --> a -> c --> b -> c --> a
     Zero :: b --> a
 
+-- | Show instance for a linear map if it can be represented as a matrix
+instance (Finite b, Show f) => Show (b --> (Vector f m)) where
+    show = show . toListMat
+
     
 -- | Contains the basic properties of a linear map
 --   Needed to make us of LinearMapType
@@ -40,13 +43,21 @@ class (VectorSpace x, VectorSpace (From x), VectorSpace (To x), Under (From x) ~
     type To   x :: * 
     type From x :: *
 
+    -- Save a list of prefered representations 
+    -- Such that efficent metods can be used when 
+    -- combining linear maps
+    -- preferedRep :: x -> [Reps]
+
     -- | Transforms the representation to a function
     toLinMapFun :: x -> From x -> To x
+
 
 
 -- | Coposition of linear maps and addition
 --   Since this is an overlappable class we can add new instances with 
 --   more efficent compositions for certaint types
+--   NOTE: The use of this class does not currently work when extracting 
+--   values from Wrap, which was the main motivation for its existance
 class (LinearMap x, LinearMap y) => Composable x y where 
     comp :: (To y ~ From x) => x -> y -> (From y --> To x)
     f `comp` g = Wrap $ toLinMapFun f . toLinMapFun g
@@ -54,7 +65,7 @@ class (LinearMap x, LinearMap y) => Composable x y where
     add :: (From x ~ From y, To x ~ To y) => x -> y -> From x --> To x
     x `add` y = Wrap $ toLinMapFun x + toLinMapFun y
 
-instance {-# OVERLAPPABLE #-} (LinearMap x, LinearMap y) => Composable x y where 
+instance {-# INCOHERENT #-} (LinearMap x, LinearMap y) => Composable x y where 
     
 
 -- A linear map is a vector space
@@ -72,13 +83,13 @@ instance (VectorSpace a) => VectorSpace (b --> a) where
 
 
 -- An example of composing linear maps with different implementations
-f :: R^3 -> R^2 
-f (V [x,y,z]) = V [2*x, 3*y] 
+f :: R^2 -> R^2 
+f (V [x,y]) = V [2*x, 3*y] 
 
 m :: MatR 2 2 
 m = toMat [[0,1], [-1,0]]
 
-mf :: R^3 --> R^2
+mf :: R^2 --> R^2
 mf = m `comp` f
 
 
@@ -87,27 +98,14 @@ apply :: (b --> a) -> b -> a
 Wrap f `apply` a = toLinMapFun f a
 
 
-
-
--- | All finite vectorspaces has a dimension
---   and can be represented by a basis
---   To generate a basis for a vector space v we can use TypeApplications @:
---   basis @(v)
---   e.g. basis @(R^2) = V [V [1.0,0.0],V [0.0,1.0]]
---
-class VectorSpace x => Finite x where 
-    type Dim x :: Nat
-    basis :: List x (Dim x)
-
-instance (KnownNat n, Field f) => Finite (Vector f n) where
-    type Dim (Vector f n) = n
-    basis = let M bs = idm in bs
-
-
 -- | If a linear map goes from a finite space to a space with our Vector type
 --   it can be represented as a matrix
 toListMat :: (Finite b) => (b --> Vector f m) -> Matrix f m (Dim b)
-toListMat (Wrap x) = let V bs = basis in M . V $ map (toLinMapFun x) bs
+toListMat (Wrap x) = let L bs = basis in M . V $ map (toLinMapFun x) bs
+
+
+prop_MatToFunToMat :: (KnownNat n, LinearMap (Matrix f m n), Field f, Eq f) => Matrix f m n -> Bool
+prop_MatToFunToMat m = m == toListMat (Wrap (toLinMapFun m))
 
 
 
@@ -119,9 +117,6 @@ instance (KnownNat m, KnownNat n, Field f) => ToMat m n (Vector f n --> Vector f
     fromMat = Wrap
 
 
-instance (Finite b, Show f) => Show (b --> (Vector f m)) where
-    show = show . toListMat
-
 --------------------------------------------
 ---- Instances of LinearMap
 
@@ -132,6 +127,7 @@ instance (KnownNat m, KnownNat n, Field f) => LinearMap (Matrix f m n ) where
 
 -- | Since we have a better way to compose matrices than transforming them to funcion 
 --   we use our own implementation
+--   NOTE: Curently LinearMapType will always use the most general instance 
 instance (KnownNat a, KnownNat b, KnownNat c, Field f) => Composable (Matrix f a b) (Matrix f b c) where
     a `comp` b = Wrap $ a £££ b
     a `add`  b = Wrap $ a + b
@@ -141,7 +137,6 @@ instance (VectorSpace a, VectorSpace b, Under a ~ Under b) => LinearMap (b -> a)
     type To   (b -> a) = a
     type From (b -> a) = b
     toLinMapFun f = f 
-
 
 
 
