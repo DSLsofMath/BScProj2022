@@ -46,19 +46,21 @@ class AddGroup a where
 sum :: (Foldable t, AddGroup a) => t a -> a
 sum = foldr (+) zero 
 
-class AddGroup a => Field a where
-    (*) :: a -> a -> a
 
+class Mul a where
+    (*) :: a -> a -> a
+    one :: a
+
+product :: (Foldable t, Mul a) => t a -> a
+product = foldr (*) one
+
+
+class (AddGroup a, Mul a) => Field a where
     (/) :: a -> a -> a
     a / b = a * recip b
 
     recip :: a -> a
     recip a = one / a
-
-    one :: a
-
-product :: (Foldable t, Field a) => t a -> a
-product = foldr (*) one
 
 
 -- | Definition of a VectorSpace
@@ -86,11 +88,17 @@ instance AddGroup Exp       where (+) = (:+:); neg = Negate; zero = Const 0
 instance AddGroup b => AddGroup (a -> b)  where 
     f + g = \x -> f x + g x; neg f = \x -> neg (f x); zero = const zero
 
-instance Field Double       where (*) = (P.*); (/) = (P./); one = 1
-instance Field Rational     where (*) = (P.*); (/) = (P./); one = 1
-instance Field Exp          where (*) = (:*:); recip = Recip; one = Const 1
-instance Field b => Field (a -> b)  where 
-    f * g = \x -> f x * f x; recip f = \x -> recip (f x); one = const one
+instance Mul Int          where (*) = (P.*); one = 1
+instance Mul Integer      where (*) = (P.*); one = 1
+instance Mul Double       where (*) = (P.*); one = 1
+instance Mul Rational     where (*) = (P.*); one = 1
+instance Mul Exp          where (*) = (:*:); one = Const 1
+instance Mul b => Mul (a -> b)  where f * g = \x -> f x * f x; one = const one
+
+instance Field Double       where (/) = (P./); 
+instance Field Rational     where (/) = (P./); 
+instance Field Exp          where recip = Recip; 
+instance Field b => Field (a -> b)  where recip f = \x -> recip (f x); 
 
 instance VectorSpace b => VectorSpace (a -> b) where
     type Under (a -> b) = Under b

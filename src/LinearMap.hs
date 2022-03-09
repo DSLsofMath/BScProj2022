@@ -36,7 +36,7 @@ data LinearMapType b a where
 
     -- | Represents a scalar multiplication
     --   When used with addition we might view it as a scaled identity
-    Scalr :: (LinearMap (a --> a), x ~ Under a, Field x) => x -> a --> a
+    Scalr :: (LinearMap (a --> a), x ~ Under a, Mul x) => x -> a --> a
     Zero :: b --> a
 
 
