@@ -31,9 +31,12 @@ type b --> a = LinearMapType b a
 --   By using an existential type capturing a linear map we can hidde the implementation 
 --   and treat all representation of linear maps in a single type.
 data LinearMapType b a where
+    -- | Takes any structure that can represents a linear map and returns a generic one
     Wrap :: (LinearMap x) => Rep x -> x -> From x --> To x
-    -- We might add a Comp constructor in LinearMap
-    -- Comp :: b --> a -> c --> b -> c --> a
+
+    -- | Represents a scalar multiplication
+    --   When used with addition we might view it as a scaled identity
+    Scalr :: (LinearMap (a --> a), x ~ Under a, Field x) => x -> a --> a
     Zero :: b --> a
 
 
@@ -47,14 +50,13 @@ data Rep x where
     Fun   :: Rep (b -> a)
     CSR   :: Rep (SparseCSR.CSR f m n)
     Quad  :: Rep (QuadTree.Quad n f)
-    Other :: Rep a
-    ZeroR :: Rep ()
 
 deriving instance Show (Rep x)
 
 -- | Returns a string of the underlying type of the linear map
 --   Useful for debuging
 getRep :: (b --> a) -> String 
+getRep (Scalr s)  = "Scalar"
 getRep Zero       = "Zero"
 getRep (Wrap r _) = show r
 
@@ -84,15 +86,22 @@ instance AddGroup (b --> a) where
         (Fun, Mat) -> wrap $ (a `funMatComp` idm)  + b
         (Mat, Fun) -> wrap $ a + (b `funMatComp` idm)
         _          -> wrap $ toLinMapFun a + toLinMapFun b
-    Zero   + a      = a
-    a      + Zero   = a
+    Zero    + a       = a
+    a       + Zero    = a
+    Scalr s      + (Wrap Mat a) = wrap $ s £ idm + a   -- Scalr is allways (a --> a) therefore idm is allowd
+    (Wrap Mat a) + Scalr s      = wrap $ a + s £ idm
+    Scalr s + a       = wrap $ s £ id + toLinMapFun a 
+    a       + Scalr s = wrap $ toLinMapFun a + s £ id
     neg (Wrap _ a) = wrap (neg a)
-    neg Zero     = Zero
+    neg (Scalr s)  = Scalr (neg s)
+    neg Zero       = Zero
     zero = Zero
 
 instance (VectorSpace a) => VectorSpace (b --> a) where 
     type Under (b --> a) = Under a
     s £ Wrap _ f = wrap (s £ f)
+    s £ Zero = Zero
+    s £ Scalr f = Scalr (s * f)
 
 
 -- An example of composing linear maps with different implementations
@@ -110,12 +119,14 @@ mf = wrap m `comp` wrap f
 --
 --   Note: We would like to use a class for composition, but its hard to implement it such
 --   that it does not default to the most generall instance
-comp :: (b --> a) -> (c --> b) -> (c --> a)
+comp :: (LinearMap (c --> a)) => (b --> a) -> (c --> b) -> (c --> a)
 Zero      `comp` _         = Zero
 _         `comp` Zero      = Zero
+Scalr s   `comp` b         = s £ b
+a         `comp` Scalr s   = s £ a
 Wrap rA a `comp` Wrap rB b = case (rA, rB) of
     (Mat, Mat) -> wrap $ a £££ b 
-    -- (Fun, Mat) -> Wrap Mat $ a `funMatComp` b -- Won't compile since type a might not be a vector
+    -- (Fun, Mat) -> Wrap Mat $ a `funMatComp` b -- Won't compile since type a might not be a Vector
     (_, _) -> wrap $ toLinMapFun a . toLinMapFun b
 
 
@@ -158,6 +169,12 @@ instance (KnownNat m, KnownNat n, Field f) => ToMat m n (Vector f n --> Vector f
 -- Note that these also needs to be represented internally if we want to use them efficently.
 -- As of now they will simply be transformed to functions when composing
 
+instance (VectorSpace b, VectorSpace a, Under b ~ Under a) => LinearMap (b --> a) where
+    type To   (b --> a) = a
+    type From (b --> a) = b
+    wrap = id
+    toLinMapFun = apply
+
 instance (KnownNat m, KnownNat n, Field f) => LinearMap (Matrix f m n ) where
     type To   (Matrix f m n) = Vector f m 
     type From (Matrix f m n) = Vector f n 
@@ -169,6 +186,5 @@ instance (VectorSpace a, VectorSpace b, Under a ~ Under b) => LinearMap (b -> a)
     type From (b -> a) = b
     wrap x = Wrap Fun x
     toLinMapFun f = f 
-
 
 
