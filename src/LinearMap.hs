@@ -131,8 +131,17 @@ Wrap rA a `comp` Wrap rB b = case (rA, rB) of
 
 
 -- | Computes the linear map on a vector
-apply :: (b --> a) -> b -> a
+apply :: AddGroup a => (b --> a) -> b -> a
 Wrap _ f `apply` a = toLinMapFun f a
+Zero     `apply` _ = zero
+Scalr s  `apply` a = s £ a
+
+
+-- | A linear map T :: W --> V where W only contains 
+--   one basis vector can be represented as a vector in V directly.
+--   In R^n This is analogous to a n*1 matrix and a vector of length n
+getVector :: (Finite b, Dim b ~ 1, AddGroup a) => (b --> a) -> a
+getVector x = let L [s] = basis in x `apply` s
 
 
 -- | Lifts a function on matrices to a function on linear maps
