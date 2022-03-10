@@ -64,7 +64,7 @@ class (AddGroup a, Mul a) => Field a where
 
 
 -- | Definition of a VectorSpace
-class (AddGroup v, AddGroup (Under v)) => VectorSpace v where
+class (AddGroup v, Mul (Under v), AddGroup (Under v)) => VectorSpace v where
     type Under v -- The underlying type of the VectorSpace
     (£) :: Under v -> v -> v
 
