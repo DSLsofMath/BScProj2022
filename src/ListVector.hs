@@ -78,7 +78,8 @@ instance (KnownNat n, AddGroup f, Mul f) => VectorSpace (Vector f n) where
 -- | Vector is further a finite Vector Field
 instance (KnownNat n, Field f) => Finite (Vector f n) where
     type Dim (Vector f n) = n
-    basis = let M (Vector bs) = idm in bs
+    type BasisVec (Vector f n) = (Vector f n)
+    basis' _ = let M (Vector bs) = idm in bs
 
 
 -- | Dot product of two vectors 
@@ -468,17 +469,23 @@ isBasis m = spansSpace m && linIndep m
 
 
 
+-- | A subspace is defined by its overlying vector space, its dimension
+--   and a unique identifier. The identifier is needed only to avoid composition
+--   of two subspaces with different bases.
+--
+--   Internally Subspace contains its basis and a vector
 data Subspace x v (n :: Nat) = Sub { getBasis  :: List v n,
-                                 getVector :: Vector (Under v) n
-                               }
+                                     getVector :: Vector (Under v) n
+                                   }
 
--- instance (Show v, Show (Under v)) => Show (Subspace v n) where
---     show (Sub b v) = show v
+instance (VectorSpace v, Show v) => Show (Subspace x v n) where
+    show = show . getVec
 
+getVec :: VectorSpace v => Subspace x v n -> v
 getVec (Sub b v) = v `eval` b
 
 instance (KnownNat n, VectorSpace v) => AddGroup (Subspace x v n) where
-    -- We need a way to garante that b1 == b2
+    -- We need a way to grantee that b1 == b2
     Sub b1 v1 + Sub b2 v2 = Sub b1 (v1 + v2)
     Sub b1 v1 - Sub b2 v2 = Sub b1 (v1 - v2)
     zero = Sub undefined zero
@@ -487,9 +494,10 @@ instance (KnownNat n, VectorSpace v) => VectorSpace (Subspace x v n) where
     type Under (Subspace x v n) = Under v
     s £ (Sub b v) = Sub b (s£v)
 
--- instance (KnownNat n, VectorSpace v) => Finite (Subspace v n) where
---     type Dim (Subspace v n) = n
---     basis' (Sub b _) = b
+instance (KnownNat n, VectorSpace v) => Finite (Subspace x v n) where
+    type Dim (Subspace x v n) = n
+    type BasisVec (Subspace x v n) = v
+    basis' (Sub b _) = b
     
 
 -- instance Finite (Basis v n) where

@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 
 module Algebra where 
@@ -76,8 +77,11 @@ class (AddGroup v, Mul (Under v), AddGroup (Under v)) => VectorSpace v where
 --
 class VectorSpace x => Finite x where 
     type Dim x :: Nat
-    basis :: List x (Dim x)
+    type BasisVec x :: *
+    basis' :: x -> List (BasisVec x) (Dim x)
 
+basis :: forall x. (Finite x, AddGroup x, x ~ BasisVec x) => List x (Dim x)
+basis = basis' (zero :: x)
 
 -- Instance definitions
 instance AddGroup Int       where (+) = (P.+); (-) = (P.-); zero = 0
