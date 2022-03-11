@@ -194,5 +194,36 @@ $T(u + v) = T u + T v$ for all $u, v \in V $;
 $T(\lambda v) = \lambda T v$ for all $\lambda \in F$ and all $v \in V$.
 
 
+
+\subsection{Linear maps on finite vector spaces}
+
+
+A linear map from V to W is a function $T : V \to W$.
+If $v_1, v_2, ... v_n$ is a basis for $V$ and 
+   $w_1, w_2, ... w_m$ is a basis for $W$  we get the following: 
+
+$$
+T(v) = w = a_1w_1 + a_1w_1 + ... + a_mw_m \simeq [a_1, a_2, ... , a_m]
+$$
+
+That is, the result of any linear map to a finite vector space can be represented 
+by a list of scalars that would scale the basis vectors.
+Furthermore, since $V$ is finite, we have that:
+
+$$
+T(v) = T(b_1v_1 + ... + b_nv_n) \simeq T'[b_1, b_2, ... , b_n] 
+$$
+
+That is, the input vector can be represented as a list of scalars.
+
+Combining these two facts we know there exists a function 
+$ T': [s]^n -> [s]^m $ 
+where $[s]^n$ denotes a list of length n containing the field under $V$ and $W$.
+
+Of special interest is the result of $T'[0,..,1,..,0]$, 
+that is if $T'$ is given a list representing a basis vector.
+Following this we will soon derive a matrix as a way to define linear maps based on their bases.
+
+
 \end{document}
 
