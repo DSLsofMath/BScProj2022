@@ -33,7 +33,10 @@ import Algebra
 -- to make the code more general
 
 -- | Dependent typed vector
-newtype Vector f (n :: Nat) = Vector (List f n) deriving (Show, Eq)
+newtype Vector f (n :: Nat) = Vector (List f n) deriving (Eq)
+
+instance Show f => Show (Vector f n) where
+    show v = show . M $ V [v]
 
 -- | Allows us to patternmatch the vector elements
 --   without exlicitly unwraping the underlying List
@@ -68,7 +71,7 @@ instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
     V as - V bs = V $ zipWith (-) as bs
     zero = zeroVec
 
-instance (KnownNat n, Field f) => VectorSpace (Vector f n) where
+instance (KnownNat n, AddGroup f, Mul f) => VectorSpace (Vector f n) where
     type Under (Vector f n) = f
     s £ V ss = V $ map (s*) ss
 
@@ -462,3 +465,77 @@ linIndep = not . any (\(v, m) -> m `span` v ) . separateCols
 isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
 isBasis m = spansSpace m && linIndep m
 
+
+
+
+data Subspace x v (n :: Nat) = Sub { getBasis  :: List v n,
+                                 getVector :: Vector (Under v) n
+                               }
+
+-- instance (Show v, Show (Under v)) => Show (Subspace v n) where
+--     show (Sub b v) = show v
+
+getVec (Sub b v) = v `eval` b
+
+instance (KnownNat n, VectorSpace v) => AddGroup (Subspace x v n) where
+    -- We need a way to garante that b1 == b2
+    Sub b1 v1 + Sub b2 v2 = Sub b1 (v1 + v2)
+    Sub b1 v1 - Sub b2 v2 = Sub b1 (v1 - v2)
+    zero = Sub undefined zero
+    
+instance (KnownNat n, VectorSpace v) => VectorSpace (Subspace x v n) where
+    type Under (Subspace x v n) = Under v
+    s £ (Sub b v) = Sub b (s£v)
+
+-- instance (KnownNat n, VectorSpace v) => Finite (Subspace v n) where
+--     type Dim (Subspace v n) = n
+--     basis' (Sub b _) = b
+    
+
+-- instance Finite (Basis v n) where
+--     type Dim (Basis v n) = n
+--     basis' = getBasis 
+
+
+
+data LinearEq f n = Eq (Vector f n) f  
+
+{- 
+*ListVector> mSys = utf $ (toMat [[1],[1]] :: MatR 1 2) 
+*ListVector> mSys ££ vec [54,-53]
+| 1.0 |
+
+*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [54,-53, 1]
+| 1.0 |
+
+*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [54,-5432, 1]
+| 1.0 |
+
+*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [542,-5432, 1]
+| 1.0 |
+
+*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [5424234234,-54343242, 1]
+| 1.0 |
+
+*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [0,-54343242, 1]
+| 1.0 |
+
+*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [0,0, 1]
+| 1.0 |
+
+*ListVector> (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [0,0, 1]
+| 0.0 |
+| 1.0 |
+
+*ListVector> (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [432,0, 1]
+|  432.0 |
+| -431.0 |
+
+*ListVector> (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [432,543534, 1]
+|  432.0 |
+| -431.0 |
+
+*ListVector> (toMat @2 @2 [[1,-1],[0,1]]) ££ vec [432, 1]
+|  432.0 |
+| -431.0 |
+-}
