@@ -6,6 +6,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeApplications #-}
 
+module Main where
 
 
 import Algebra
@@ -148,3 +149,7 @@ augM = append aM bM
 -- Triangular form
 trMiM = utf augM
 -}
+
+main :: IO()
+main = putStrLn $ show solvedSystem
+
