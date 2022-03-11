@@ -6,6 +6,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeApplications #-}
 
+module Main where
 
 
 import Algebra
@@ -90,6 +91,21 @@ vz = vec [-1,2,2]  :: VecR 3
 
 vb = vec [8,-11,-3] :: VecR 3
 
+-- A matrix with infinite solutions
+vx2, vy2, vz2, vb2 :: VecR 3
+vx2 = vec [1,2,1] :: VecR 3
+vy2 = vec [0,1,1]  :: VecR 3
+vz2 = vec [1,2,1]  :: VecR 3
+
+vb2 = vec [1,3,2] :: VecR 3
+
+matx :: MatR 3 4
+matx = toMat [vx2,vy2,vz2,vb2]
+
+-- | Should give [1-x,1,x], currently very wrong
+solveMatx :: MatR 3 1
+solveMatx = toMat [solvesys matx]
+
 -- A matrix
 aM :: MatR 3 3
 aM =  (mx `append` my) `append` mz
@@ -133,3 +149,7 @@ augM = append aM bM
 -- Triangular form
 trMiM = utf augM
 -}
+
+main :: IO()
+main = putStrLn $ show solvedSystem
+
