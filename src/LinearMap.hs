@@ -7,6 +7,26 @@
 
 
 -- | A module for creating generic linear maps
+-- 
+--   From a user perspective it whould be nice to only think about a linear map
+--   as a function from one vector space to another.
+--   They should not have to know the implementation of the transformation.
+--   This module provides a type (b --> a) that represents a linear map
+--   from b to a. 
+--
+--
+--   A current problem with this type is that our matrix representation only works if 
+--   the map goes from and to (Vector f n). This is partly because we cannot go 
+--   from a concrete vector to a list of its linear combination. Further more, this means 
+--   that we cannot compose two linear maps if one is a function and the other is a matrix.
+--
+--   To solve this we might have to change LinearMapType to only handle finite vector spaces.
+--   Doing so will let us internally represent all vectors by their basis,
+--   i.e. a list of scalars, which also works better if we use matrices.
+--
+--   The downside of that change is that we cannot allow functions that 
+--   operate directly on a vector. 
+--   However that might be a good thing since that could break the linear rules.
 module LinearMap where
 
 import GHC.TypeLits hiding ( type (^) )
