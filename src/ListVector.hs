@@ -404,31 +404,6 @@ solvesys :: (Eq f, Field f) => Matrix f n m -> [f]
 solvesys = solve . unpack . transpose . utf
 
 
--------------------------------------------
--- Properties on Finite-Dimensional Vector Spaces
--- Span, linear independence and basis
-
--- | Takes a vector and a basis and returns the linear combination
---   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
-eval :: (VectorSpace v, Under v ~ f) => Vector f n -> List v n -> v
-eval (V fs) (L vs) = sum $ zipWith (£) fs vs
-
-
--- | Checks if a vector is in the span of a list of vectors
---   Normaly span is defined as a set, but here we use it as a condition such that
---   span [w1..wn] v = v `elem` span(w1..w2)
-span :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
-span m v = all (\x -> pivotLen x /= 1) . L.transpose . unpack . utf $ append m v'
-    where v' = M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
-          pivotLen xs = length (dropWhile (==zero) xs)
-
--- | Checks that m1 spans atleast as much as m2 
-spans :: (KnownNat m, KnownNat n2, Eq f, Field f) => Matrix f m n1 -> Matrix f m n2 -> Bool
-m1 `spans` m2 = all (span m1) (matToList m2)
-
--- | Checks that m spans the whole vectorSpace
-spansSpace :: (KnownNat m, Eq f, Field f) => Matrix f m n -> Bool
-spansSpace m = m `spans` idm
 
 -- | Seperates the first column from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateCol is safe since the given matrix has width >= 1
@@ -453,60 +428,7 @@ separateRow = head . separateRows
 separateRows :: Matrix f m n -> [(Vector f n, Matrix f (m-1) n)]
 separateRows = map (\(v, m) -> (v, transpose m)) . separateCols . transpose
 
--- | Checks if the vectors in a matrix are linearly independant
-linIndep :: (Eq f, Field f) => Matrix f m n -> Bool
-linIndep = not . any (\(v, m) -> m `span` v ) . separateCols 
 
-
--- 2.27
--- Definition: basis
--- A basis of V is a list of vectors in V that is linearly independent and spans V
-
--- | Checks if the vectors in a matrix forms a basis of their vectorSpace
-isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
-isBasis m = spansSpace m && linIndep m
-
-
-
-
--- | A subspace is defined by its overlying vector space, its dimension
---   and a unique identifier. The identifier is needed only to avoid composition
---   of two subspaces with different bases.
---
---   Internally Subspace contains its basis and a vector
-data Subspace x v (n :: Nat) = Sub { getBasis  :: List v n,
-                                     getVector :: Vector (Under v) n
-                                   }
-
-instance (VectorSpace v, Show v) => Show (Subspace x v n) where
-    show = show . getVec
-
-getVec :: VectorSpace v => Subspace x v n -> v
-getVec (Sub b v) = v `eval` b
-
-instance (KnownNat n, VectorSpace v) => AddGroup (Subspace x v n) where
-    -- We need a way to grantee that b1 == b2
-    Sub b1 v1 + Sub b2 v2 = Sub b1 (v1 + v2)
-    Sub b1 v1 - Sub b2 v2 = Sub b1 (v1 - v2)
-    zero = Sub undefined zero
-    
-instance (KnownNat n, VectorSpace v) => VectorSpace (Subspace x v n) where
-    type Under (Subspace x v n) = Under v
-    s £ (Sub b v) = Sub b (s£v)
-
-instance (KnownNat n, VectorSpace v) => Finite (Subspace x v n) where
-    type Dim (Subspace x v n) = n
-    type BasisVec (Subspace x v n) = v
-    basis' (Sub b _) = b
-    
-
--- instance Finite (Basis v n) where
---     type Dim (Basis v n) = n
---     basis' = getBasis 
-
-
-
-data LinearEq f n = Eq (Vector f n) f  
 
 {- 
 *ListVector> mSys = utf $ (toMat [[1],[1]] :: MatR 1 2) 

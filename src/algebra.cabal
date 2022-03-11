@@ -19,6 +19,8 @@ library
   exposed-modules: 	Algebra
   			, ListVector
 			, Eigen
+            , LinearMap
+            , Subspaces
   default-extensions:  DataKinds,
                        TypeOperators,
                        TypeApplications
