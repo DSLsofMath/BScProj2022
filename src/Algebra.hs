@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 
 module Algebra where 
@@ -55,6 +56,7 @@ class Mul a where
 product :: (Foldable t, Mul a) => t a -> a
 product = foldr (*) one
 
+type Ring a = (AddGroup a, Field a)
 
 class (AddGroup a, Mul a) => Field a where
     (/) :: a -> a -> a
@@ -65,7 +67,7 @@ class (AddGroup a, Mul a) => Field a where
 
 
 -- | Definition of a VectorSpace
-class (AddGroup v, Mul (Under v), AddGroup (Under v)) => VectorSpace v where
+class (AddGroup v, Ring (Under v)) => VectorSpace v where
     type Under v -- The underlying type of the VectorSpace
     (£) :: Under v -> v -> v
 
