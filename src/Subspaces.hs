@@ -50,12 +50,6 @@ instance (KnownNat n, VectorSpace v) => Finite (Subspace x v n) where
 -- Properties on Finite-Dimensional Vector Spaces
 -- Span, linear independence and basis
 
--- | Takes a vector and a basis and returns the linear combination
---   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
-eval :: (VectorSpace v, Under v ~ f) => Vector f n -> List v n -> v
-eval (V fs) (L vs) = sum $ zipWith (£) fs vs
-
-
 -- | Checks if a vector is in the span of a list of vectors
 --   Normaly span is defined as a set, but here we use it as a condition such that
 --   span [w1..wn] v = v `elem` span(w1..w2)
