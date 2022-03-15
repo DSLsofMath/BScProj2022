@@ -1,15 +1,17 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Subspaces where
 
 
 import GHC.TypeLits hiding (type (^))
 import qualified Prelude
-import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
+import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span, elem)
 
 import Algebra
 import ListVector
@@ -30,11 +32,11 @@ import ListVector
 --   We might want to add an invariant to the list such that it is linearly independent.
 data Subspace v = Sub [v]
 
-instance (VectorSpace v, Show v) => Show (Subspace v) where
+instance (Show v) => Show (Subspace v) where
     show (Sub vs) = show vs
 
 -- | We define Addgroup over a subspace as "sum of subsets"
-instance (VectorSpace v) => AddGroup (Subspace v) where
+instance (AddGroup v) => AddGroup (Subspace v) where
     Sub v1 + Sub v2 = Sub $ v1 ++ v2 -- We might want to remove dependent elements
     Sub v1 - Sub v2 = undefined -- Unsure of how we should handle subtraction
     zero = Sub []
@@ -44,17 +46,23 @@ instance (VectorSpace v) => AddGroup (Subspace v) where
 -- Properties on Finite-Dimensional Vector Spaces
 -- Span, linear independence and basis
 
+span :: [v] -> Subspace v
+span = Sub
+
+elem :: (Eq f, Field f) => Vector f n -> Subspace (Vector f n) -> Bool
+elem v (Sub vs) = span' (M $ V vs) v
+
 -- | Checks if a vector is in the span of a list of vectors
 --   Normally span is defined as a set, but here we use it as a condition such that
 --   span [w1..wn] v = v `elem` span(w1..w2)
-span :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
-span m v = all (\x -> pivotLen x /= 1) . unpack . transpose . utf $ append m v'
+span' :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
+span' m v = all (\x -> pivotLen x /= 1) . unpack . transpose . utf $ append m v'
     where v' = M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
           pivotLen xs = length (dropWhile (==zero) xs)
 
 -- | Checks that m1 spans at least as much as m2 
 spans :: (KnownNat m, KnownNat n2, Eq f, Field f) => Matrix f m n1 -> Matrix f m n2 -> Bool
-m1 `spans` m2 = all (span m1) (matToList m2)
+m1 `spans` m2 = all (span' m1) (matToList m2)
 
 -- | Checks that m spans the whole vectorSpace
 spansSpace :: (KnownNat m, Eq f, Field f) => Matrix f m n -> Bool
@@ -62,7 +70,12 @@ spansSpace m = m `spans` idm
 
 -- | Checks if the vectors in a matrix are linearly independent
 linIndep :: (Eq f, Field f) => Matrix f m n -> Bool
-linIndep = not . any (\(v, m) -> m `span` v ) . separateCols 
+linIndep = not . any (\(v, m) -> m `span'` v ) . separateCols 
+
+-- | Any list of vector can be made linearly independent by iteratively removing vectors 
+-- that are in the span of the remaining vectors
+makeLinIndep :: (Eq f, Field f) => [Vector f n] -> [Vector f n]
+makeLinIndep = foldl (\vs v -> if span' (M $ V vs) v then vs else v:vs) [] 
 
 
 -- 2.27
