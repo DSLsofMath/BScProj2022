@@ -36,8 +36,8 @@ showE :: Exp -> String
 showE X = "X"
 showE (e1 :+: e2) = "(" ++ showE e1 ++ " + " ++ showE e2 ++ ")"
 showE (e1 :*: e2) = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
-showE (Recip e)  = "(" ++ "Recip" ++ showE e ++ ")"
-showE (Negate e) = "(" ++ "-" ++ showE e ++ ")"
+showE (Recip e)   = "(" ++ "Recip" ++ showE e ++ ")"
+showE (Negate e)  = "(" ++ "-" ++ showE e ++ ")"
 showE (Const r)   = show r
 
 simplifyE :: Exp -> Exp
