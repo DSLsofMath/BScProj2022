@@ -14,6 +14,17 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
 import Algebra
 import ListVector
 
+-- Mathematically, a subspace is a set and we would therefore like to represent a 
+-- given subspace as its own type -- in the same way we do with normal vector spaces.
+-- However, we need to create subspaces from terms such as the range or null space 
+-- of a concrete linear map or from a given system of equation. This is a great 
+-- example of dependent types, which unfortunately is not available in Haskell.
+--
+-- For our purposes we should therefore consider a subspace to be a term, 
+-- more precisely we could define it as a list of vectors that spans the subspace. 
+-- On the type level we would get something like "Subspace v" which corresponds to
+-- the set of all subspaces of v.
+
 
 -- | A subspace is defined by its overlying vector space, its dimension
 --   and a unique identifier. The identifier is needed only to avoid composition
@@ -51,14 +62,14 @@ instance (KnownNat n, VectorSpace v) => Finite (Subspace x v n) where
 -- Span, linear independence and basis
 
 -- | Checks if a vector is in the span of a list of vectors
---   Normaly span is defined as a set, but here we use it as a condition such that
+--   Normally span is defined as a set, but here we use it as a condition such that
 --   span [w1..wn] v = v `elem` span(w1..w2)
 span :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
 span m v = all (\x -> pivotLen x /= 1) . unpack . transpose . utf $ append m v'
     where v' = M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
           pivotLen xs = length (dropWhile (==zero) xs)
 
--- | Checks that m1 spans atleast as much as m2 
+-- | Checks that m1 spans at least as much as m2 
 spans :: (KnownNat m, KnownNat n2, Eq f, Field f) => Matrix f m n1 -> Matrix f m n2 -> Bool
 m1 `spans` m2 = all (span m1) (matToList m2)
 
@@ -66,7 +77,7 @@ m1 `spans` m2 = all (span m1) (matToList m2)
 spansSpace :: (KnownNat m, Eq f, Field f) => Matrix f m n -> Bool
 spansSpace m = m `spans` idm
 
--- | Checks if the vectors in a matrix are linearly independant
+-- | Checks if the vectors in a matrix are linearly independent
 linIndep :: (Eq f, Field f) => Matrix f m n -> Bool
 linIndep = not . any (\(v, m) -> m `span` v ) . separateCols 
 
@@ -80,4 +91,3 @@ isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
 isBasis m = spansSpace m && linIndep m
 
 
-    
