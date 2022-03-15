@@ -26,36 +26,19 @@ import ListVector
 -- the set of all subspaces of v.
 
 
--- | A subspace is defined by its overlying vector space, its dimension
---   and a unique identifier. The identifier is needed only to avoid composition
---   of two subspaces with different bases.
---
---   Internally Subspace contains its basis and a vector
-data Subspace x v (n :: Nat) = Sub { getBasis  :: List v n,
-                                     getVector :: Vector (Under v) n
-                                   }
+-- | A subspace is defined by a list of vectors that spans the space.
+--   We might want to add an invariant to the list such that it is linearly independent.
+data Subspace v = Sub [v]
 
-instance (VectorSpace v, Show v) => Show (Subspace x v n) where
-    show = show . getVec
+instance (VectorSpace v, Show v) => Show (Subspace v) where
+    show (Sub vs) = show vs
 
-getVec :: VectorSpace v => Subspace x v n -> v
-getVec (Sub b v) = v `eval` b
-
-instance (KnownNat n, VectorSpace v) => AddGroup (Subspace x v n) where
-    -- We need a way to grantee that b1 == b2
-    -- Might be solved with the introduction of type x
-    Sub b1 v1 + Sub b2 v2 = Sub b1 (v1 + v2)
-    Sub b1 v1 - Sub b2 v2 = Sub b1 (v1 - v2)
-    zero = Sub undefined zero
+-- | We define Addgroup over a subspace as "sum of subsets"
+instance (VectorSpace v) => AddGroup (Subspace v) where
+    Sub v1 + Sub v2 = Sub $ v1 ++ v2 -- We might want to remove dependent elements
+    Sub v1 - Sub v2 = undefined -- Unsure of how we should handle subtraction
+    zero = Sub []
     
-instance (KnownNat n, VectorSpace v) => VectorSpace (Subspace x v n) where
-    type Under (Subspace x v n) = Under v
-    s £ (Sub b v) = Sub b (s£v)
-
-instance (KnownNat n, VectorSpace v) => Finite (Subspace x v n) where
-    type Dim (Subspace x v n) = n
-    type BasisVec (Subspace x v n) = v
-    basis' (Sub b _) = b
 
 -------------------------------------------
 -- Properties on Finite-Dimensional Vector Spaces
