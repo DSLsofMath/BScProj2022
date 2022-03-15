@@ -10,7 +10,9 @@ module Algebra where
 
 import GHC.TypeLits hiding ( type (^) )
 import qualified Prelude as P
-import Prelude hiding ((+), (-), (*), (/), sum, product, recip)
+import Prelude hiding ((+), (-), (*), (/), sum, product, recip, fromRational)
+import qualified Data.Ratio
+
 
 type R = Double
 
@@ -41,6 +43,21 @@ showE (e1 :*: e2) = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
 showE (Recip e)   = "(" ++ "Recip" ++ showE e ++ ")"
 showE (Negate e)  = "(" ++ "-" ++ showE e ++ ")"
 showE (Const r)   = show r
+
+
+-- Eval functions for expressions
+fromRational :: (Field a, Num a) => Data.Ratio.Ratio Integer -> a
+fromRational x  =  fromInteger (Data.Ratio.numerator x) / fromInteger (Data.Ratio.denominator x)
+
+
+-- Vad är det som är fel med *, kör ^, inte * ?
+evalExp :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
+evalExp (Const alpha)  =  const (fromRational (toRational alpha))
+evalExp X              =  id
+evalExp (e1 :+: e2)    =  evalExp e1 + evalExp e2
+evalExp (e1 :*: e2)    =  evalExp e1 * evalExp e2
+evalExp (Negate e)     =  neg (evalExp e)
+evalExp (Recip e)      =  recip (evalExp e)
 
 {- 
 simplifyE :: Exp -> Exp
@@ -128,7 +145,7 @@ instance Mul Integer      where (*) = (P.*); one = 1
 instance Mul Double       where (*) = (P.*); one = 1
 instance Mul Rational     where (*) = (P.*); one = 1
 instance Mul Exp          where (*) = (:*:); one = Const 1
-instance Mul b => Mul (a -> b)  where f * g = \x -> f x * f x; one = const one
+instance Mul b => Mul (a -> b)  where f * g = \x -> f x * g x; one = const one
 
 instance Field Double       where (/) = (P./); 
 instance Field Rational     where (/) = (P./); 
