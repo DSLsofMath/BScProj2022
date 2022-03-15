@@ -25,7 +25,30 @@ data Exp =  Const R
              |  Exp :*: Exp
              |  Recip Exp
              |  Negate Exp
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord)
+
+
+-- Remove + const 0 from Exp matrices
+instance Show Exp where
+   show = showE . simplifyE
+
+showE :: Exp -> String
+showE X = "X"
+showE (e1 :+: e2) = "(" ++ showE e1 ++ " + " ++ showE e2 ++ ")"
+showE (e1 :*: e2) = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
+showE (Recip e)  = "(" ++ "Recip" ++ showE e ++ ")"
+showE (Negate e) = "(" ++ "-" ++ showE e ++ ")"
+showE (Const r)   = show r
+
+simplifyE :: Exp -> Exp
+simplifyE X               = X
+simplifyE (Const x)       = Const x
+simplifyE (e :+: Const 0) = simplifyE e
+simplifyE (Const 0 :+: e) = simplifyE e
+simplifyE (e1 :+: e2)     = simplifyE e1 :+: simplifyE e2
+simplifyE (e1 :*: e2)     = e1 :*: e2
+simplifyE (Negate e)      = Negate e
+simplifyE (Recip e)       = Recip e
 
 infixl 6 -
 infixl 6 +
