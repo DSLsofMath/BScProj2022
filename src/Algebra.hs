@@ -30,7 +30,7 @@ data Exp =  Const R
 
 -- Remove + const 0 from Exp matrices
 instance Show Exp where
-   show = showE . simplifyE
+   show = showE      -- . simplifyE
 
 showE :: Exp -> String
 showE X = "X"
@@ -42,6 +42,7 @@ showE (Recip e)   = "(" ++ "Recip" ++ showE e ++ ")"
 showE (Negate e)  = "(" ++ "-" ++ showE e ++ ")"
 showE (Const r)   = show r
 
+{- 
 simplifyE :: Exp -> Exp
 simplifyE X               = X
 simplifyE (Const x)       = Const x
@@ -51,6 +52,8 @@ simplifyE (e1 :+: e2)     = simplifyE e1 :+: simplifyE e2
 simplifyE (e1 :*: e2)     = e1 :*: e2
 simplifyE (Negate e)      = Negate e
 simplifyE (Recip e)       = Recip e
+
+-}
 
 
 infixl 6 -
