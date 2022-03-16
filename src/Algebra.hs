@@ -34,7 +34,7 @@ data Exp =  Const R
 
 -- Remove + const 0 from Exp matrices
 instance Show Exp where
-   show s = replaced (showE s) zerosToReplace  
+   show e = replaced (showE e) zerosToReplace  
 
 
 -- Remove all substrings in zerosToReplace
@@ -60,11 +60,17 @@ showE :: Exp -> String
 showE X = "X"
 showE (e :+: Const 0) = showE e
 showE (Const 0 :+: e) = showE e
-showE (e1 :+: e2) = "(" ++ showE e1 ++ " + " ++ showE e2 ++ ")"
-showE (e1 :*: e2) = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
-showE (Recip e)   = "(" ++ "Recip" ++ showE e ++ ")"
-showE (Negate e)  = "(" ++ "-" ++ showE e ++ ")"
-showE (Const r)   = show r
+showE (e1 :+: e2)     = showE e1 ++ " + " ++ showE e2
+
+showE (_ :*: Const 0) = showE zero
+showE (Const 0 :*: _) = showE zero
+showE (e :*: Const 1) = showE e
+showE (Const 1 :*: e) = showE e
+showE (e1 :*: e2)     = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
+
+showE (Recip e)       = "(" ++ "Recip" ++ showE e ++ ")"
+showE (Negate e)      = "(" ++ "-" ++ showE e ++ ")"
+showE (Const r)       = show r
 
 
 -- Eval functions for expressions
@@ -81,18 +87,26 @@ evalExp (e1 :*: e2)    =  evalExp e1 * evalExp e2
 evalExp (Negate e)     =  neg (evalExp e)
 evalExp (Recip e)      =  recip (evalExp e)
 
-{- 
+
 simplifyE :: Exp -> Exp
+-- Values
 simplifyE X               = X
 simplifyE (Const x)       = Const x
+-- Addition
 simplifyE (e :+: Const 0) = simplifyE e
 simplifyE (Const 0 :+: e) = simplifyE e
 simplifyE (e1 :+: e2)     = simplifyE e1 :+: simplifyE e2
+-- Multiplaciton
+simplifyE (_ :*: Const 0) = zero
+simplifyE (Const 0 :*: _) = zero
+simplifyE (e :*: Const 1) = simplifyE e
+simplifyE (Const 1 :*: e) = simplifyE e
 simplifyE (e1 :*: e2)     = e1 :*: e2
+-- Division and Minus
 simplifyE (Negate e)      = Negate e
 simplifyE (Recip e)       = Recip e
 
--}
+
 
 
 infixl 6 -
