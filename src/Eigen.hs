@@ -168,4 +168,4 @@ determinant m | rows /= cols = error "Not squared matrix"
 
 
 exp22 :: Matrix Exp 2 2
-exp22 = toMat [[X,Const 2],[Const 2, X]]
+exp22 = toMat [[zero,Const 2],[Const 2, zero]] - idm :: Matrix Exp 2 2

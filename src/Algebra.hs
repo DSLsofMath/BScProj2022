@@ -6,12 +6,14 @@
 {-# LANGUAGE ConstraintKinds #-}
 
 
+
 module Algebra where 
 
 import GHC.TypeLits hiding ( type (^) )
 import qualified Prelude as P
 import Prelude hiding ((+), (-), (*), (/), sum, product, recip, fromRational)
 import qualified Data.Ratio
+
 
 
 type R = Double
@@ -32,7 +34,27 @@ data Exp =  Const R
 
 -- Remove + const 0 from Exp matrices
 instance Show Exp where
-   show = showE      -- . simplifyE
+   show s = replaced (showE s) zerosToReplace  
+
+
+-- Remove all substrings in zerosToReplace
+replaceS :: Eq a => [a] -> [a] -> [a] -> [a]
+replaceS [] _ _ = []
+replaceS s find repl =
+    if take (length find) s == find
+        then repl ++ (replaceS (drop (length find) s) find repl)
+        else [head s] ++ (replaceS (tail s) find repl)
+
+zerosToReplace :: [String]
+zerosToReplace = [ " + (-0.0)", " + 0.0", " - (-0.0)", " - 0.0", "0.0 + ", "(-0,0) + ","0.0 - ","(-0.0) - " ]
+
+replaced :: String -> [String] -> String
+replaced s []      = s
+replaced s (x:xs)  = replaced sub xs
+    where
+        sub = replaceS s x ""
+
+
 
 showE :: Exp -> String
 showE X = "X"
