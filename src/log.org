@@ -1,3 +1,36 @@
+* 2022-03-04: Patrik
+** Some error 
++ I tried with ghc version 8.8.4
++ perhaps you need to specify ghc version, flags, etc.? .cabal file? install script?
+#+BEGIN_SRC error
+/home/patrikj/src/DSLM/BScProj2022/src/ListVector.hs:358:18-28: error: …
+    • Expected kind ‘Nat’, but ‘n ~ (n + 1)’ has kind ‘Constraint’
+    • In the first argument of ‘(-)’, namely ‘n ~ (n + 1)’
+      In the type signature:
+        separateCol :: (n ~ (n + 1) - 1) =>
+                       Matrix f m (n + 1) -> (Vector f m, Matrix f m n)
+    |
+/home/patrikj/src/DSLM/BScProj2022/src/ListVector.hs:372:18-28: error: …
+    • Expected kind ‘Nat’, but ‘m ~ (m + 1)’ has kind ‘Constraint’
+    • In the first argument of ‘(-)’, namely ‘m ~ (m + 1)’
+      In the type signature:
+        separateRow :: (m ~ (m + 1) - 1) =>
+                       Matrix f (m + 1) n -> (Vector f n, Matrix f m n)
+    |
+#+END_SRC
++ my temporary work-around was to remove the type signatures for those two functions
++ then I could run the demo.
++ I had to do a few steps extra to check that the solution was actually a solution.
++ I first tried (aM ££ solvedSystem) but that failed to type check.
++ Then I added a V so that (aM ££ V solvedSystem) worked.
++ Then I wanted to subtract the RHS: (aM ££ V solvedSystem - bM)
++ But also here a type conversion was needed - but I found toMat and it worked:
+#+BEGIN_SRC haskell
+λ> toMat (aM ££ V solvedSystem) - bM
+[0.0]
+[0.0]
+[0.0]
+#+END_SRC
 * 2022-02-26: Patrik
 + Nice to see the Demo file appearing. A good test of the cross
   product is to check that it is orthogonal to both incoming vectors:
