@@ -69,7 +69,7 @@ showE (Const 1 :*: e) = showE e
 showE (e1 :*: e2)     = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
 
 showE (Recip e)       = "(" ++ "Recip" ++ showE e ++ ")"
-showE (Negate e)      = "(" ++ "-" ++ showE e ++ ")"
+showE (Negate e)      = "-" ++ "("  ++ showE e ++ ")"
 showE (Const r)       = show r
 
 
@@ -78,7 +78,7 @@ fromRational :: (Field a, Num a) => Data.Ratio.Ratio Integer -> a
 fromRational x  =  fromInteger (Data.Ratio.numerator x) / fromInteger (Data.Ratio.denominator x)
 
 
--- Vad är det som är fel med *, kör ^, inte * ?
+-- Eval for expressions, apply a value for X
 evalExp :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
 evalExp (Const alpha)  =  const (fromRational (toRational alpha))
 evalExp X              =  id
@@ -86,6 +86,21 @@ evalExp (e1 :+: e2)    =  evalExp e1 + evalExp e2
 evalExp (e1 :*: e2)    =  evalExp e1 * evalExp e2
 evalExp (Negate e)     =  neg (evalExp e)
 evalExp (Recip e)      =  recip (evalExp e)
+
+-- derive  ::  FunExp        ->  FunExp
+derive :: Exp -> Exp
+derive      (Const alpha)  =  Const 0
+derive      X              =  Const 1
+derive      (e1 :+: e2)    =  derive e1 :+: derive e2
+derive      (e1 :*: e2)    =  (derive e1 :*: e2) :+: (e1 :*: derive e2)
+derive      (Negate e)     =  neg (derive e)
+
+evalExp' :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
+evalExp' =  evalExp . derive
+
+evalExp'' :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
+evalExp'' = evalExp'.derive
+
 
 
 simplifyE :: Exp -> Exp
