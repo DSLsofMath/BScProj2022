@@ -169,3 +169,42 @@ determinant m | rows /= cols = error "Not squared matrix"
 
 exp22 :: Matrix Exp 2 2
 exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Exp 2 2)
+
+
+-- Use newton to find the zeros of the characteristic equation = the eigen values
+newton :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> a
+newton f eps x = if abs fx < eps then x
+                              else if fx' /= 0 then newton f eps next
+                                                       else  newton f eps (x+eps)
+      where fx  = evalExp f x-- (f x, f' x, f'' x)
+            fx' = evalExp' f x
+            next = x - (fx/fx')
+
+newtonLast :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> a
+newtonLast f eps x = last (newtonList f eps x)
+
+newtonList :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> [a]
+newtonList f eps x = x : if abs fx < eps then [ ]
+                                  else if fx' /= 0 then newtonList f eps next
+                                                           else newtonList f eps (x+eps)
+      where fx  = evalExp f x
+            fx' = evalExp' f x
+            next = x - (fx/fx')
+
+testNewton :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Exp -> [a]
+testNewton f = map (newton f 0.001) [-2.0,-1.5..2.0]
+
+-- Eigen values = 1, 1/2 
+matrix1 :: Matrix Exp 2 2
+matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
+
+-- Using detNN, seems to get some error with detGauss, probably because of derive recip
+eigenM1 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
+eigenM1 = testNewton(detNN matrix1)
+
+-- Eigen values = -2, 2, 0
+matrix2 :: Matrix Exp 3 3
+matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2, neg one]] - X £ idm
+
+eigenM2 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
+eigenM2 = testNewton(detNN matrix2)

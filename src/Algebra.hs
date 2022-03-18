@@ -68,7 +68,7 @@ showE (e :*: Const 1) = showE e
 showE (Const 1 :*: e) = showE e
 showE (e1 :*: e2)     = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
 
-showE (Recip e)       = "(" ++ "Recip" ++ showE e ++ ")"
+showE (Recip e)       = "(" ++ "1 / " ++ showE e ++ ")"
 showE (Negate e)      = "-" ++ "("  ++ showE e ++ ")"
 showE (Const r)       = show r
 
@@ -94,6 +94,7 @@ derive      X              =  Const 1
 derive      (e1 :+: e2)    =  derive e1 :+: derive e2
 derive      (e1 :*: e2)    =  (derive e1 :*: e2) :+: (e1 :*: derive e2)
 derive      (Negate e)     =  neg (derive e)
+derive      (Recip e)      =  neg (derive e :*: (recip (e:*:e))) -- negate(a' * recip (a^2))
 
 evalExp' :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
 evalExp' =  evalExp . derive
