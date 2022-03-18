@@ -22,6 +22,9 @@ type R = Double
 -- | A list with a given length
 newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
 
+-- Type signature important to enforce the "unchanged length" invariant
+mapL :: (a -> b) -> List a n -> List b n
+mapL f (L xs) = L (map f xs)
 
 data Exp =  Const R
              |  X

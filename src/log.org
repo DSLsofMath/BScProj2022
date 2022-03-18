@@ -1,3 +1,5 @@
+* 2022-03-18: Patrik
++ I made some tests and contributions.
 * 2022-03-04: Patrik
 ** Some error 
 + I tried with ghc version 8.8.4

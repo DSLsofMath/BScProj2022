@@ -35,6 +35,9 @@ import Algebra
 -- | Dependent typed vector
 newtype Vector f (n :: Nat) = Vector (List f n) deriving (Eq)
 
+mapV :: (a->b) -> Vector a n -> Vector b n
+mapV f (Vector l) = Vector (mapL f l)
+
 instance Show f => Show (Vector f n) where
     show v = show . M $ V [v]
 
@@ -477,3 +480,9 @@ separateRows = map (\(v, m) -> (v, transpose m)) . separateCols . transpose
 |  432.0 |
 | -431.0 |
 -}
+
+scaleM :: Ring f => f -> Matrix f m n -> Matrix f m n
+scaleM c (M vs) = M (mapV (scaleV c) vs)
+
+scaleV :: Ring f => f -> Vector f m -> Vector f m
+scaleV c = mapV (c*)

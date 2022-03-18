@@ -238,3 +238,22 @@ eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0,0]] -- utf eigen05 => x = -
 
 eigen1 :: Matrix Double 2 3
 eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- utf eigen1  => x = y
+
+----------------
+
+two :: Ring a => a
+two = one+one
+
+pjM :: Ring f => Matrix f 2 2
+pjM = M (Vector (L [Vector (L [one,two]),
+                    Vector (L [two,one])]))
+      
+
+pjExp :: Exp
+pjExp = detNN (pjM - scaleM X idm)
+
+pjFun :: Field f => f -> f
+pjFun x = detNN (pjM - scaleM x idm)
+-- zeroes in (-1) and 3
+
+-- TODO pjPoly - using the polynomial instance from DSLsofMath
