@@ -208,3 +208,33 @@ matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2
 
 eigenM2 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
 eigenM2 = testNewton(detNN matrix2)
+
+
+-- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
+-- 
+
+evalCol :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [Exp] -> a -> [a]
+evalCol [] _ = []
+evalCol (x:xs) val = [evalExp x val] ++ evalCol xs val
+
+evalColnRow :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [[Exp]] -> a -> [[a]]
+evalColnRow [] _       = []
+evalColnRow (x:xs) val = evalCol x val : evalColnRow xs val
+
+evalMat :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Matrix Exp m n -> a -> Matrix a m n
+evalMat m val = pack $ evalColnRow (unpack m) val
+
+{-
+For matrix1 => Eigenvalues = 0.5 & 1
+
+Gauss $ evalMat matrix 0.5 `append` zeroVec => Solution = eigenvector
+
+Gauss $ evalMat matrix 1 `append` zeroVec => Solution = eigenvector
+
+-}
+
+eigen05 :: Matrix Double 2 3
+eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0,0]] -- utf eigen05 => x = -y 
+
+eigen1 :: Matrix Double 2 3
+eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- utf eigen1  => x = y
