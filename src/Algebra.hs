@@ -33,8 +33,9 @@ data Exp =  Const R
 
 
 -- Remove + const 0 from Exp matrices
+-------------------------------------Only to simplify how to view matrix expressions and determinants--------------------------------
 instance Show Exp where
-   show e = replaced (showE e) zerosToReplace  
+   show e = replaced1 (replaced (showE e) zerosToReplace) onesToReplace
 
 
 -- Remove all substrings in zerosToReplace
@@ -46,7 +47,11 @@ replaceS s find repl =
         else [head s] ++ (replaceS (tail s) find repl)
 
 zerosToReplace :: [String]
-zerosToReplace = [ " + (-0.0)", " + 0.0", " - (-0.0)", " - 0.0", "0.0 + ", "(-0,0) + ","0.0 - ","(-0.0) - " ]
+zerosToReplace = [ " + (-0.0)", " + 0.0", " - (-0.0)", " - 0.0", "0.0 + ", "(-0,0) + ","0.0 - ","(-0.0) - ",
+                        " + -((X) * (0.0))" ]
+
+onesToReplace :: [String]
+onesToReplace = [ "-((X) * (1.0))"]
 
 replaced :: String -> [String] -> String
 replaced s []      = s
@@ -54,24 +59,32 @@ replaced s (x:xs)  = replaced sub xs
     where
         sub = replaceS s x ""
 
+replaced1 :: String -> [String] -> String
+replaced1 s []      = s
+replaced1 s (x:xs)  = replaced sub xs
+    where
+        sub = replaceS s x "-X" 
+
 
 
 showE :: Exp -> String
 showE X = "X"
 showE (e :+: Const 0) = showE e
 showE (Const 0 :+: e) = showE e
+showE (Const x :+: Const y) = showE (Const(x+y))
 showE (e1 :+: e2)     = showE e1 ++ " + " ++ showE e2
 
 showE (_ :*: Const 0) = showE zero
 showE (Const 0 :*: _) = showE zero
 showE (e :*: Const 1) = showE e
 showE (Const 1 :*: e) = showE e
-showE (e1 :*: e2)     = "(" ++ showE e1 ++ " * " ++ showE e2 ++ ")"
+showE (Const x :*: Const y) = showE (Const(x*y))
+showE (e1 :*: e2)     = "(" ++ showE e1 ++ ") * (" ++ showE e2 ++ ")"
 
 showE (Recip e)       = "(" ++ "1 / " ++ showE e ++ ")"
 showE (Negate e)      = "-" ++ "("  ++ showE e ++ ")"
 showE (Const r)       = show r
-
+------------------------------------------------------------------------------------------------------------------------------------
 
 -- Eval functions for expressions
 fromRational :: (Field a, Num a) => Data.Ratio.Ratio Integer -> a
