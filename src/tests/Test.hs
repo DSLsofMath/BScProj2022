@@ -93,7 +93,9 @@ deriving instance Show (SNat n)
 
 -- | Existential for SNat
 data HiddenNat = forall n. Hidden (SNat n)
-deriving instance Show HiddenNat
+
+instance Show HiddenNat where
+    show = ("Hidden " ++) . show . hiddenToInt
 
 -- | Converts the type n to a corresponding value n
 toInt :: SNat n -> Int
@@ -124,7 +126,7 @@ toHidden n = go n Nil
 -- | Generator for SNat
 --   Since we cannot expose the type we wrap the result in a HiddenNat
 instance Arbitrary HiddenNat where
-    arbitrary = sized $ return . toHidden 
+    arbitrary = toHidden . abs <$> arbitrary
 
 -- | Generates a arbitrary Vector with a given size
 genVecWithLen :: Arbitrary f => SNat n -> Gen (Vector f n)
@@ -133,7 +135,7 @@ genVecWithLen n = V <$> vector (toInt n) -- vector comes from QuickCheck
 -- | Generates a arbitrary Matrix with a given size
 genMatWithSize :: Arbitrary f => SNat m -> SNat n -> Gen (Matrix f m n)
 genMatWithSize m n = do 
-    let v = V <$> vector (toInt m)  -- Generator for vector
+    let v = genVecWithLen m  
     M . V <$> vectorOf (toInt n) v
 
 
@@ -163,11 +165,10 @@ prop_genVecWithLen (Hidden n) = forAll (genVecWithLen @R n) $ -- arbitrary vecto
 -- | Tests that genMatWithSize creates a matrix of the right size
 prop_genMatWithSize :: HiddenNat -> HiddenNat -> Property
 prop_genMatWithSize (Hidden m) (Hidden n) = forAll (genMatWithSize @R m n) $ 
-    \(M (V vs)) -> let square = allEqual $ map vecLen vs
-                       m' = length vs
-                       n' = case vs of []    -> 0
-                                       (x:_) -> vecLen x
-                   in square && m' == toInt m && n' == toInt n
+    \(M (V vs)) -> let rect = allEqual $ map vecLen vs
+                       n' = length vs
+                       m' = vecLen (head vs)
+                   in rect && n' == toInt n && if n' > 0 then m' == toInt m else True  
   where vecLen (V xs) = length xs
         allEqual []     = True
         allEqual (x:xs) = all (==x) xs
