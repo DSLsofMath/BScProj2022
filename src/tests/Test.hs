@@ -6,7 +6,6 @@
 {-# Language TypeOperators #-} 
 {-# Language TypeApplications #-} 
 {-# Language KindSignatures #-} 
-{-# Language FlexibleInstances #-} 
 
 module Main where
 
@@ -32,6 +31,12 @@ main = putStrLn "Test loaded"
 instance forall n f. (KnownNat n, Arbitrary f) => Arbitrary (Vector f n) where
     arbitrary = V <$> vector ( vecLen (undefined :: Vector () n) )
 
+-- | Generator for matrices of a given size
+instance forall m n f. (KnownNat m, KnownNat n, Arbitrary f) => Arbitrary (Matrix f m n) where
+    arbitrary = do 
+        let v = arbitrary @(Vector f m)
+        M . V <$> vectorOf (vecLen (undefined :: Vector () n)) v
+
 
 
 -----------------------------------------------------------------------------------
@@ -50,6 +55,9 @@ prop_vectorAddAssoc :: KnownNat n => Vector R n -> Vector R n -> Bool
 prop_vectorAddAssoc v w = v + w == w + v
 
 
+prop_crossProduct :: Vector Rational 3 -> Vector Rational 3 -> Bool
+prop_crossProduct v1 v2 = dot v1 (cross v1 v2) == dot v2 (cross v1 v2)
+                            && dot v1 (cross v1 v2) == 0
 
 
 
@@ -75,7 +83,7 @@ prop_vectorAddAssoc v w = v + w == w + v
 -- Since we use singletons we can deduce it by pattern matching but 
 -- there should be a better way to do this automatically.
 --
--- For a working example we have prop_correctLength.
+-- For a working example see have prop_genVecWithLen.
 
 
 -- | Singleton type over the kind Nat
@@ -83,7 +91,7 @@ data SNat (n :: Nat) where
     Nil :: SNat 0 
     Suc :: SNat n -> SNat (n + 1)
 deriving instance Show (SNat n) 
-    
+
 -- | Existential for SNat
 data HiddenNat = forall n. Hidden (SNat n)
 deriving instance Show HiddenNat
@@ -124,15 +132,36 @@ instance Arbitrary HiddenNat where
 genVecWithLen :: Arbitrary f => SNat n -> Gen (Vector f n)
 genVecWithLen n = V <$> vector (toInt n) -- vector comes from QuickCheck
 
+-- | Generates a arbitrary Matrix with a given size
+genMatWithSize :: Arbitrary f => SNat m -> SNat n -> Gen (Matrix f m n)
+genMatWithSize m n = do 
+    let v = V <$> vector (toInt m)  -- Generator for vector
+    M . V <$> vectorOf (toInt n) v
+
+
 
 
 -- | Tests that the length of the vectors list is equal to the value of HiddenNat
-prop_correctLength :: HiddenNat -> Property
-prop_correctLength (Hidden n) = property $ do 
-    v <- genVecWithLen @R n  -- arbitrary vector in R^n
-    let V l = v 
+--   Since HiddenNat is an instance of Arbitrary we can use quickCheck 
+--   > quickCheck prop_correctLengthVec
+prop_genVecWithLen :: HiddenNat -> Property
+prop_genVecWithLen (Hidden n) = property $ do 
+    Vector (L l) <- genVecWithLen @R n  -- arbitrary vector in R^n
     return $ length l == toInt n 
 
+
+-- | Tests that genMatWithSize creates a matrix of the right size
+prop_genMatWithSize :: HiddenNat -> HiddenNat -> Property
+prop_genMatWithSize (Hidden m) (Hidden n) = property $ do 
+    M (Vector (L vs)) <- genMatWithSize @R m n -- arbitrary Matrix R m n
+    let square = allEqual $ map vecLen vs
+    let m' = length vs
+    let n' = case vs of []    -> 0
+                        (x:_) -> vecLen x
+    return $ square && m' == toInt m && n' == toInt n
+  where vecLen (V xs) = length xs
+        allEqual []     = True
+        allEqual (x:xs) = all (==x) xs
 
 
 
