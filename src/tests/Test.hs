@@ -42,10 +42,13 @@ instance forall m n f. (KnownNat m, KnownNat n, Arbitrary f) => Arbitrary (Matri
 -----------------------------------------------------------------------------------
 -- Test for vectors 
 --
--- As of now we can only run a test if we provide a given length.
+-- As of now we can only run these test if we provide a given length.
+-- See next section for tests on arbitrary sizes.
+--
 -- For example:
 -- > quickCheck (prop_vectorAddAssoc @5)
 -- tests that addition is associative for R^5
+--
 
 
 prop_vectorAddZero :: KnownNat n => Vector R n -> Bool
@@ -53,7 +56,6 @@ prop_vectorAddZero v = v + zero == v
 
 prop_vectorAddAssoc :: KnownNat n => Vector R n -> Vector R n -> Bool
 prop_vectorAddAssoc v w = v + w == w + v
-
 
 prop_crossProduct :: Vector Rational 3 -> Vector Rational 3 -> Bool
 prop_crossProduct v1 v2 = dot v1 (cross v1 v2) == dot v2 (cross v1 v2)
@@ -70,12 +72,9 @@ prop_crossProduct v1 v2 = dot v1 (cross v1 v2) == dot v2 (cross v1 v2)
 -- and then use these to generate vectors and matrices of arbitrary size.
 --
 -- As an example of how we would like this to work see prop_arbitraryAddZero
---
 -- @
 -- prop_arbitraryAddZero :: HiddenNat -> Property
--- prop_arbitraryAddZero (Hidden n) = property $ do 
---         v <- genVecWithLen n
---         return $ prop_vectorAddZero v
+-- prop_arbitraryAddZero = liftVecProp1 prop_vectorAddZero
 -- @
 -- 
 -- prop_arbitraryAddZero does not work because it can not deduce KnownNat n, 
@@ -127,7 +126,6 @@ toHidden n = go n Nil
 instance Arbitrary HiddenNat where
     arbitrary = sized $ return . toHidden 
 
-
 -- | Generates a arbitrary Vector with a given size
 genVecWithLen :: Arbitrary f => SNat n -> Gen (Vector f n)
 genVecWithLen n = V <$> vector (toInt n) -- vector comes from QuickCheck
@@ -139,26 +137,37 @@ genMatWithSize m n = do
     M . V <$> vectorOf (toInt n) v
 
 
+-- | Takes a prop for vectors of arbitrary length and converts it to a prop
+--   on HiddenNat. This enables quickCheck to actually test the property against 
+--   vectors of arbitrary size. For example:
+--   > quickCheck dummy_prop
+--   is not valid since quickCheck needs to know the size of vectors to test. 
+--   > quickCheck $ liftVecProp1 dummy_prop
+--   will run and test vectors of different sizes.
+liftVecProp1 :: (Testable prop, Arbitrary f, Show f) => (forall n. Vector f n -> prop) -> HiddenNat -> Property
+liftVecProp1 p (Hidden n) = forAll (genVecWithLen n) p
+
+-- | dummy_prop to test liftVecProp1
+dummy_prop :: Vector R n -> Bool
+dummy_prop (V x) = length (zipWith (+) x x) == length x 
 
 
 -- | Tests that the length of the vectors list is equal to the value of HiddenNat
 --   Since HiddenNat is an instance of Arbitrary we can use quickCheck 
 --   > quickCheck prop_correctLengthVec
 prop_genVecWithLen :: HiddenNat -> Property
-prop_genVecWithLen (Hidden n) = property $ do 
-    Vector (L l) <- genVecWithLen @R n  -- arbitrary vector in R^n
-    return $ length l == toInt n 
+prop_genVecWithLen (Hidden n) = forAll (genVecWithLen @R n) $ -- arbitrary vector in R^2
+    \(V l) -> length l == toInt n
 
 
 -- | Tests that genMatWithSize creates a matrix of the right size
 prop_genMatWithSize :: HiddenNat -> HiddenNat -> Property
-prop_genMatWithSize (Hidden m) (Hidden n) = property $ do 
-    M (Vector (L vs)) <- genMatWithSize @R m n -- arbitrary Matrix R m n
-    let square = allEqual $ map vecLen vs
-    let m' = length vs
-    let n' = case vs of []    -> 0
-                        (x:_) -> vecLen x
-    return $ square && m' == toInt m && n' == toInt n
+prop_genMatWithSize (Hidden m) (Hidden n) = forAll (genMatWithSize @R m n) $ 
+    \(M (V vs)) -> let square = allEqual $ map vecLen vs
+                       m' = length vs
+                       n' = case vs of []    -> 0
+                                       (x:_) -> vecLen x
+                   in square && m' == toInt m && n' == toInt n
   where vecLen (V xs) = length xs
         allEqual []     = True
         allEqual (x:xs) = all (==x) xs
