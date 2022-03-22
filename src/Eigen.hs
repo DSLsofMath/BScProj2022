@@ -146,3 +146,52 @@ pjFun x = detNN (pjM - scaleM x idm)
 -- zeroes in (-1) and 3
 
 -- TODO pjPoly - using the polynomial instance from DSLsofMath
+
+
+
+
+
+-- | Idea for visualizing the answers of systems of equations as strings
+--   Try running showSol on an row echelon form matrix (utf matrix)
+
+leadingZeros :: (Field f, Eq f, Num f) => [f] -> Int
+leadingZeros = length . takeWhile (== 0)
+
+showVariableValues :: (Field f, Eq f, Num f, Ord f, Show f) => [f] -> [String] -> String
+showVariableValues r var_names
+  | not (null other_coefficients) = var_str ++ other_vars_str
+  | otherwise = var_str
+  where
+    index = leadingZeros r
+    coefficient = r !! index
+    value = last r
+    raw_row = reverse . drop 1 . reverse $ r -- row coefficients, except the free member
+    elements_count = length raw_row
+    other_coefficients = filter (\(k, k_idx) -> k /= 0 && k_idx /= index) (zip raw_row [0 .. elements_count])
+    subtract_coefficient k = if k < 0 then " + " ++ show (- k) else " - " ++ show k
+    other_vars_str = concatMap (\(k, k_idx) -> subtract_coefficient k ++ " * " ++ (var_names !! k_idx)) other_coefficients
+    var_str = (var_names !! index) ++ " = " ++ show (value / coefficient)
+
+
+
+
+variables :: [String]
+variables = [ x ++ show(i) | x <- ["x"] , i <- [1..] ] -- ["x1", "x2", "x3" ...]
+
+showColnRow :: (Field f, Eq f, Num f, Ord f, Show f) => [[f]] -> [String] -> String
+showColnRow [] _        = []
+showColnRow (x:xs) vars | skipRow == length x = showColnRow xs vars
+                        | otherwise           = showVariableValues x vars ++ "\n" ++ showColnRow xs vars
+    where
+        skipRow = leadingZeros x
+
+
+-- showSol $ utf eigen1
+-- showSOl $ utf eigen05
+
+showSol :: (Field f, Eq f, Num f, Ord f, Show f, KnownNat m, KnownNat n) => Matrix f m n -> IO()
+showSol m = putStr $ showColnRow (unpack $ transpose m) vars
+    where
+        rows     = unpack $ transpose m
+        nrOfVars = length(unpack m) - 1
+        vars     = take (nrOfVars) variables 
