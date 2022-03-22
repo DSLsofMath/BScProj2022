@@ -251,8 +251,13 @@ m2 = toMat[[4,4,4]] :: MatR 3 1
 -- append adds m2 as the last col, new matrix = 3 rows, 4 cols
 testappend = append m1 m2 == (toMat [[1,1,1],[2,2,2],[3,3,3],[4,4,4]]:: MatR 3 4)
 
+-- | Appends the second matrix to the right of the first
 append :: Matrix f m n1 -> Matrix f m n2 -> Matrix f m (n1+n2)
 append m1 m2 = pack $ unpack m1 ++ unpack m2
+
+-- | Appends the second matrix below the first
+append' :: Matrix f m1 n -> Matrix f m2 n -> Matrix f (m1+m2) n
+append' m1 m2 = pack $ zipWith (++) (unpack m1) (unpack m2)
 
 -- | Converts a Matrix to a list of Vectors 
 matToList :: Matrix f m n -> [Vector f m]
