@@ -7,7 +7,7 @@
 {-# Language TypeApplications #-} 
 {-# Language KindSignatures #-} 
 
-module Test(tests) where
+module Main where
 
 import GHC.TypeLits -- hiding (type (^))
 import qualified Prelude
@@ -16,13 +16,13 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
 import Algebra
 import ListVector
 
-import Distribution.TestSuite.QuickCheck
+
 import Test.QuickCheck
 
--- The test suite runs a list of different properties
--- To run the test suite use: "cabal test test --allow-newer"
-tests :: IO [ Test ]
-tests = return [testProperty "Always true" True] 
+
+main :: IO ()
+main = putStrLn "Test loaded"
+
 
 
 -- | Generator for arbitrary vectors of a given size.
