@@ -86,4 +86,22 @@ makeLinIndep = foldl (\vs v -> if span' (M $ V vs) v then vs else v:vs) []
 isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
 isBasis m = spansSpace m && linIndep m
 
+nullSpace :: (KnownNat n, Field f, Eq f) =>  Matrix f m n -> Subspace (Vector f n)
+nullSpace m = Sub $ map (V . drop height) $ filter (all (==zero) . take height) $ unpack $ transpose $ utf (transpose m `append` idm)
+    where height = length (head $ unpack m)
 
+
+data QuotientSpace v = Quot v (Subspace v) deriving (Show)
+
+
+solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix f m n -> Vector f m -> QuotientSpace (Vector f n)
+solveQ m v = Quot (solvesys $ m `append'` v) (nullSpace m)
+    where append' :: Matrix f m n -> Vector f m -> Matrix f m (n+1)
+          m `append'` v = m `append` M (V [v]) 
+
+solveQ' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix f m (n+1)  -> QuotientSpace (Vector f n)
+solveQ' m = let (v', m') = last $ separateCols m in solveQ m' v'
+
+
+mEx :: Matrix R 3 3
+mEx = toMat [[1,2,1],[0,1,1],[1,2,1]]

@@ -93,7 +93,7 @@ vb = vec [8,-11,-3] :: VecR 3
 
 -- A matrix with infinite solutions
 vx2, vy2, vz2, vb2 :: VecR 3
-vx2 = vec [1,2,1] :: VecR 3
+vx2 = vec [1,2,1]  :: VecR 3
 vy2 = vec [0,1,1]  :: VecR 3
 vz2 = vec [1,2,1]  :: VecR 3
 
