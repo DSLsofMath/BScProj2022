@@ -318,35 +318,33 @@ foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
 foldElemOps = foldr (flip (£££)) idm . map elimOpToMat 
 
 -- | Representation of an elementary row operation as a function 
---   The reason that we unpack all the way to list is to avoid a KnownNat constraint
 elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
-elimOpToFunc e = pack . L.transpose  . f . L.transpose . unpack
-    where f m = case e of
-            Swap i j     -> let 
-                            (i', j') = (min i j - 1, max i j - 1)
-                            (m1,x:xs) = splitAt i' m
-                            (xs',y:m2) = splitAt (j' - i'-1) xs
-                            in m1++y:xs'++x:m2
-            Mul i s      -> let
-                            (m1,x:m2) = splitAt (i-1) m
-                            in m1++(map (s*) x): m2
-            MulAdd i j s -> let 
-                            (i', j') = (i - 1, j - 1)
-                            (_,x:_) = splitAt i' m
-                            (m1,y:m2) = splitAt j' m
-                            y' = zipWith (+) y (map (s*) x)
-                            in m1++y':m2
+elimOpToFunc e = case e of
+            Swap i j     -> swap i j
+            Mul i s      -> mul i s
+            MulAdd i j s -> muladd i j s
 
 -- | Elementary row functions.
--- Change places with these functions and elimOpToFunc.
 swap :: Field f => Index -> Index -> Matrix f m n -> Matrix f m n
-swap n1 n2 = elimOpToFunc (Swap n1 n2)
+swap i j = onUnpackedTrans $ \m -> 
+    let (i', j') = (min i j - 1, max i j - 1)
+        (m1,x:xs) = splitAt i' m
+        (xs',y:m2) = splitAt (j' - i'-1) xs
+    in m1++y:xs'++x:m2
 
 mul :: Field f => Index -> f -> Matrix f m n -> Matrix f m n
-mul n1 n2 = elimOpToFunc (Mul n1 n2)
+mul i s = onUnpackedTrans $ \m -> 
+    let (m1,x:m2) = splitAt (i-1) m in m1++(map (s*) x): m2
 
 muladd :: Field f => Index -> Index -> f -> Matrix f m n -> Matrix f m n
-muladd n1 n2 n3 = elimOpToFunc (MulAdd n1 n2 n3)
+muladd i j s = onUnpackedTrans $ \m -> 
+    let (i', j') = (i - 1, j - 1)
+        (_,x:_) = splitAt i' m
+        (m1,y:m2) = splitAt j' m
+        y' = zipWith (+) y (map (s*) x)
+    in m1++y':m2
+
+
 
 -- | Reduces a trace of elimOps to a single function
 --   TODO: We should add a rewrite rule such that fold elemOpToFunc only packs and unpacks once
@@ -354,9 +352,14 @@ foldElemOpsFunc :: Field f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
 foldElemOpsFunc = foldr (flip (.)) id . map elimOpToFunc
 
 
+-- | Applies a function on a unpacked and transposed matrix before transposing it back
+--   UNSAFE: The function can not change the dimension of the matrix 
+onUnpackedTrans :: ([[f]] -> [[f]]) -> Matrix f m n -> Matrix f m n
+onUnpackedTrans f = pack . L.transpose . f . L.transpose . unpack
+
 -- | Transform a matrix to upper triangular form
 utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
-utf = transpose . pack . sort . f . unpack . transpose
+utf = onUnpackedTrans (sort . f) 
     where
           f []     = []
           f (x:[]) = let (x', n) = pivot x in [x']
