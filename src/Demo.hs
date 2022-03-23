@@ -72,6 +72,17 @@ crossProd = cross v2 v3 == vec [7*8-1*2, 1*8-2*8, 2*2-7*8]
 orth = dot v2 (cross v2 v3) == dot v3 (cross v2 v3)
                             && dot v2 (cross v2 v3) == 0
 
+-- test transpose
+m1 :: Matrix Double 3 3
+m1 = toMat [[1,1,1],[2,2,2],[3,3,3]]::MatR 3 3
+testtran = transpose m1 == (toMat [[1,2,3],[1,2,3],[1,2,3]])
+
+m2 :: Matrix Double 3 1
+m2 = toMat[[4,4,4]] :: MatR 3 1
+
+-- append adds m2 as the last col, new matrix = 3 rows, 4 cols
+testappend = append m1 m2 == (toMat [[1,1,1],[2,2,2],[3,3,3],[4,4,4]]:: MatR 3 4)
+
 {- 
 A system of linear equations can be represented in matrix form using a coefficient matrix, a variable matrix, and a constant matrix
 Ax = B

@@ -42,7 +42,7 @@ instance Show f => Show (Vector f n) where
     show v = show . M $ V [v]
 
 -- | Allows us to patternmatch the vector elements
---   without exlicitly unwraping the underlying List
+--   without explicitly unwrapping the underlying List
 pattern V a = Vector (L a)
 
 type VecR = Vector Double
@@ -51,7 +51,7 @@ type VecR = Vector Double
 --   v = vec [1,2,3,4] :: R^4
 type f ^ n = Vector f n
 
-lenTest = V[1,2,3]::VecR 3
+-- | The length of the vector given by its type
 vecLen :: KnownNat n => Vector f n -> Int
 vecLen v = fromInteger $ natVal v
 
@@ -81,7 +81,6 @@ instance (KnownNat n, Ring f) => VectorSpace (Vector f n) where
 -- | Vector is further a finite Vector Field
 instance (KnownNat n, Field f) => Finite (Vector f n) where
     type Dim (Vector f n) = n
-    type BasisVec (Vector f n) = (Vector f n)
     basis' _ = let M (Vector bs) = idm in bs
 
 
@@ -132,15 +131,9 @@ showMat m = unlines $ map (\s -> "| " ++ unwords s ++ "|") $ L.transpose $ map p
         padCol l = let s = map show l in map (padString (getLongest s)) s
 
 
-
 -- | Identity matrix
---id3x3
-idm3x3 :: Matrix Double 3 3
-idm3x3 = idm :: MatR 3 3
-
 idm :: (KnownNat n, Field f) => Matrix f n n
 idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
-
 
 -- | Matrix vector multiplication
 (££) :: (KnownNat m, Field f) =>
@@ -154,15 +147,21 @@ m £££ M (V vs) = M . V $ map (m££) vs
 
 
 -- | Applies a function on each column vector
---   Representes composition f M
-funMatComp :: (Vector f b -> Vector f a) -> Matrix f b c -> Matrix f a c
-funMatComp f (M (V vs)) = M . V $ map f vs
+--   Represents composition f M 
+onCols :: (Vector f b -> Vector f a) -> Matrix f b c -> Matrix f a c
+onCols f (M (V vs)) = M . V $ map f vs
 
-prop_funMatComp :: (KnownNat b, KnownNat a, Field f, Eq f) => 
-    (Vector f b -> Vector f a) -> Matrix f b c -> Vector f c -> Bool
-prop_funMatComp f m v = f (m ££ v) == (f `funMatComp` m) ££ v
+-- | Returns the matrix representation of a linear function
+--   We should have that
+--   f `onCols` m == funToMat f £££ m
+--   UNSAFE: the function should be linear.
+funToMat :: (KnownNat n, Field f) => (Vector f n -> Vector f m) -> Matrix f m n
+funToMat f = onCols f idm
 
-
+-- | Puts all element in the diagonal in a vector
+getDiagonal :: Matrix f n n -> Vector f n
+getDiagonal m = V $ zipWith (!!) (unpack m) [0..]
+  
 -- Matrices also forms a vector space over a field
 instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
     M (V as) + M (V bs) = M . V $ zipWith (+) as bs
@@ -175,16 +174,11 @@ instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) where
 
 
 -- | Converts objects to and from Matrices.
---   NOTE: Should we get rid of this class and simply define functions instead?
+--   PROPOSAL: Should we get rid of this class and simply define functions instead?
 class ToMat m n x where
     type Under' x 
     toMat   :: x -> Matrix (Under' x) m n
     fromMat :: Matrix (Under' x) m n -> x
-
-instance (KnownNat n) => ToMat n n Double where
-    type Under' Double = Double
-    toMat s = s £ idm
-    fromMat (M (V (V (s:_):_))) = s
 
 instance ToMat n 1 (Vector f n) where
     type Under' (Vector f n) = f
@@ -218,40 +212,25 @@ instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
     fromMat = unpack
 
 
-
--- test transpose
-m1 :: Matrix Double 3 3
-m1 = toMat [[1,1,1],[2,2,2],[3,3,3]]::MatR 3 3
-testtran = transpose m1 == (toMat [[1,2,3],[1,2,3],[1,2,3]])
-
+-- | Transposes the matrix
 transpose :: Matrix f m n -> Matrix f n m
 transpose = pack . L.transpose . unpack
 
--- test get
-testget = get m1 (1,1) == 2      -- m1 row 1, col 1
-
+-- | Gets the value at (column, row)
 get :: Matrix f m n -> (Index, Index) -> f
 get m (x,y) = unpack m !! x !! y
 
--- matrix to array and back
-testunpack = unpack m1 == [[1,1,1],[2,2,2],[3,3,3]]
-testpack = pack(unpack m1) == m1
-
+-- | Converts a Matrix to a list of lists 
 unpack :: Matrix f m n -> [[f]]
-unpack (M (V vs)) = map (\(V a) -> a) vs
+unpack = map (\(V a) -> a) . matToList
 
+-- | Converts a list of lists to a Matrix
+--   UNSAFE: should only be used when the correct dimensions can be guaranteed.
 pack :: [[f]] -> Matrix f m n
 pack = M . V . map V
 
--- | Analogous to (++)
+-- | Appends the second matrix to the right of the first, analogous to (++)
 --   useful for Ex. Guassian elimination
-m2 :: Matrix Double 3 1
-m2 = toMat[[4,4,4]] :: MatR 3 1
-
--- append adds m2 as the last col, new matrix = 3 rows, 4 cols
-testappend = append m1 m2 == (toMat [[1,1,1],[2,2,2],[3,3,3],[4,4,4]]:: MatR 3 4)
-
--- | Appends the second matrix to the right of the first
 append :: Matrix f m n1 -> Matrix f m n2 -> Matrix f m (n1+n2)
 append m1 m2 = pack $ unpack m1 ++ unpack m2
 
@@ -264,14 +243,12 @@ matToList :: Matrix f m n -> [Vector f m]
 matToList (M (V vs)) = vs
 
 
-getDiagonal :: Matrix f n n -> Vector f n
-getDiagonal m = V $ zipWith (!!) (unpack m) [0..]
-
 -------------------------------------------
 -- Elementary row operations definition 
 -- Reduction and equation solver functions
 
 type Index = Int 
+
 -- | Represents elementary row operations
 data ElimOp a = Swap Index Index 
               | Mul Index a 
@@ -297,34 +274,21 @@ showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t
 
 -- | Representation of an elementary row operation as a matrix 
 elimOpToMat :: (KnownNat n, Field f) => ElimOp f -> Matrix f n n
-elimOpToMat (Swap x y) = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
-    where e' i | i == x    = e y
-               | i == y    = e x
-               | otherwise = e i
-elimOpToMat (Mul x n)  = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
-    where e' i | i == x    = n £ e i
-               | otherwise = e i
-elimOpToMat (MulAdd x y n) = let v = V [ e' i | i <- [1 .. vecLen v] ] in M v
-    where e' i | i == x    = e i + (n £ e y)
-               | otherwise = e i
-
-m :: Matrix Double 3 4
-m = toMat [[2, -3, -2],[1, -1, 1],[-1, 2, 2],[8, -11, -3]]
-
-es :: [ElimOp Double]
-es = [MulAdd 1 2 (3/2), MulAdd 1 3 1, MulAdd 2 3 (-4), MulAdd 3 2 (1/2), MulAdd 3 1 (-1), Mul 2 2, Mul 3 (-1), MulAdd 2 1 (-1), Mul 1 (1/2)]
+elimOpToMat e = elimOpToFunc e idm
 
 foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
 foldElemOps = foldr (flip (£££)) idm . map elimOpToMat 
 
 -- | Representation of an elementary row operation as a function 
 elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
-elimOpToFunc e = case e of
-            Swap i j     -> swap i j
-            Mul i s      -> mul i s
-            MulAdd i j s -> muladd i j s
+elimOpToFunc e = case e of Swap i j     -> swap i j
+                           Mul i s      -> mul i s
+                           MulAdd i j s -> muladd i j s
 
 -- | Elementary row functions.
+--   It might be better to define the as (Vector f n -> Vector f n) e.g. a linear map. 
+--   If we want to apply it to a matrix we can then use onCols. 
+--   Doing so will also remove the need for transpose.
 swap :: Field f => Index -> Index -> Matrix f m n -> Matrix f m n
 swap i j = onUnpackedTrans $ \m -> 
     let (i', j') = (min i j - 1, max i j - 1)
@@ -343,7 +307,6 @@ muladd i j s = onUnpackedTrans $ \m ->
         (m1,y:m2) = splitAt j' m
         y' = zipWith (+) y (map (s*) x)
     in m1++y':m2
-
 
 
 -- | Reduces a trace of elimOps to a single function
@@ -411,10 +374,6 @@ pivot (x:xs) | x == zero = 1 + pivot xs
              | otherwise = 0
 
 
-jordan :: (Eq f, Field f) => Matrix f m n -> [ElimOp f]
-jordan = undefined
-
-
 -- | Solve systems of equations
 --   Check in Demo.hs how to use
 solve :: (Field f) => [[f]] -> [f]
@@ -427,12 +386,12 @@ solve m = foldr next [last (last m)] (init m)
 
 -- | apply when solving systems of equations
 --   each element in list represents variable values
+--   TODO: handle case when there is no solution, return Maybe 
 solvesys :: (Eq f, Field f) => Matrix f m n -> Vector f (n -1)
 solvesys = V . solve . unpack . transpose . utf
 
 
-
--- | Seperates the first column from a matrix and returns it as a Vector along with the remaining Matrix
+-- | Separates the first column from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateCol is safe since the given matrix has width >= 1
 separateCol :: ( n ~ (n+1-1) ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
 -- separateCol :: ( n ~ (n+1)-1 ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
@@ -447,57 +406,15 @@ separateCols m = map (\(v, m') -> (v, M (V m'))) $ separate' [] (matToList m)
           separate' acc (v:vs) =  (v, acc++vs) : separate' (acc++[v]) vs
 
 
--- | Seperates the first row from a matrix and returns it as a Vector along with the remaining Matrix
+-- | Separates the first row from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateRow is safe since the given matrix has width >= 1
 separateRow :: ( m ~ (m+1-1) ) => Matrix f (m+1) n -> (Vector f n, Matrix f m n)
--- separateRow :: ( m ~ (m+1)-1 ) => Matrix f (m+1) n -> (Vector f n, Matrix f m n)
 separateRow = head . separateRows
 
 -- | For each row vector in a matrix, returns the vector and the remaining matrix
 separateRows :: Matrix f m n -> [(Vector f n, Matrix f (m-1) n)]
 separateRows = map (\(v, m) -> (v, transpose m)) . separateCols . transpose
 
-
-
-{- 
-*ListVector> mSys = utf $ (toMat [[1],[1]] :: MatR 1 2) 
-*ListVector> mSys ££ vec [54,-53]
-| 1.0 |
-
-*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [54,-53, 1]
-| 1.0 |
-
-*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [54,-5432, 1]
-| 1.0 |
-
-*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [542,-5432, 1]
-| 1.0 |
-
-*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [5424234234,-54343242, 1]
-| 1.0 |
-
-*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [0,-54343242, 1]
-| 1.0 |
-
-*ListVector> mSys £££ (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [0,0, 1]
-| 1.0 |
-
-*ListVector> (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [0,0, 1]
-| 0.0 |
-| 1.0 |
-
-*ListVector> (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [432,0, 1]
-|  432.0 |
-| -431.0 |
-
-*ListVector> (toMat @2 @3 [[1,-1],[0,0],[0,1]]) ££ vec [432,543534, 1]
-|  432.0 |
-| -431.0 |
-
-*ListVector> (toMat @2 @2 [[1,-1],[0,1]]) ££ vec [432, 1]
-|  432.0 |
-| -431.0 |
--}
 
 scaleM :: Ring f => f -> Matrix f m n -> Matrix f m n
 scaleM c (M vs) = M (mapV (scaleV c) vs)

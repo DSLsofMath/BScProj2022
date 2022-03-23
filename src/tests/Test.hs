@@ -87,9 +87,22 @@ prop_matMatmul2 :: (KnownNat a,KnownNat b, KnownNat c, Field f,Eq f) =>
 prop_matMatmul2 m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3 
 
 
--- test on utility functions
+-- Test on utility functions
+
+prop_transpose :: Eq f => Matrix f m n -> Bool
+prop_transpose m = transpose (transpose m) == m
+
 prop_onUnpackedTrans :: Eq f => Matrix f m n -> Bool
 prop_onUnpackedTrans m = onUnpackedTrans id m == m
+
+prop_funMatComp :: (KnownNat b, KnownNat a, Field f, Eq f) => 
+    (Vector f b -> Vector f a) -> Matrix f b c -> Vector f c -> Bool
+prop_funMatComp f m v = f (m ££ v) == (f `funMatComp` m) ££ v
+
+-- matrix to array and back
+prop_packUnpack :: Eq f => Matrix f m n -> Bool
+prop_packUnpack m = pack(unpack m) == m
+
 
 -----------------------------------------------------------------------------------
 -- Generator for arbitrary sizes 

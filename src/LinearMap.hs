@@ -103,8 +103,8 @@ class (VectorSpace x, VectorSpace (From x), VectorSpace (To x),
 instance AddGroup (b --> a) where
     Wrap rA a + Wrap rB b = case (rA, rB) of 
         (Mat, Mat) -> wrap $ a + b
-        (Fun, Mat) -> wrap $ (a `funMatComp` idm)  + b
-        (Mat, Fun) -> wrap $ a + (b `funMatComp` idm)
+        (Fun, Mat) -> wrap $ funToMat a + b
+        (Mat, Fun) -> wrap $ a + funToMat b
         _          -> wrap $ toLinMapFun a + toLinMapFun b
     Zero    + a       = a
     a       + Zero    = a
