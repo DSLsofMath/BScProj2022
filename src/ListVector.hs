@@ -414,8 +414,8 @@ solve m = foldr next [last (last m)] (init m)
 
 -- | apply when solving systems of equations
 --   each element in list represents variable values
-solvesys :: (Eq f, Field f) => Matrix f n m -> [f]
-solvesys = solve . unpack . transpose . utf
+solvesys :: (Eq f, Field f) => Matrix f m n -> Vector f (n -1)
+solvesys = V . solve . unpack . transpose . utf
 
 
 
