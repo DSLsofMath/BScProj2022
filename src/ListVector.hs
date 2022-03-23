@@ -317,7 +317,6 @@ es = [MulAdd 1 2 (3/2), MulAdd 1 3 1, MulAdd 2 3 (-4), MulAdd 3 2 (1/2), MulAdd 
 foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
 foldElemOps = foldr (flip (£££)) idm . map elimOpToMat 
 
-
 -- | Representation of an elementary row operation as a function 
 --   The reason that we unpack all the way to list is to avoid a KnownNat constraint
 elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
@@ -337,6 +336,17 @@ elimOpToFunc e = pack . L.transpose  . f . L.transpose . unpack
                             (m1,y:m2) = splitAt j' m
                             y' = zipWith (+) y (map (s*) x)
                             in m1++y':m2
+
+-- | Elementary row functions.
+-- Change places with these functions and elimOpToFunc.
+swap :: Field f => Index -> Index -> Matrix f m n -> Matrix f m n
+swap n1 n2 = elimOpToFunc (Swap n1 n2)
+
+mul :: Field f => Index -> f -> Matrix f m n -> Matrix f m n
+mul n1 n2 = elimOpToFunc (Mul n1 n2)
+
+muladd :: Field f => Index -> Index -> f -> Matrix f m n -> Matrix f m n
+muladd n1 n2 n3 = elimOpToFunc (MulAdd n1 n2 n3)
 
 -- | Reduces a trace of elimOps to a single function
 --   TODO: We should add a rewrite rule such that fold elemOpToFunc only packs and unpacks once
