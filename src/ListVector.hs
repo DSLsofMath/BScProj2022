@@ -79,7 +79,7 @@ instance (KnownNat n, Ring f) => VectorSpace (Vector f n) where
     s £ V ss = V $ map (s*) ss
 
 -- | Vector is further a finite Vector Field
-instance (KnownNat n, Field f) => Finite (Vector f n) where
+instance (KnownNat n, Ring f) => Finite (Vector f n) where
     type Dim (Vector f n) = n
     basis' _ = let M (Vector bs) = idm in bs
 
@@ -124,11 +124,12 @@ instance Show f => Show (Matrix f m n) where
 
 -- Show function for matrices 
 showMat :: (Show f) => Matrix f m n -> String
-showMat m = unlines $ map (\s -> "| " ++ unwords s ++ "|") $ L.transpose $ map padCol $ unpack m
+showMat = ("\n"++) . unlines . map formatRow . L.transpose . map padCol . unpack 
     where
-        getLongest = maximum . map (length)
-        padString n s = (replicate (n-length s) ' ') ++ s ++ " "
+        getLongest = maximum . map length
+        padString n s = replicate (n-length s) ' ' ++ s ++ " "
         padCol l = let s = map show l in map (padString (getLongest s)) s
+        formatRow s = "| " ++ unwords s ++ "|"
 
 
 -- | Identity matrix
@@ -168,7 +169,7 @@ instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
     M (V as) - M (V bs) = M . V $ zipWith (-) as bs
     zero = let v = V $ replicate (vecLen v) zero in M v
 
-instance (KnownNat m, KnownNat n, Field f) => VectorSpace (Matrix f m n) where
+instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix f m n) where
     type Under (Matrix f m n) = f
     s £ M (V vs) = M . V $ map (s£) vs
 

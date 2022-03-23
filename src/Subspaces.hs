@@ -30,10 +30,7 @@ import ListVector
 
 -- | A subspace is defined by a list of vectors that spans the space.
 --   We might want to add an invariant to the list such that it is linearly independent.
-data Subspace v = Sub [v]
-
-instance (Show v) => Show (Subspace v) where
-    show (Sub vs) = show vs
+newtype Subspace v = Sub [v] deriving (Show, Eq)
 
 -- | We define Addgroup over a subspace as "sum of subsets"
 instance (AddGroup v) => AddGroup (Subspace v) where
@@ -110,3 +107,5 @@ solveQ' m = let (v', m') = last $ separateCols m in solveQ m' v'
 
 mEx :: Matrix R 3 3
 mEx = toMat [[1,2,1],[0,1,1],[1,2,1]]
+
+

@@ -97,7 +97,7 @@ prop_onUnpackedTrans m = onUnpackedTrans id m == m
 
 prop_funMatComp :: (KnownNat b, KnownNat a, Field f, Eq f) => 
     (Vector f b -> Vector f a) -> Matrix f b c -> Vector f c -> Bool
-prop_funMatComp f m v = f (m ££ v) == (f `funMatComp` m) ££ v
+prop_funMatComp f m v = f (m ££ v) == (f `onCols` m) ££ v
 
 -- matrix to array and back
 prop_packUnpack :: Eq f => Matrix f m n -> Bool
