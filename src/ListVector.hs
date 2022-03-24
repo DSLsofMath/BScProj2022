@@ -14,6 +14,7 @@ module ListVector where
 import GHC.TypeLits hiding (type (^))
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
+import Data.Coerce
 
 import qualified Data.List as L
 import Algebra
@@ -225,13 +226,13 @@ get m (x,y) = unpack m !! x !! y
 
 -- | Converts a Matrix to a list of lists 
 unpack :: Matrix f m n -> [[f]]
-unpack = map (\(V a) -> a) . matToList
+unpack = coerce
 
 -- | Converts a list of lists to a Matrix
 --   UNSAFE: should only be used when the correct dimensions can be guaranteed.
 --   For a safer alternative se toMat
 pack :: [[f]] -> Matrix f m n
-pack = M . V . map V
+pack = coerce
 
 -- | Appends the second matrix to the right of the first, analogous to (++)
 --   useful for Ex. Guassian elimination
@@ -244,7 +245,7 @@ append' m1 m2 = pack $ zipWith (++) (unpack m1) (unpack m2)
 
 -- | Converts a Matrix to a list of Vectors 
 matToList :: Matrix f m n -> [Vector f m]
-matToList (M (V vs)) = vs
+matToList = coerce
 
 
 -------------------------------------------
