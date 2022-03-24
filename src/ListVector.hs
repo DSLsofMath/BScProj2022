@@ -76,7 +76,7 @@ instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
 
 instance (KnownNat n, Ring f) => VectorSpace (Vector f n) where
     type Under (Vector f n) = f
-    s £ V ss = V $ map (s*) ss
+    s £ v = mapV (s*) v
 
 -- | Vector is further a finite Vector Field
 instance (KnownNat n, Ring f) => Finite (Vector f n) where
@@ -137,27 +137,25 @@ idm :: (KnownNat n, Field f) => Matrix f n n
 idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
 -- | Matrix vector multiplication
-(££) :: (KnownNat m, Field f) =>
-                    Matrix f m n -> Vector f n -> Vector f m
-M (V vs) ££ (V ss) = sum $ zipWith (£) ss vs
+(££) :: (KnownNat m, Field f) => Matrix f m n -> Vector f n -> Vector f m
+M (Vector vs) ££ v = v `eval` vs
 
 -- | Matrix matrix multiplication
-(£££) :: (KnownNat a, Field f) =>
-                    Matrix f a b -> Matrix f b c -> Matrix f a c
-m £££ M (V vs) = M . V $ map (m££) vs
+(£££) :: (KnownNat a, Field f) => Matrix f a b -> Matrix f b c -> Matrix f a c
+a £££ b = (a££) `onCols` b
 
 
 -- | Applies a function on each column vector
 --   Represents composition f M 
 onCols :: (Vector f b -> Vector f a) -> Matrix f b c -> Matrix f a c
-onCols f (M (V vs)) = M . V $ map f vs
+onCols f (M v) = M $ mapV f v
 
 -- | Returns the matrix representation of a linear function
 --   We should have that
 --   f `onCols` m == funToMat f £££ m
 --   UNSAFE: the function should be linear.
 funToMat :: (KnownNat n, Field f) => (Vector f n -> Vector f m) -> Matrix f m n
-funToMat f = onCols f idm
+funToMat f = f `onCols` idm
 
 -- | Puts all element in the diagonal in a vector
 getDiagonal :: Matrix f n n -> Vector f n
@@ -171,8 +169,12 @@ instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
 
 instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix f m n) where
     type Under (Matrix f m n) = f
-    s £ M (V vs) = M . V $ map (s£) vs
+    s £ m = (s£) `onCols` m
 
+-- | Square matrices form a multiplicative group
+instance (KnownNat n, Ring f) => Mul (Matrix f n n) where
+    (*) = (£££)
+    one = idm
 
 -- | Converts objects to and from Matrices.
 --   PROPOSAL: Should we get rid of this class and simply define functions instead?
@@ -227,6 +229,7 @@ unpack = map (\(V a) -> a) . matToList
 
 -- | Converts a list of lists to a Matrix
 --   UNSAFE: should only be used when the correct dimensions can be guaranteed.
+--   For a safer alternative se toMat
 pack :: [[f]] -> Matrix f m n
 pack = M . V . map V
 
@@ -273,19 +276,6 @@ showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t
                      in unlines [ show m ++ "\n" ++ show op | (m, op) <- zip matTrace t ]
                         ++ show (last matTrace)
 
--- | Representation of an elementary row operation as a matrix 
-elimOpToMat :: (KnownNat n, Field f) => ElimOp f -> Matrix f n n
-elimOpToMat e = elimOpToFunc e idm
-
-foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
-foldElemOps = foldr (flip (£££)) idm . map elimOpToMat 
-
--- | Representation of an elementary row operation as a function 
-elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
-elimOpToFunc e = case e of Swap i j     -> swap i j
-                           Mul i s      -> mul i s
-                           MulAdd i j s -> muladd i j s
-
 -- | Elementary row functions.
 --   It might be better to define the as (Vector f n -> Vector f n) e.g. a linear map. 
 --   If we want to apply it to a matrix we can then use onCols. 
@@ -309,11 +299,23 @@ muladd i j s = onUnpackedTrans $ \m ->
         y' = zipWith (+) y (map (s*) x)
     in m1++y':m2
 
+-- | Representation of an elementary row operation as a matrix 
+elimOpToMat :: (KnownNat n, Field f) => ElimOp f -> Matrix f n n
+elimOpToMat e = elimOpToFunc e idm
 
+foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
+foldElemOps = product . map elimOpToMat . reverse
+
+-- | Representation of an elementary row operation as a function 
+elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
+elimOpToFunc (Swap   i j  ) = swap   i j
+elimOpToFunc (Mul    i   s) = mul    i   s
+elimOpToFunc (MulAdd i j s) = muladd i j s
+                         
 -- | Reduces a trace of elimOps to a single function
 --   TODO: We should add a rewrite rule such that fold elemOpToFunc only packs and unpacks once
 foldElemOpsFunc :: Field f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
-foldElemOpsFunc = foldr (flip (.)) id . map elimOpToFunc
+foldElemOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
 
 -- | Applies a function on a unpacked and transposed matrix before transposing it back
@@ -395,17 +397,15 @@ solvesys = V . solve . unpack . transpose . utf
 -- | Separates the first column from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateCol is safe since the given matrix has width >= 1
 separateCol :: ( n ~ (n+1-1) ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
--- separateCol :: ( n ~ (n+1)-1 ) => Matrix f m (n+1) -> (Vector f m, Matrix f m n)
 separateCol = head . separateCols
 
 -- | For each column vector in a matrix, returns the vector and the remaining matrix
 separateCols :: Matrix f m n -> [(Vector f m, Matrix f m (n-1))]
-separateCols m = map (\(v, m') -> (v, M (V m'))) $ separate' [] (matToList m)
+separateCols = map (\(v, m) -> (v, M (V m)) ) . separate' [] . matToList 
     where separate' :: [Vector f m] -> [Vector f m] -> [(Vector f m, [Vector f m])]
           separate' _   []     = []
-          separate' acc (v:[]) = [(v,     acc)]
+          separate' acc (v:[]) = [(v, acc    )]
           separate' acc (v:vs) =  (v, acc++vs) : separate' (acc++[v]) vs
-
 
 -- | Separates the first row from a matrix and returns it as a Vector along with the remaining Matrix
 --   SeparateRow is safe since the given matrix has width >= 1
