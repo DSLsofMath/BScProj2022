@@ -87,6 +87,17 @@ prop_matMatmul2 :: (KnownNat a,KnownNat b, KnownNat c, Field f,Eq f) =>
 prop_matMatmul2 m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3 
 
 
+-- Test on determinant
+
+-- ElimOp and determinant
+
+
+-- Test on eigenvalues/vectors
+
+-- Matrix in characteristic polynomial
+
+
+
 -- Test on utility functions
 
 prop_transpose :: Eq f => Matrix f m n -> Bool
