@@ -29,6 +29,8 @@ library
             , Eigen
             , LinearMap
             , Subspaces
+  other-modules : QuadTree
+                , SparseCSR
 
 
 Test-Suite test
@@ -37,7 +39,7 @@ Test-Suite test
     main-is:            Test.hs
     build-depends:      algebra,
                         QuickCheck,
-                        DataKinds
+    other-modules:      HiddenNat
     hs-source-dirs:     tests
 
 -- executable demo
