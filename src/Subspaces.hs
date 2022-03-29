@@ -30,10 +30,7 @@ import ListVector
 
 -- | A subspace is defined by a list of vectors that spans the space.
 --   We might want to add an invariant to the list such that it is linearly independent.
-data Subspace v = Sub [v]
-
-instance (Show v) => Show (Subspace v) where
-    show (Sub vs) = show vs
+newtype Subspace v = Sub [v] deriving (Show, Eq)
 
 -- | We define Addgroup over a subspace as "sum of subsets"
 instance (AddGroup v) => AddGroup (Subspace v) where
@@ -85,5 +82,30 @@ makeLinIndep = foldl (\vs v -> if span' (M $ V vs) v then vs else v:vs) []
 -- | Checks if the vectors in a matrix forms a basis of their vectorSpace
 isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix f m n -> Bool
 isBasis m = spansSpace m && linIndep m
+
+-- | The null space of a linear transformation is the set of vectors that maps to 0
+--   In terms of linear equations it is the solution to Ax=0
+nullSpace :: (KnownNat n, Field f, Eq f) =>  Matrix f m n -> Subspace (Vector f n)
+nullSpace m = Sub $ [ V b | (a,b) <- splitAt height <$> reduceCol m, all (== zero) a]
+    where height = length (head $ unpack m)
+          reduceCol m = unpack $ transpose $ utf (transpose m `append` idm)
+
+          
+-- | A quotient space is a subspace translated by a vector
+data QuotientSpace v = Quot v (Subspace v) deriving (Show)
+
+-- | Returns the set of solutions to Ax=v
+solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix f m n -> Vector f m -> QuotientSpace (Vector f n)
+solveQ m v = Quot (solvesys $ m `append'` v) (nullSpace m)
+    where append' :: Matrix f m n -> Vector f m -> Matrix f m (n+1)
+          m `append'` v = m `append` M (V [v]) 
+
+-- | Equivalent to solveQ but takes a matrix A `append` v representing Ax=v
+solveQ' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix f m (n+1)  -> QuotientSpace (Vector f n)
+solveQ' m = let (v', m') = last $ separateCols m in solveQ m' v'
+
+
+mEx :: Matrix R 3 3
+mEx = toMat [[1,2,1],[0,1,1],[1,2,1]]
 
 

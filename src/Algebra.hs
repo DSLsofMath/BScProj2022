@@ -194,6 +194,7 @@ class (AddGroup v, Ring (Under v)) => VectorSpace v where
 class VectorSpace x => Finite x where 
     type Dim x :: Nat
     type BasisVec x :: *
+    type BasisVec x = x 
     basis' :: x -> List (BasisVec x) (Dim x)
 
 basis :: forall x. (Finite x, AddGroup x, x ~ BasisVec x) => List x (Dim x)

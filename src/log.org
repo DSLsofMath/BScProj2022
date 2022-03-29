@@ -1,5 +1,6 @@
 * 2022-03-18: Patrik
 + I made some tests and contributions.
++ There is some need to "clean up" the different determinant versions
 * 2022-03-04: Patrik
 ** Some error 
 + I tried with ghc version 8.8.4
