@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-} 
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-} 
@@ -32,6 +33,13 @@ test = CSR {
     col = [ 0, 1, 2, 1 ],
     row = [ 0, 1, 2, 3, 4 ]}
 
+-- Test Matrix
+test2 :: CSR Int 4 4
+test2 = CSR {
+    elems = [ 5, 4, 8, 3, 6 ],
+    col = [ 0, 1, 1, 2, 1 ],
+    row = [ 0, 2, 3, 4, 5 ]}
+
 colVecTest :: CSR Int 4 1
 colVecTest = CSR {
     elems = [4,1,3],
@@ -50,10 +58,35 @@ getRow :: CSR f m n -> Int -> ([Int], [f])
 getRow (CSR elems col row) i = case td i 2 row of
         [a,b] -> unzip $ td a (b-a) (zip col elems) 
         _     -> ([],[])
-    where td i j = take j . drop i
+        where td i j = take j . drop i
+
+getColumn :: CSR f m n -> Int -> ([Int], [f])
+getColumn (CSR elems col row) i = undefined 
+
+--getColumnIndex i col elems = unzip $ filter zip col elems
+--    \(i',_) -> i' = i
+
+dotL :: (AddGroup f, Mul f) => [f] -> [f] -> f
+dotL v1 v2 = sum $ zipWith (*) v1 v2
 
 --
 -- Matrix operations
---
+--  
 
 -- Matrix Vector Multiplication                                                                                                                                                                                                                                                                                                                                                                       
+
+smv :: (AddGroup f, Mul f) => CSR f a b -> [f] -> [f]
+smv (CSR _ _ (r:[])) v = []
+smv (CSR [] _ _) v = []
+smv (CSR elems col (r:row)) v = dotL (take j elems) (listIndex v (take j col)) : 
+                                     smv (CSR (drop j elems) (drop j col) row) v
+            where j = head row - r 
+
+testsmv = smv test [1,1,1,1]  == [5,8,3,6]
+
+testsmv2 = smv test2 [1,1,1,1]  == [9,8,3,6]
+
+-- | Take a list uses a list of indexes to print index values
+listIndex :: [f] -> [Int] -> [f]
+listIndex as [] = []
+listIndex as indexes = map (as!!) indexes -- i : listIndex as indexes
