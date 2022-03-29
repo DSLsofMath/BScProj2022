@@ -13,7 +13,7 @@ module ListVector where
 
 import GHC.TypeLits hiding (type (^))
 import qualified Prelude
-import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
+import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 import Data.Coerce
 
 import qualified Data.List as L
@@ -65,7 +65,7 @@ vec :: (KnownNat n, AddGroup f) => [f] -> Vector f n
 vec ss = V (ss ++ repeat zero) + zero
 
 -- | e i is the i:th basis vector
-e :: (KnownNat n, Field f) => Int -> Vector f n
+e :: (KnownNat n, Ring f) => Int -> Vector f n
 e i = V (replicate (i-1) zero ++ (one : repeat zero)) + zero
 
 
@@ -92,14 +92,14 @@ v2 = V [8,2,8]::VecR 3
 -- test dot product
 testdot = dot v1 v2 == 2*8 + 7*2 + 8*1
 
-dot :: (Field f) => Vector f n -> Vector f n -> f
+dot :: Ring f => Vector f n -> Vector f n -> f
 V v1 `dot` V v2 = sum $ zipWith (*) v1 v2
 
 -- | Cross product of two vectors of size 3
 -- test cross product
 testross = cross v1 v2 == V[7*8-1*2, 1*8-2*8, 2*2-7*8]
 
-cross :: (Field f) => Vector f 3 -> Vector f 3 -> Vector f 3
+cross :: Ring f => Vector f 3 -> Vector f 3 -> Vector f 3
 V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
                                        a3*b1-a1*b3,
                                        a1*b2-a2*b1]
@@ -134,15 +134,15 @@ showMat = ("\n"++) . unlines . map formatRow . L.transpose . map padCol . unpack
 
 
 -- | Identity matrix
-idm :: (KnownNat n, Field f) => Matrix f n n
+idm :: (KnownNat n, Ring f) => Matrix f n n
 idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
 -- | Matrix vector multiplication
-(££) :: (KnownNat m, Field f) => Matrix f m n -> Vector f n -> Vector f m
+(££) :: (KnownNat m, Ring f) => Matrix f m n -> Vector f n -> Vector f m
 M (Vector vs) ££ v = v `eval` vs
 
 -- | Matrix matrix multiplication
-(£££) :: (KnownNat a, Field f) => Matrix f a b -> Matrix f b c -> Matrix f a c
+(£££) :: (KnownNat a, Ring f) => Matrix f a b -> Matrix f b c -> Matrix f a c
 a £££ b = (a££) `onCols` b
 
 
@@ -155,14 +155,14 @@ onCols f (M v) = M $ mapV f v
 --   We should have that
 --   f `onCols` m == funToMat f £££ m
 --   UNSAFE: the function should be linear.
-funToMat :: (KnownNat n, Field f) => (Vector f n -> Vector f m) -> Matrix f m n
+funToMat :: (KnownNat n, Ring f) => (Vector f n -> Vector f m) -> Matrix f m n
 funToMat f = f `onCols` idm
 
 -- | Puts all element in the diagonal in a vector
 getDiagonal :: Matrix f n n -> Vector f n
 getDiagonal m = V $ zipWith (!!) (unpack m) [0..]
   
--- Matrices also forms a vector space over a field
+-- Matrices also forms a vector space
 instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
     M (V as) + M (V bs) = M . V $ zipWith (+) as bs
     M (V as) - M (V bs) = M . V $ zipWith (-) as bs
@@ -281,18 +281,18 @@ showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t
 --   It might be better to define the as (Vector f n -> Vector f n) e.g. a linear map. 
 --   If we want to apply it to a matrix we can then use onCols. 
 --   Doing so will also remove the need for transpose.
-swap :: Field f => Index -> Index -> Matrix f m n -> Matrix f m n
+swap :: Index -> Index -> Matrix f m n -> Matrix f m n
 swap i j = onUnpackedTrans $ \m -> 
     let (i', j') = (min i j - 1, max i j - 1)
         (m1,x:xs) = splitAt i' m
         (xs',y:m2) = splitAt (j' - i'-1) xs
     in m1++y:xs'++x:m2
 
-mul :: Field f => Index -> f -> Matrix f m n -> Matrix f m n
+mul :: Mul f => Index -> f -> Matrix f m n -> Matrix f m n
 mul i s = onUnpackedTrans $ \m -> 
     let (m1,x:m2) = splitAt (i-1) m in m1++(map (s*) x): m2
 
-muladd :: Field f => Index -> Index -> f -> Matrix f m n -> Matrix f m n
+muladd :: Ring f => Index -> Index -> f -> Matrix f m n -> Matrix f m n
 muladd i j s = onUnpackedTrans $ \m -> 
     let (i', j') = (i - 1, j - 1)
         (_,x:_) = splitAt i' m
@@ -301,21 +301,21 @@ muladd i j s = onUnpackedTrans $ \m ->
     in m1++y':m2
 
 -- | Representation of an elementary row operation as a matrix 
-elimOpToMat :: (KnownNat n, Field f) => ElimOp f -> Matrix f n n
+elimOpToMat :: (KnownNat n, Ring f) => ElimOp f -> Matrix f n n
 elimOpToMat e = elimOpToFunc e idm
 
-foldElemOps :: (Field f, KnownNat n) => [ElimOp f] -> Matrix f n n
+foldElemOps :: (KnownNat n, Ring f) => [ElimOp f] -> Matrix f n n
 foldElemOps = product . map elimOpToMat . reverse
 
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: Field f => ElimOp f -> (Matrix f m n -> Matrix f m n)
+elimOpToFunc :: Ring f => ElimOp f -> (Matrix f m n -> Matrix f m n)
 elimOpToFunc (Swap   i j  ) = swap   i j
 elimOpToFunc (Mul    i   s) = mul    i   s
 elimOpToFunc (MulAdd i j s) = muladd i j s
                          
 -- | Reduces a trace of elimOps to a single function
 --   TODO: We should add a rewrite rule such that fold elemOpToFunc only packs and unpacks once
-foldElemOpsFunc :: Field f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
+foldElemOpsFunc :: Ring f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
 foldElemOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
 
@@ -380,7 +380,7 @@ pivot (x:xs) | x == zero = 1 + pivot xs
 
 -- | Solve systems of equations
 --   Check in Demo.hs how to use
-solve :: (Field f) => [[f]] -> [f]
+solve :: Ring f => [[f]] -> [f]
 solve m = foldr next [last (last m)] (init m)
     where
         next row found = let

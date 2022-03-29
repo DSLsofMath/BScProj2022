@@ -11,13 +11,11 @@ module Algebra where
 
 import GHC.TypeLits hiding ( type (^) )
 import qualified Prelude as P
-import Prelude hiding ((+), (-), (*), (/), sum, product, recip, fromRational)
+import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRational)
 import qualified Data.Ratio
 
 
-
 type R = Double
-
 
 -- | A list with a given length
 newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
@@ -95,7 +93,7 @@ fromRational x  =  fromInteger (Data.Ratio.numerator x) / fromInteger (Data.Rati
 
 
 -- Eval for expressions, apply a value for X
-evalExp :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
+evalExp :: (Field a, Num a) => Exp -> a -> a
 evalExp (Const alpha)  =  const (fromRational (toRational alpha))
 evalExp X              =  id
 evalExp (e1 :+: e2)    =  evalExp e1 + evalExp e2
@@ -170,7 +168,10 @@ class Mul a where
 product :: (Foldable t, Mul a) => t a -> a
 product = foldr (*) one
 
-type Ring a = (AddGroup a, Field a)
+(^) :: Mul a => a -> Int -> a
+a ^ n = product $ replicate n a
+
+type Ring a = (AddGroup a, Mul a)
 
 class (AddGroup a, Mul a) => Field a where
     (/) :: a -> a -> a
