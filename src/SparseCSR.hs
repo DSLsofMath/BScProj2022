@@ -44,11 +44,12 @@ getRow (CSR elems col row) i = case td i 2 row of
         _     -> ([],[])
         where td i j = take j . drop i
 
-getColumn :: CSR f m n -> Int -> ([Int], [f])
-getColumn (CSR elems col row) i = undefined 
-
---getColumnIndex i col elems = unzip $ filter zip col elems
---    \(i',_) -> i' = i
+getColumn :: (AddGroup f, Eq f) => CSR f m n -> Int -> ([Int], [f])
+getColumn (CSR elems col row) i = loop (CSR elems col row) i (length row - 2)
+    where loop m i (-1) = ([],[])
+          loop m i r | e == zero = loop m i (r-1) `addLT` ([],[]) 
+                     | otherwise = loop m i (r-1) `addLT` ([r],[e])
+                            where e = getElem m (i,r)
 
 dotL :: (AddGroup f, Mul f) => [f] -> [f] -> f
 dotL v1 v2 = sum $ zipWith (*) v1 v2
@@ -74,15 +75,15 @@ cSRAddRow (_,[]) (_,[]) = ([],[])
 cSRAddRow (_,[]) (cs,es) = (cs,es)
 cSRAddRow (cs, es) (_,[]) = (cs, es)
 cSRAddRow (c1:cs1,e1:es1) 
-           (c2:cs2,e2:es2) | c1 == c2 = ([c1],[e1 + e2]) `addT` cSRAddRow (cs1,es1) (cs2,es2)
-                           | c1 > c2  = ([c2,c1],[e2,e1]) `addT` cSRAddRow (cs1,es1) (cs2,es2)
-                           | c1 < c2  = ([c1,c2],[e1,e2]) `addT` cSRAddRow (cs1,es1) (cs2,es2)
+           (c2:cs2,e2:es2) | c1 == c2 = ([c1],[e1 + e2]) `addLT` cSRAddRow (cs1,es1) (cs2,es2)
+                           | c1 > c2  = ([c2],[e2]) `addLT` cSRAddRow (c1:cs1,e1:es1) (cs2,es2)
+                           | c1 < c2  = ([c1],[e1]) `addLT` cSRAddRow (cs1,es1) (c2:cs2,e2:es2)
 
 cSRcombine :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
 cSRcombine (CSR e1 c1 r1) (CSR e2 c2 r2) = CSR (e1++e2) (c1++c2) (r1++r2)
 
-addT :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> ([Int], [f])
-addT (cs1, es1) (cs2, es2) = (cs1++cs2, es1++es2)                                   
+addLT :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> ([Int], [f])
+addLT (cs1, es1) (cs2, es2) = (cs1++cs2, es1++es2)                                   
 
 -- Matrix Vector Multiplication                                                                                                                                                                                                                                                                                                                                                                       
 
@@ -107,6 +108,19 @@ test = CSR {
     col = [ 0, 1, 2, 1 ],
     row = [ 0, 1, 2, 3, 4 ]}
 
+test1 :: CSR Double 4 4
+test1 = CSR {
+    elems = [ 2, 7],
+    col = [ 3,3 ],
+    row = [ 0, 1, 1, 2, 2 ]}
+
+-- Large
+bigBoi :: CSR Double 10000 10000
+bigBoi = CSR {
+    elems = [1,2..10000],
+    col = [1,2..10000],
+    row = [0,1..10000]}
+
 test2 :: CSR Double 4 4
 test2 = CSR {
     elems = [ 5, 4, 8, 3, 6 ],
@@ -126,12 +140,6 @@ colVecTest = CSR {
     row = [0, 0, 1, 2, 3]
 }
 
-testsmv = smv test [2,7,8,0]  == [10.0,56.0,24.0,42.0]
-
-testsmv2 = smv test2 [1,1,1,1] -- == [9,8,3,6]
-
 v11, v22 :: Vector Double 4
 v11 = V [5,3,1,8]::VecR 4
 v22 = V [8,2,8,3]::VecR 4
-
-testsmv3 = smV test v11  
