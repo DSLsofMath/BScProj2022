@@ -8,6 +8,7 @@
 {-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module QuadTree where
 
@@ -66,16 +67,17 @@ data Nat4 = One | Suc Nat4
 type family Pred (n :: Nat4) :: Nat4 where
      Pred (Suc n)  = n
 
+-- n+n instead of 2*n helps ghc to deduce constraints
 type family ToNat (n :: Nat4) :: Nat where
      ToNat One = 1
-     ToNat (Suc n)  = 2 * ToNat n
+     ToNat (Suc n)  = ToNat n + ToNat n 
 
 
 -- Represents a matrix of size n*n where n = 2^Nat4
 data Quad (n :: Nat4) a where 
     Zero :: Quad n a
     Scalar :: a -> Quad One a
-    Mtx :: {
+    Mtx :: ToInt n => {
         nw :: Quad n a,
         ne :: Quad n a,
         sw :: Quad n a, 
@@ -83,6 +85,19 @@ data Quad (n :: Nat4) a where
            } -> Quad (Suc n) a 
     -- Id :: Quad n a --used mostly in permutations.
 
+class ToInt (n :: Nat4) where
+    toInt :: forall proxy. proxy n -> Int
+
+instance ToInt One where
+    toInt _ = 1
+
+instance forall n. ToInt n => ToInt (Suc n) where
+    toInt _ = 2 * toInt (undefined :: undefined n)
+
+-- | Returns the size of the Quad matrix, since a Quad
+--   is always square we only return one value
+quadSize :: forall n a. ToInt n => Quad n a -> Int
+quadSize _ = toInt (undefined :: undefined n)
 
 -- | Applies a function on the Quads scalars
 mapQuad :: (a -> b) -> Quad n a -> Quad n b
@@ -94,6 +109,7 @@ mapQuad f (Mtx nw ne sw se) = Mtx (mapQuad f nw) (mapQuad f ne)
 instance Functor (Quad n) where
    fmap = mapQuad 
 
+-- Quad is a vector
 instance AddGroup a => AddGroup (Quad n a) where
     Zero + x    = x
     x    + Zero = x
@@ -112,13 +128,11 @@ instance Ring a => VectorSpace (Quad n a) where
 --
 --   TODO: zero requires a KnownNat constraint but we cannot deduce 
 --   KnownNat in the recursive call even though ToNat is trivial.
---   We also should not need to (pack . unpack) but it fails to
---   deduce n + n = 2 * n
-toDense :: (Ring a) => Quad n a -> Matrix a (ToNat n) (ToNat n) 
--- toDense Zero = zero
+toDense :: (ToInt n, Ring a) => Quad n a -> Matrix a (ToNat n) (ToNat n) 
+toDense z@Zero = let n = quadSize z in pack $ replicate n (replicate n zero)
 toDense (Scalar a) = a £ idm    -- Will always be of size 1x1
-toDense (Mtx nw ne sw se) = pack . unpack $ (toDense nw `append` toDense ne) 
-                                  `append'` (toDense sw `append` toDense se)
+toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'` 
+                            (toDense sw `append` toDense se)
 
 
 
