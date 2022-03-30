@@ -64,6 +64,11 @@ instance (Num a) => Num (Matrx a) where
 
 data Nat4 = One | Suc Nat4
 
+-- | Singleton type over the kind Nat4
+data SNat4 (n :: Nat4) where
+    SOne :: SNat4 One 
+    SSuc :: Sized n => SNat4 n -> SNat4 (Suc n)
+
 type family Pred (n :: Nat4) :: Nat4 where
      Pred (Suc n)  = n
 
@@ -73,11 +78,12 @@ type family ToNat (n :: Nat4) :: Nat where
      ToNat (Suc n)  = ToNat n + ToNat n 
 
 
--- Represents a matrix of size n*n where n = 2^Nat4
+-- | A matrix representation based on QuadTrees
+--   Represents a matrix of size n*n where n = 2^Nat4
 data Quad (n :: Nat4) a where 
     Zero :: Quad n a
     Scalar :: a -> Quad One a
-    Mtx :: ToInt n => {
+    Mtx :: Sized n => {
         nw :: Quad n a,
         ne :: Quad n a,
         sw :: Quad n a, 
@@ -85,18 +91,25 @@ data Quad (n :: Nat4) a where
            } -> Quad (Suc n) a 
     -- Id :: Quad n a --used mostly in permutations.
 
-class ToInt (n :: Nat4) where
-    toInt :: forall proxy. proxy n -> Int
+instance (Sized n, Ring a, Show a) => Show (Quad n a) where
+    show = show . toDense
 
-instance ToInt One where
-    toInt _ = 1
+-- | A class to get size information from type
+class Sized (n :: Nat4) where
+    toInt   :: forall proxy. proxy n -> Int
+    toSNat4 :: forall proxy. proxy n -> SNat4 n
 
-instance forall n. ToInt n => ToInt (Suc n) where
-    toInt _ = 2 * toInt (undefined :: undefined n)
+instance Sized One where
+    toInt   _ = 1
+    toSNat4 _ = SOne
+
+instance forall n. Sized n => Sized (Suc n) where
+    toInt   _ = 2 * toInt (undefined :: undefined n)
+    toSNat4 _ = SSuc $ toSNat4 (undefined :: undefined n)
 
 -- | Returns the size of the Quad matrix, since a Quad
 --   is always square we only return one value
-quadSize :: forall n a. ToInt n => Quad n a -> Int
+quadSize :: forall n a. Sized n => Quad n a -> Int
 quadSize _ = toInt (undefined :: undefined n)
 
 -- | Applies a function on the Quads scalars
@@ -114,8 +127,8 @@ instance AddGroup a => AddGroup (Quad n a) where
     Zero + x    = x
     x    + Zero = x
     Scalar a + Scalar b = Scalar (a+b)
-    Mtx nw1 ne1 sw1 se1 + Mtx nw2 ne2 sw2 se2 = Mtx (nw1+nw2) (nw1+nw2) 
-                                                    (nw1+nw2) (nw1+nw2)
+    Mtx nw1 ne1 sw1 se1 + Mtx nw2 ne2 sw2 se2 = Mtx (nw1+nw2) (ne1+ne2) 
+                                                    (sw1+sw2) (se1+se2)
     neg = fmap neg
     zero = Zero 
 
@@ -124,11 +137,43 @@ instance Ring a => VectorSpace (Quad n a) where
     s £ q = fmap (s*) q
 
 
+-- | Identity matrix in Quad representation
+idQ :: forall n a. (Sized n, Ring a) => Quad n a
+idQ = case toSNat4 (undefined :: undefined n) of 
+    SOne   -> Scalar one
+    SSuc _ -> Mtx idQ Zero Zero idQ
+
+-- | Multiplication on Quad matrices
+mulQ :: Ring a => Quad n a -> Quad n a -> Quad n a
+Zero `mulQ` _ = Zero
+_ `mulQ` Zero = Zero
+Scalar a `mulQ` Scalar b = Scalar (a * b)
+x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+) 
+                        (zipQuad mulQ (colExchange x) (offDiagSqsh y))
+                        (zipQuad mulQ x               (prmDiagSqsh y))
+                of 
+                    Mtx Zero Zero Zero Zero -> Zero 
+                    quads                   -> quads 
+    where colExchange :: Quad n a -> Quad n a
+          colExchange (Mtx nw ne sw se) = Mtx ne nw se sw
+          prmDiagSqsh :: Quad n a -> Quad n a
+          prmDiagSqsh (Mtx nw ne sw se) = Mtx nw se nw se
+          offDiagSqsh :: Quad n a -> Quad n a
+          offDiagSqsh (Mtx nw ne sw se) = Mtx sw ne sw ne
+          zipQuad :: (Quad n a -> Quad n a -> Quad n a) -> Quad (Suc n) a -> Quad (Suc n) a -> Quad (Suc n) a
+          zipQuad (*) (Mtx a b c d) (Mtx e f g h) = Mtx (a*e) (b*f) (c*g) (d*h)
+
+
+instance (Sized n, Ring a) => Mul (Quad n a) where
+    (*) = mulQ
+    one = idQ
+
+
 -- | Converts a Quad matrix into a list of lists matrix
 --
 --   TODO: zero requires a KnownNat constraint but we cannot deduce 
 --   KnownNat in the recursive call even though ToNat is trivial.
-toDense :: (ToInt n, Ring a) => Quad n a -> Matrix a (ToNat n) (ToNat n) 
+toDense :: (Sized n, Ring a) => Quad n a -> Matrix a (ToNat n) (ToNat n) 
 toDense z@Zero = let n = quadSize z in pack $ replicate n (replicate n zero)
 toDense (Scalar a) = a £ idm    -- Will always be of size 1x1
 toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'` 
