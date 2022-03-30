@@ -12,7 +12,7 @@ module Eigen where
 
 import GHC.TypeLits
 import qualified Prelude
-import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
+import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 
 import qualified Data.List as L
 import Algebra
@@ -81,7 +81,7 @@ newtonList f eps x = x : if abs fx < eps then [ ]
             next = x - (fx/fx')
 
 testNewton :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Exp -> [a]
-testNewton f = map (newton f 0.001) [-2.0,-1.5..2.0]
+testNewton f = map (newton f 0.001) [0.5,1.0..2.0]
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix Exp 2 2
