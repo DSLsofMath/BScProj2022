@@ -179,7 +179,8 @@ toDense (Scalar a) = a £ idm    -- Will always be of size 1x1
 toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'` 
                             (toDense sw `append` toDense se)
 
-
+-- TODO a nice example would be to implement toCSN - from one sparse
+-- format to another.
 
 -- Potentally use parallelism for big enough Quads
 -- class Mul a where
@@ -189,3 +190,32 @@ toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'`
 -- instance (12 <= n) => Mul (Quad n a) where
 
 
+----------------
+-- Just some example code
+type Eight = Suc (Suc (Suc One))
+pjQ8 :: Quad Eight Double
+pjQ8 = stencil3 1 (-2) 1
+
+-- pjMat8 :: MatR 8 8
+-- pjMat8 = toMat pjQ8  -- TODO: I got some type error here. No time to debug now.
+
+class Corner1 n where corner1 :: a -> Quad n a
+class Corner2 n where corner2 :: a -> Quad n a
+class (Corner1 n, Corner2 n) => Stencil n where stencil3 :: a -> a -> a -> Quad n a
+
+instance Corner1 One where corner1 = Scalar
+instance Corner2 One where corner2 = Scalar
+instance Stencil One where stencil3 _ b _ = Scalar b
+
+instance (Sized n, Corner1 n) => Corner1 (Suc n) where corner1 = corner1Suc
+corner1Suc :: (Sized n, Corner1 n) => a -> Quad (Suc n) a
+corner1Suc c = Mtx Zero Zero (corner1 c) Zero
+
+instance (Sized n, Corner2 n) => Corner2 (Suc n) where corner2 = corner2Suc
+corner2Suc :: (Sized n, Corner2 n) => a -> Quad (Suc n) a
+corner2Suc c = Mtx Zero (corner2 c) Zero Zero
+
+instance (Sized n, Stencil n) => Stencil (Suc n) where stencil3 = stencil3Suc
+stencil3Suc :: (Sized n, Stencil n) => a -> a -> a -> Quad (Suc n) a
+stencil3Suc a b c = Mtx  (stencil3 a b c)  (corner1 c)
+                         (corner2 a)  (stencil3 a b c)
