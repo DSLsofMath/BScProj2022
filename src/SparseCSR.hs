@@ -114,12 +114,16 @@ test1 = CSR {
     col = [ 3,3 ],
     row = [ 0, 1, 1, 2, 2 ]}
 
+
 -- Large
 bigBoi :: CSR Double 10000 10000
 bigBoi = CSR {
     elems = [1,2..10000],
     col = [1,2..10000],
     row = [0,1..10000]}
+
+-- PJ: This looks like it will index out of bounds with the last
+-- element of col? (9999 would be the last col)
 
 test2 :: CSR Double 4 4
 test2 = CSR {
@@ -143,3 +147,21 @@ colVecTest = CSR {
 v11, v22 :: Vector Double 4
 v11 = V [5,3,1,8]::VecR 4
 v22 = V [8,2,8,3]::VecR 4
+
+-- tridiagonal with -2 on diagonal and +1 above and below diagonal
+-- TODO make it parameterised on the size n
+pjCSR :: CSR Double 10 10
+pjCSR = CSR {
+    elems = concat stencils,
+    col   = concat scols,
+    row = scanl (+) 0 slens
+  }
+  where  n = 10
+         stencil = [1,-2,1]
+         stencils = [drop 1 stencil] ++ replicate (n-2) stencil ++ [take 2 stencil]
+         colfun c = [c-1,c,c+1]
+         scols    = [drop 1 (colfun 0)] ++ map colfun [1..n-2]  ++ [take 2 (colfun (n-1))]
+         slens = map length stencils
+
+pjMat :: MatR 10 10
+pjMat = toMat pjCSR
