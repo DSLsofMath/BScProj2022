@@ -30,9 +30,14 @@ instance AddGroup f => AddGroup (CSR f m n) where
     neg (CSR e c r) = CSR (map neg e) c r 
     zero = CSR [] [] [0,0] -- row = [replicate (size+1) zero], size from type 
 
+--instance Mul f => Mul (CSR f m n) where
+--   (*) = csRMM
+--    one = CSR [] [] [0,0]
+
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n (CSR f m n) where
     type Under' (CSR f m n) = f
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
+    fromMat m = undefined
 
 --Returns the element of a given coordinate in the sparse matrix
 getElem :: AddGroup f => CSR f m n -> (Int,Int) -> f
@@ -51,6 +56,15 @@ getColumn (CSR elems col row) i = loop (CSR elems col row) i (length row - 2)
                      | otherwise = loop m i (r-1) `addLT` ([r],[e])
                             where e = getElem m (i,r)
 
+-- dot product between two "csr vectors".
+csrDot :: (AddGroup f, Mul f) => ([Int], [f]) -> ([Int], [f])  -> f
+csrDot m (_,[]) = zero
+csrDot (_,[]) m = zero
+csrDot (c1:cs1,e1:es1) 
+       (c2:cs2,e2:es2) | c1 == c2 =  e1 * e2 + csrDot (cs1,es1) (cs2,es2)
+                       | c1 > c2  =  csrDot (c1:cs1,e1:es1) (cs2,es2)
+                       | c1 < c2  =  csrDot (cs1,es1) (c2:cs2,e2:es2)
+
 dotL :: (AddGroup f, Mul f) => [f] -> [f] -> f
 dotL v1 v2 = sum $ zipWith (*) v1 v2
 
@@ -64,22 +78,13 @@ dotL v1 v2 = sum $ zipWith (*) v1 v2
 -- a first idea, very wrong, will fix later
 
 cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
-cSRMM (CSR e1 c1 (r1:rw1)) 
-      (CSR e2 c2 (r2:rw2)) =  CSR [e] [c] [r1] `cSRcombine` cSRMM (CSR e1 c1 rw1) (CSR e2 c2 rw2)
-        where (c,e) = getRow (CSR e1 c1 (r1:rw1)) 0 `csrDot` 
-                      getColumn (CSR e2 c2 (r2:rw2)) 0
+cSRMM (CSR e1 (c:c1) (r1:rw1)) 
+      (CSR e2 c2 (r2:rw2)) =  undefined
+--        where e = getRow (CSR e1 c1 (r1:rw1)) 0 `csrDot` 
+--                      getColumn (CSR e2 c2 (r2:rw2)) 0
 
-csrDot :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> (Int, f)
-csrDot (c1:cs1,e1:es1) 
-       (c2:cs2,e2:es2) = undefined
-
--- NOTE, does not remove zeroes, currently elems of m - m becomes 
--- a list of zeroes when it should just be an empty list.
--- could be fixed by filtering zeroes afterwards, but this 
--- leaves the row list being incorrect. 
-
--- Should check if value after an operation is zero, if so don't add the element 
--- and decrease all remaining row values by one.
+csrMV :: (AddGroup f, Mul f, Eq f) => CSR f a b -> ([Int], [f])  -> ([Int], [f])
+csrMV (CSR e1 (c:c1) (r1:rw1)) (c2, e2) = undefined
 
 cSRSub :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
 cSRSub m1 m2 = cSRAdd  m1 (neg m2)
@@ -93,6 +98,7 @@ cSRAdd (CSR e1 c1 (r1:rw1))
              j2 = head rw2 - r2
 
 -- Adds two rows of a csr matrix
+-- Still inserts zeroes into list.
 cSRAddRow :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> ([Int], [f])
 cSRAddRow (_,[]) (_,[]) = ([],[])
 cSRAddRow (_,[]) (cs,es) = (cs,es)
