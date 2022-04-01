@@ -2,8 +2,10 @@
 {-# LANGUAGE TypeOperators #-} 
 {-# LANGUAGE TypeFamilies #-} 
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-} -- Required by type family N
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module TypedVector where
 
@@ -90,12 +92,14 @@ vreplace (a:as) (_:>bs) = a :> vreplace as bs
 
 
 vfoldr :: (a -> b -> b) -> b -> Vec n a -> b
-vfoldr _ b Nil = b
+vfoldr _  b Nil     = b
 vfoldr op b (x:>xs) = x `op` vfoldr op b xs
 
 instance Foldable (Vec n) where
     foldr = vfoldr
 
+azipWith :: Applicative f => (a -> b -> c) -> f a -> f b -> f c
+azipWith f a b = f <$> a <*> b
 
 instance Count n => Applicative (Vec n) where
     pure = vreplicate
@@ -103,13 +107,13 @@ instance Count n => Applicative (Vec n) where
 
 
 class Functor f => Naperian f where
-    type Log f
-    lookup :: f a -> (Log f -> a)
+    type Index f
+    lookup :: f a -> (Index f -> a)
 
-    tabulate :: (Log f -> a) -> f a
+    tabulate :: (Index f -> a) -> f a
     tabulate h = fmap h positions
 
-    positions :: f (Log f )
+    positions :: f (Index f )
     positions = tabulate id
 
 
@@ -123,10 +127,15 @@ data Fin (n :: Nat) where
     FZ :: Fin (S n)
     FS :: Fin n -> Fin (S n)
 
+deriving instance Show (Fin n)
+deriving instance Eq (Fin n)
+
+-- | Type safe (!!)
 vlookup :: Vec n a -> Fin n -> a
 vlookup (x:>_ ) FZ      = x
 vlookup (_:>xs) (FS n) = vlookup xs n
 
+-- | Returns a Vec containing its Index values
 viota :: Count n => Vec n (Fin n)
 viota = viota' $ vreplicate () 
     where viota' :: Vec n () -> Vec n (Fin n)
@@ -134,7 +143,7 @@ viota = viota' $ vreplicate ()
           viota' (_:>xs) = FZ :> fmap FS (viota' xs)
 
 instance Count n => Naperian (Vec n) where
-    type Log (Vec n) = Fin n
+    type Index (Vec n) = Fin n
     lookup = vlookup
     positions = viota
 
@@ -154,12 +163,27 @@ instance (Count n, Ring f) => VectorSpace (Vec n f) where
     s £ v = fmap (s*) v
 
 
-dot :: Ring f => Vec n f -> Vec n f -> f
-v1 `dot` v2 = sum $ vzipWith (*) v1 v2
+dotProd :: (Applicative f, Foldable f, Ring a) => f a -> f a -> a
+dotProd f1 f2 = sum $ azipWith (*) f1 f2
+
+dot :: (Count n, Ring f) => Vec n f -> Vec n f -> f
+dot = dotProd
 
 cross :: Ring f => Vector f 3 -> Vector f 3 -> Vector f 3
 (a1:>a2:>a3:>Nil) `cross` (b1:>b2:>b3:>Nil) = a2*b3-a3*b2
                                            :> a3*b1-a1*b3
                                            :> a1*b2-a2*b1 :>Nil
 
+
+baseVec :: (Naperian f, Eq (Index f), Ring a) => Index f -> f a
+baseVec x = tabulate (\n -> if n == x then one else zero)
+
+e :: (Count n, Ring a) => Fin n -> Vec n a 
+e = baseVec
+
+identityMat :: (Naperian f, Eq (Index f), Ring a) => f (f a)
+identityMat = tabulate baseVec
+
+idm :: (Count n, Ring a) => Vec n (Vec n a)
+idm = identityMat
 
