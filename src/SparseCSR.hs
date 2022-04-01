@@ -28,7 +28,7 @@ instance AddGroup f => AddGroup (CSR f m n) where
     (+) = cSRAdd
     (-) = cSRSub
     neg (CSR e c r) = CSR (map neg e) c r 
-    zero = CSR [] [] [0,0] -- should be [0,size+1, info from type] 
+    zero = CSR [] [] [0,0] -- row = [replicate (size+1) zero], size from type 
 
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n (CSR f m n) where
     type Under' (CSR f m n) = f
@@ -58,8 +58,31 @@ dotL v1 v2 = sum $ zipWith (*) v1 v2
 -- Matrix operations
 --  
 
+-- CSR matrix multiplication
+-- currently will be slow due to bad? getcolumn.
+
+-- a first idea, very wrong, will fix later
+
+cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
+cSRMM (CSR e1 c1 (r1:rw1)) 
+      (CSR e2 c2 (r2:rw2)) =  CSR [e] [c] [r1] `cSRcombine` cSRMM (CSR e1 c1 rw1) (CSR e2 c2 rw2)
+        where (c,e) = getRow (CSR e1 c1 (r1:rw1)) 0 `csrDot` 
+                      getColumn (CSR e2 c2 (r2:rw2)) 0
+
+csrDot :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> (Int, f)
+csrDot (c1:cs1,e1:es1) 
+       (c2:cs2,e2:es2) = undefined
+
+-- NOTE, does not remove zeroes, currently elems of m - m becomes 
+-- a list of zeroes when it should just be an empty list.
+-- could be fixed by filtering zeroes afterwards, but this 
+-- leaves the row list being incorrect. 
+
+-- Should check if value after an operation is zero, if so don't add the element 
+-- and decrease all remaining row values by one.
+
 cSRSub :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
-cSRSub m1 (CSR e c r) = cSRAdd  m1 (CSR (map neg e) c r)
+cSRSub m1 m2 = cSRAdd  m1 (neg m2)
 
 cSRAdd :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
 cSRAdd (CSR e1 c1 [r]) _ = CSR [] [] [r]
@@ -119,11 +142,9 @@ test1 = CSR {
 bigBoi :: CSR Double 10000 10000
 bigBoi = CSR {
     elems = [1,2..10000],
-    col = [1,2..10000],
+    col = [0,1..9999],
     row = [0,1..10000]}
 
--- PJ: This looks like it will index out of bounds with the last
--- element of col? (9999 would be the last col)
 
 test2 :: CSR Double 4 4
 test2 = CSR {
