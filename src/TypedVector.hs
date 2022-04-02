@@ -6,6 +6,7 @@
 {-# LANGUAGE UndecidableInstances #-} -- Required by type family N
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE PolyKinds #-}
 
 module TypedVector where
 
@@ -19,6 +20,32 @@ import Algebra
 
 
 -- Vector inspired by Jeremy Gibbons paper APLicative Programming with Naperian Functors
+-- 
+-- The focus of the paper is about lifting lower dimensional types to higher dimensional,
+-- for example scalars to vectors and vectors to matrices, and gives the required 
+-- structure in the form of type classes. It manages this by using fixed shapes 
+-- i.e. where the structure is known at compile time, such as Vector a n or (a,a,a). 
+-- With these fixed shapes they generalises matrices as vectors of vectors.
+--
+-- Problematically for us it discourages sparse representations. 
+-- Partly since a sparse matrix's structure changes based on its value 
+-- and partly since it would be seen as a single dimension.
+-- However, it might be possible for us to adjust some of the core ideas.
+--
+-- Concretely, for sparse matrices we know that the lack of a value corresponds to a 0,
+-- so instead of requiring replicate or pure we require a "zero state".
+-- In the Naperian class, or in a new Matrix class, we replace (Index f -> a) 
+-- with [(Index f, a)], a list containing all nonzero elements and their position.
+-- Alternatively, since we only care about matrices, as [(Int, Int, a)] 
+-- or more well typed as [(Fin m, Fin n, a)]
+-- If all matrices shared this common interface then conversion between different 
+-- representations would be trivial and it would also allow us to define functions 
+-- that work on all matrices. 
+-- Furthermore, since class functions are over writable, we still allow for 
+-- efficient implementations on base functions such as multiplication and utf.
+--
+
+
 
 -------------------------------------------
 -- Vector definitions
@@ -148,7 +175,6 @@ instance Count n => Naperian (Vec n) where
     positions = viota
 
 
-
 ---------------------------------------------------------------------
 -- Linear Algebra definitions
 
@@ -186,4 +212,6 @@ identityMat = tabulate baseVec
 
 idm :: (Count n, Ring a) => Vec n (Vec n a)
 idm = identityMat
+
+
 
