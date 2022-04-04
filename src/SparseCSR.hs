@@ -34,8 +34,8 @@ instance AddGroup f => AddGroup (CSR f m n) where
 --   (*) = csRMM
 --    one = CSR [] [] [0,0]
 
-instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n (CSR f m n) where
-    type Under' (CSR f m n) = f
+instance (KnownNat m, KnownNat n, AddGroup f, m ~ m', n ~ n') => ToMat m n (CSR f m' n') where
+    type Under' (CSR f m' n') = f
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
     fromMat m = undefined
 

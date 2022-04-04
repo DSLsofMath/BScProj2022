@@ -8,7 +8,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE PatternSynonyms #-}
 
-
 module ListVector where
 
 import GHC.TypeLits hiding (type (^))
@@ -172,6 +171,16 @@ instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix f m n) where
     type Under (Matrix f m n) = f
     s £ m = (s£) `onCols` m
 
+
+-- Composition on matrices
+instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') where
+    type Out (Matrix f m n) (Vector f' n') = Vector f m
+    comp = (££)
+
+instance (KnownNat a, Ring f, f ~ f', b ~ b' ) => Composable (Matrix f a b) (Matrix f' b' c) where
+    type Out (Matrix f a b) (Matrix f' b' c) = Matrix f a c
+    comp = (£££)
+
 -- | Square matrices form a multiplicative group
 instance (KnownNat n, Ring f) => Mul (Matrix f n n) where
     (*) = (£££)
@@ -200,7 +209,7 @@ instance (KnownNat n, Field f) => ToMat n n (Vector f n) where
     toMat (V ss) = M . V $ zipWith (\s i-> s £ e i) ss [1..]
     fromMat m = vec $ zipWith (!!) (fromMat m) [0..]
 
-instance ToMat m n (Matrix f m n) where
+instance (m' ~ m, n' ~ n) => ToMat m' n' (Matrix f m n) where
     type Under' (Matrix f m n) = f
     toMat = id
     fromMat = id
@@ -423,3 +432,4 @@ scaleM c (M vs) = M (mapV (scaleV c) vs)
 
 scaleV :: Ring f => f -> Vector f m -> Vector f m
 scaleV c = mapV (c*)
+
