@@ -173,6 +173,9 @@ instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix f m n) where
 
 
 -- Composition on matrices
+-- Note that we write n ~ n' instead of writing n on both places. 
+-- This tells GHC that this is the only match for Matrix*Vector or Matrix*Matrix,
+-- and allows it to infer the type of e.g. m44 `comp` idm
 instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') where
     type Out (Matrix f m n) (Vector f' n') = Vector f m
     comp = (££)

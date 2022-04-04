@@ -168,6 +168,10 @@ class Composable a b where
     type Out a b = b
     comp :: a -> b -> Out a b
 
+instance (b ~ b') => Composable (b -> c) (a -> b') where
+    type Out (b -> c) (a -> b') = a -> c
+    comp = (.)
+
 class Mul a where
     (*) :: a -> a -> a
     one :: a
