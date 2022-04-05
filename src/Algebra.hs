@@ -4,6 +4,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 
 
@@ -160,6 +161,16 @@ class AddGroup a where
 sum :: (Foldable t, AddGroup a) => t a -> a
 sum = foldr (+) zero 
 
+-- | Allows us to define Matrix-matrix-,matrix-vector-multiplication as a single operation
+--   Potentially this should replace or be used to define Mul 
+class Composable a b where
+    type Out a b :: *
+    type Out a b = b
+    comp :: a -> b -> Out a b
+
+instance (b ~ b') => Composable (b -> c) (a -> b') where
+    type Out (b -> c) (a -> b') = a -> c
+    comp = (.)
 
 class Mul a where
     (*) :: a -> a -> a
