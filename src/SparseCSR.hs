@@ -15,12 +15,15 @@ import Algebra
 import Prelude hiding ((+), (-), (*), (/), sum)
 import ListVector 
 
+import Data.Function
 import Data.List hiding (sum)
+import qualified Data.List as L
 
 -- A sparse matrix using the compressed sparse row format
 data CSR f (m :: Nat) (n :: Nat) = CSR { elems :: [f],
                             col :: [Int],
                             row :: [Int]}
+    deriving (Eq)
 
 deriving instance Show f => Show (CSR f m n)
 
@@ -68,6 +71,16 @@ getColumn2 (CSR elems col row) i = reverse $ loop (CSR elems col row) i (length 
           loop m i r | e == zero = loop m i (r-1) 
                      | otherwise = (r,e) : loop m i (r-1)
                             where e = getElem m (i,r)
+
+
+getColumn3 :: (AddGroup f) => CSR f m n -> Int -> [(Int, f)]
+getColumn3 (CSR elems col row) i = [ x | (x, y) <- zip cs col, y==i ]
+    where
+        cs = couple elems row
+        couple [] _ = []
+        couple e (r:r':rs) = let (xs, ys) = splitAt (r'-r) e in
+                                zip (repeat r) xs ++ couple ys (r':rs)
+
 
 dotL :: (AddGroup f, Mul f) => [f] -> [f] -> f
 dotL v1 v2 = sum $ zipWith (*) v1 v2
@@ -120,6 +133,13 @@ cSRAddRow2 (a:as) (b:bs) | c1 == c2 = (c1,e1+e2) : cSRAddRow2 as bs
                          | c1 > c2  = (c2,e2) : cSRAddRow2 (a:as) bs
                          | c1 < c2  = (c1,e1) : cSRAddRow2 as (b:bs)
     where (c1,e1) = a
+-- toList :: CSR a m n -> [(Int, Int a)]
+-- toCSR  :: [(Int, Int a)] -> CSR a m n
+
+
+
+
+-- Test values/functions
           (c2,e2) = b
 
 cSRcombine :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
@@ -127,7 +147,10 @@ cSRcombine (CSR e1 c1 r1) (CSR e2 c2 r2) = CSR (e1++e2) (c1++c2) (r1++r2)
 
 comb :: AddGroup f => CSR f x y -> [(Int, f)] -> CSR f x y
 comb csr [] = csr
-comb (CSR e1 c1 r1) ((i, e):as) = comb (CSR (e1++[e]) (c1++[i]) r1) as
+comb (CSR e1 c1 r1) as = CSR (e1++es) (c1++cs) r1
+    where
+        (cs, es) = unzip as
+
 
 addLT :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> ([Int], [f])
 addLT (cs1, es1) (cs2, es2) = (cs1++cs2, es1++es2)                                   
@@ -155,9 +178,9 @@ smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) :
 
 cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
 cSRMM m1@(CSR e1 c1 r1) 
-      m2@(CSR e2 c2 r2) =  foldl comb emptyCSR bs
+      m2@(CSR e2 c2 r2) = foldl comb emptyCSR bs
         where 
-            bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn2 m2 b)) | b <- [0..maximum c2]]
+            bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn3 m2 b)) | b <- [0..maximum c1]]
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
 
 -- Multiplies a CSR matrix with a CSR vector
@@ -186,10 +209,18 @@ dotCsr (c1:cs1,e1:es1)
 
 csrTranspose :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
 csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
-             where bs = [getColumn2 m1 a | a <- [0..maximum c1]]
-                   emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a b
+             where
+                bs = [getColumn3 m1 a | a <- [0..maximum c1]]
+                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
 
--- Test values/functions
+csrTranspose2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
+csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
+             where
+                bs = map (map snd) $ groupBy ((==) `on` fst) $ sortOn fst $ concat qs
+                qs = [ zip (map fst as) (zip (repeat rs) (map snd as))| (rs, as) <- zip [0..] [getRow2 m1 a | a <- [0..length r1 - 2]] ]
+                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
+
+--- Test values/functions
 
 test :: CSR Double 4 4
 test = CSR {
@@ -224,6 +255,13 @@ bigBoi2 = CSR {
     elems = [1..10000],
     col = [0,1..9999],
     row = 0 : replicate 10000 10000}
+
+mediumBoi :: CSR Double 1000 1000
+mediumBoi = CSR {
+    elems   = [1..1000],
+    col     = [0..999 ],
+    row     = [0..1000]
+}
 
 test2 :: CSR Double 4 4
 test2 = CSR {

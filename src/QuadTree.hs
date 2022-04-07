@@ -94,6 +94,11 @@ data Quad (n :: Nat4) a where
 instance (Sized n, Ring a, Show a) => Show (Quad n a) where
     show = show . toDense
 
+height :: Quad n a -> Int
+height Zero = 0
+height (Scalar _) = 0
+height (Mtx nw ne sw se) = 1 + maximum [height nw, height ne,height sw,height se]
+
 -- | A class to get size information from type
 class Sized (n :: Nat4) where
     toInt   :: forall proxy. proxy n -> Int
@@ -198,6 +203,9 @@ toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'`
 type Eight = Suc (Suc (Suc One))
 pjQ8 :: Quad Eight Double
 pjQ8 = stencil3 1 (-2) 1
+
+pj10000 :: Quad (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc One))))))))))))) Double
+pj10000 = stencil3 1 (-2) 1
 
 -- pjMat8 :: MatR 8 8
 -- pjMat8 = toMat pjQ8  -- TODO: I got some type error here. No time to debug now.
