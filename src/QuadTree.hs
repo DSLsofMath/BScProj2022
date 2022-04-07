@@ -94,6 +94,15 @@ data Quad (n :: Nat4) a where
 instance (Sized n, Ring a, Show a) => Show (Quad n a) where
     show = show . toDense
 
+instance (Eq a) => Eq (Quad n a) where
+    Zero == Zero = True
+    Scalar a == Scalar b = a == b
+    Mtx nw1 ne1 sw1 se1 == Mtx nw2 ne2 sw2 se2 = nw1 == nw2 && ne1 == ne2 
+                                              && sw1 == sw2 && se1 == se2 
+    _ == _ = False
+
+
+-- | The height of the quadtree
 height :: Quad n a -> Int
 height Zero = 0
 height (Scalar _) = 0
@@ -176,6 +185,12 @@ instance (Sized n, Ring a) => Mul (Quad n a) where
     (*) = mulQ
     one = idQ
 
+-- | Transposes a Quad matrix
+transposeQ :: Quad n a -> Quad n a
+transposeQ Zero = Zero
+transposeQ (Scalar s) = Scalar s
+transposeQ (Mtx nw ne sw se) = Mtx (transposeQ nw) (transposeQ sw)
+                                   (transposeQ ne) (transposeQ se)
 
 -- | Converts a Quad matrix into a list of lists matrix
 --
@@ -187,6 +202,11 @@ toDense (Scalar a) = a £ idm    -- Will always be of size 1x1
 toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'` 
                             (toDense sw `append` toDense se)
 
+-- TODO: Add fromMat
+instance (Sized n, m' ~ ToNat n, n' ~ ToNat n, Ring a) => ToMat m' n' (Quad n a) where
+    type Under' (Quad n a) = a
+    toMat = toDense
+
 -- TODO a nice example would be to implement toCSN - from one sparse
 -- format to another.
 
@@ -197,6 +217,9 @@ toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'`
 -- 
 -- instance (12 <= n) => Mul (Quad n a) where
 
+testQ :: Quad (Suc (Suc One)) R
+testQ = Mtx (Mtx Zero (Scalar 3) (Scalar 5) (Scalar 7)) (Mtx Zero (Scalar 6) Zero Zero) 
+            Zero                                        (Mtx (Scalar 2) Zero Zero Zero)
 
 ----------------
 -- Just some example code
