@@ -33,127 +33,118 @@ instance (AddGroup f, Eq f) => AddGroup (CSR f m n) where
     neg (CSR e c r) = CSR (map neg e) c r 
     zero = CSR [] [] [0,0] -- row = [replicate (size+1) zero], size from type 
 
---instance Mul f => Mul (CSR f m n) where
---   (*) = csRMM
---    one = CSR [] [] [0,0]
+instance (AddGroup f, Mul f, Eq f) => Mul (CSR f m m) where
+    (*) = cSRMM
+    one = csrIdm
 
 instance (KnownNat m, KnownNat n, AddGroup f, m ~ m', n ~ n') => ToMat m n (CSR f m' n') where
     type Under' (CSR f m' n') = f
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
     fromMat m = undefined
 
+
+csrIdm :: CSR f m n
+csrIdm = undefined
+
 --Returns the element of a given coordinate in the sparse matrix
 getElem :: AddGroup f => CSR f m n -> (Int,Int) -> f
-getElem csr (x,y) = maybe zero id $ lookup x $ uncurry zip $ getRow csr y
+getElem csr (x,y) = maybe zero id $ lookup x $ uncurry zip $ getRow2 csr y
 
-getRow :: CSR f m n -> Int -> ([Int], [f])
-getRow (CSR elems col row) i = case td i 2 row of
+getRow2 :: CSR f m n -> Int -> ([Int], [f])
+getRow2 (CSR elems col row) i = case td i 2 row of
         [a,b] -> unzip $ td a (b-a) (zip col elems) 
         _     -> ([],[])
         where td i j = take j . drop i
 
-getRow2 :: CSR f m n -> Int -> [(Int, f)]
-getRow2 (CSR elems col row) i = case td i 2 row of
+getElem2 :: AddGroup f => CSR f m n -> (Int,Int) -> f
+getElem2 csr (x,y) = snd $ head $ filter ((==x).fst) (getRow csr y)
+
+getRow :: CSR f m n -> Int -> [(Int, f)]
+getRow (CSR elems col row) i = case td i 2 row of
         [a,b] -> td a (b-a) (zip col elems) 
         _     -> []
         where td i j = take j . drop i
 
-getColumn :: (AddGroup f, Eq f) => CSR f m n -> Int -> ([Int], [f])
-getColumn (CSR elems col row) i = loop (CSR elems col row) i (length row - 2)
-    where loop m i (-1) = ([],[])
-          loop m i r | e == zero = loop m i (r-1) `addLT` ([],[]) 
-                     | otherwise = loop m i (r-1) `addLT` ([r],[e])
-                            where e = getElem m (i,r)
-
-getColumn2 :: (AddGroup f, Eq f) => CSR f m n -> Int -> [(Int, f)]
-getColumn2 (CSR elems col row) i = reverse $ loop (CSR elems col row) i (length row - 2)
-    where loop m i (-1) = []
-          loop m i r | e == zero = loop m i (r-1) 
-                     | otherwise = (r,e) : loop m i (r-1)
-                            where e = getElem m (i,r)
-
-
-getColumn3 :: (AddGroup f) => CSR f m n -> Int -> [(Int, f)]
-getColumn3 (CSR elems col row) i = [ x | (x, y) <- zip cs col, y==i ]
+getColumn :: (AddGroup f) => CSR f m n -> Int -> [(Int, f)]
+getColumn (CSR elems col row) i = [ x | (x, y) <- zip cs col, y==i ]
     where
         cs = couple elems row
         couple [] _ = []
-        couple e (r:r':rs) = let (xs, ys) = splitAt (r'-r) e in
-                                zip (repeat r) xs ++ couple ys (r':rs)
-
+        couple e rw@(r:r':rs) = let (xs, ys) = splitAt (r'-r) e in 
+                                zip (repeat (length row - length rw)) xs ++ couple ys (r':rs)
 
 dotL :: (AddGroup f, Mul f) => [f] -> [f] -> f
 dotL v1 v2 = sum $ zipWith (*) v1 v2
+
+-- dot product between two "csr vectors".
+dotCsr :: (AddGroup f, Mul f) => [(Int,f)] -> [(Int,f)]  -> f
+dotCsr v [] = zero
+dotCsr [] v = zero
+dotCsr (v1:vs1) (v2:vs2) | c1 == c2 =  e1 * e2 + dotCsr vs1 vs2
+                         | c1 > c2  =  dotCsr (v1:vs1) vs2
+                         | c1 < c2  =  dotCsr vs1 (v2:vs2)
+        where (c1,c2) = (fst v1, fst v2)
+              (e1,e2) = (snd v1, snd v2)
 
 --
 -- Matrix operations
 --  
 
-
-
+-- currently slightly off, transposing answer corrects it
+-- as it places column vectors as row vectors in the answer. 
+cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
+cSRMM m1@(CSR e1 c1 r1) 
+      m2@(CSR e2 c2 r2) = csrTranspose2 $ foldl comb emptyCSR bs
+        where 
+            bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn m2 b)) | b <- [0..maximum c1]]
+            emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
 
 cSRSub :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
-cSRSub m1 m2 = cSRAdd2 m1 (neg m2)
+cSRSub m1 m2 = cSRAdd m1 (neg m2)
 
-cSRAdd :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
+cSRAdd :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
 cSRAdd (CSR e1 c1 [r]) _ = CSR [] [] [r]
-cSRAdd (CSR e1 c1 (r1:rw1)) 
-       (CSR e2 c2 (r2:rw2)) = CSR e c [r1] `cSRcombine` cSRAdd (CSR (drop j1 e1) (drop j1 c1) (map (+(length e - j1)) rw1)) (CSR (drop j2 e2) (drop j2 c2) rw2)
-       where (c,e) = cSRAddRow (take j1 c1,take j1 e1) (take j2 c2,take j2 e2)
-             j1 = head rw1 - r1
-             j2 = head rw2 - r2
-
-cSRAdd2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
-cSRAdd2 (CSR e1 c1 [r]) _ = CSR [] [] [r]
-cSRAdd2 m1@(CSR e1 c1 r1) 
-        m2@(CSR e2 c2 r2) = foldl comb emptyCSR bs
-        where 
-            bs = opRows m1 m2 cSRAddRow2
+cSRAdd m1@(CSR e1 c1 r1) 
+       m2@(CSR e2 c2 r2) = foldl comb emptyCSR bs
+       where 
+            bs = opRows m1 m2 cSRAddRow
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a b
 
+-- Could move this to be apart of cSRAdd
 opRows :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b -> ([(Int,f)] -> [(Int,f)]  -> [(Int,f)]) -> [[(Int, f)]]
-opRows m1@(CSR e1 c1 r1) m2 op =  [ filter ((/=zero).snd) (op (getRow2 m1 a) (getRow2 m2 a)) | a <- [0..length r1 - 2]]
+opRows m1@(CSR e1 c1 r1) m2 op =  [ filter ((/=zero).snd) (op (getRow m1 a) (getRow m2 a)) | a <- [0..length r1 - 2]]
 
--- Adds two rows of a csr matrix
--- Still inserts zeroes into list.
-cSRAddRow :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> ([Int], [f])
-cSRAddRow (_,[]) (_,[]) = ([],[])
-cSRAddRow (_,[]) (cs,es) = (cs,es)
-cSRAddRow (cs, es) (_,[]) = (cs, es)
-cSRAddRow (c1:cs1,e1:es1) 
-           (c2:cs2,e2:es2) | c1 == c2 = ([c1],[e1 + e2]) `addLT` cSRAddRow (cs1,es1) (cs2,es2)
-                           | c1 > c2  = ([c2],[e2]) `addLT` cSRAddRow (c1:cs1,e1:es1) (cs2,es2)
-                           | c1 < c2  = ([c1],[e1]) `addLT` cSRAddRow (cs1,es1) (c2:cs2,e2:es2)
+cSRAddRow :: AddGroup f => [(Int,f)] -> [(Int,f)]  -> [(Int,f)]
+cSRAddRow [] [] = []
+cSRAddRow [] as = as
+cSRAddRow as [] = as
+cSRAddRow v1@((c1,e1):as) v2@((c2,e2):bs) | c1 == c2 = (c1,e1+e2) : cSRAddRow as bs
+                                          | c1 > c2  = (c2,e2) : cSRAddRow v1 bs
+                                          | c1 < c2  = (c1,e1) : cSRAddRow as v2
 
-cSRAddRow2 :: AddGroup f => [(Int,f)] -> [(Int,f)]  -> [(Int,f)]
-cSRAddRow2 [] [] = []
-cSRAddRow2 [] as = as
-cSRAddRow2 as [] = as
-cSRAddRow2 (a:as) (b:bs) | c1 == c2 = (c1,e1+e2) : cSRAddRow2 as bs
-                         | c1 > c2  = (c2,e2) : cSRAddRow2 (a:as) bs
-                         | c1 < c2  = (c1,e1) : cSRAddRow2 as (b:bs)
-    where (c1,e1) = a
+csrTranspose :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
+csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
+             where
+                bs = [getColumn m1 a | a <- [0..maximum c1]]
+                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
+
+csrTranspose2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
+csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
+             where
+                bs = map (map snd) $ groupBy ((==) `on` fst) $ sortOn fst $ concat qs
+                qs = [ zip (map fst as) (zip (repeat rs) (map snd as))| (rs, as) <- zip [0..] [getRow m1 a | a <- [0..length r1 - 2]] ]
+                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
+
 -- toList :: CSR a m n -> [(Int, Int a)]
 -- toCSR  :: [(Int, Int a)] -> CSR a m n
 
-
-
-
 -- Test values/functions
-          (c2,e2) = b
-
-cSRcombine :: AddGroup f => CSR f a b -> CSR f a b  -> CSR f a b
-cSRcombine (CSR e1 c1 r1) (CSR e2 c2 r2) = CSR (e1++e2) (c1++c2) (r1++r2)
 
 comb :: AddGroup f => CSR f x y -> [(Int, f)] -> CSR f x y
 comb csr [] = csr
 comb (CSR e1 c1 r1) as = CSR (e1++es) (c1++cs) r1
     where
-        (cs, es) = unzip as
-
-
-addLT :: AddGroup f => ([Int], [f]) -> ([Int], [f])  -> ([Int], [f])
-addLT (cs1, es1) (cs2, es2) = (cs1++cs2, es1++es2)                                   
+        (cs, es) = unzip as                                
 
 -- Matrix Vector Multiplication                                                                                                                                                                                                                                                                                                                                                                       
 
@@ -170,55 +161,9 @@ smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) :
                                      smv (CSR (drop j elems) (drop j col) row) v
             where j = head row - r 
 
--- CSR matrix multiplication
--- currently will be slow due to bad? getcolumn.
-
--- currently slightly off, transposing answer corrects it
--- as it places column vectors as row vectors in the answer. 
-
-cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
-cSRMM m1@(CSR e1 c1 r1) 
-      m2@(CSR e2 c2 r2) = foldl comb emptyCSR bs
-        where 
-            bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn3 m2 b)) | b <- [0..maximum c1]]
-            emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
-
 -- Multiplies a CSR matrix with a CSR vector
 csrMV :: (AddGroup f, Mul f, Eq f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
-csrMV m1@(CSR e1 c1 r1) v1 = filter ((/=zero).snd) [(a,dotCsr2 (getRow2 m1 a) v1)| a <- [0..length r1 - 2]]
-
-
--- dot product between two "csr vectors".
-dotCsr2 :: (AddGroup f, Mul f) => [(Int,f)] -> [(Int,f)]  -> f
-dotCsr2 v [] = zero
-dotCsr2 [] v = zero
-dotCsr2 (v1:vs1) (v2:vs2)  | c1 == c2 =  e1 * e2 + dotCsr2 vs1 vs2
-                           | c1 > c2  =  dotCsr2 (v1:vs1) vs2
-                           | c1 < c2  =  dotCsr2 vs1 (v2:vs2)
-        where (c1,c2) = (fst v1, fst v2)
-              (e1,e2) = (snd v1, snd v2)
-
--- dot product between two "csr vectors".
-dotCsr :: (AddGroup f, Mul f) => ([Int], [f]) -> ([Int], [f])  -> f
-dotCsr m (_,[]) = zero
-dotCsr (_,[]) m = zero
-dotCsr (c1:cs1,e1:es1) 
-       (c2:cs2,e2:es2) | c1 == c2 =  e1 * e2 + dotCsr (cs1,es1) (cs2,es2)
-                       | c1 > c2  =  dotCsr (c1:cs1,e1:es1) (cs2,es2)
-                       | c1 < c2  =  dotCsr (cs1,es1) (c2:cs2,e2:es2)
-
-csrTranspose :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
-csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
-             where
-                bs = [getColumn3 m1 a | a <- [0..maximum c1]]
-                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
-
-csrTranspose2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
-csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
-             where
-                bs = map (map snd) $ groupBy ((==) `on` fst) $ sortOn fst $ concat qs
-                qs = [ zip (map fst as) (zip (repeat rs) (map snd as))| (rs, as) <- zip [0..] [getRow2 m1 a | a <- [0..length r1 - 2]] ]
-                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
+csrMV m1@(CSR e1 c1 r1) v1 = filter ((/=zero).snd) [(a,dotCsr (getRow m1 a) v1)| a <- [0..length r1 - 2]]
 
 --- Test values/functions
 
