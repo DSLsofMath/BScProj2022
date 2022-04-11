@@ -48,16 +48,7 @@ csrIdm = undefined
 
 --Returns the element of a given coordinate in the sparse matrix
 getElem :: AddGroup f => CSR f m n -> (Int,Int) -> f
-getElem csr (x,y) = maybe zero id $ lookup x $ uncurry zip $ getRow2 csr y
-
-getRow2 :: CSR f m n -> Int -> ([Int], [f])
-getRow2 (CSR elems col row) i = case td i 2 row of
-        [a,b] -> unzip $ td a (b-a) (zip col elems) 
-        _     -> ([],[])
-        where td i j = take j . drop i
-
-getElem2 :: AddGroup f => CSR f m n -> (Int,Int) -> f
-getElem2 csr (x,y) = snd $ head $ filter ((==x).fst) (getRow csr y)
+getElem csr (x,y) = maybe zero id $ lookup x $ getRow csr y
 
 getRow :: CSR f m n -> Int -> [(Int, f)]
 getRow (CSR elems col row) i = case td i 2 row of
@@ -94,7 +85,7 @@ dotCsr (v1:vs1) (v2:vs2) | c1 == c2 =  e1 * e2 + dotCsr vs1 vs2
 -- as it places column vectors as row vectors in the answer. 
 cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
 cSRMM m1@(CSR e1 c1 r1) 
-      m2@(CSR e2 c2 r2) = csrTranspose2 $ foldl comb emptyCSR bs
+      m2@(CSR e2 c2 r2) = csrTranspose $ foldl comb emptyCSR bs
         where 
             bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn m2 b)) | b <- [0..maximum c1]]
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
@@ -123,16 +114,17 @@ cSRAddRow v1@((c1,e1):as) v2@((c2,e2):bs) | c1 == c2 = (c1,e1+e2) : cSRAddRow as
                                           | c1 < c2  = (c1,e1) : cSRAddRow as v2
 
 csrTranspose :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
-csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
-             where
-                bs = [getColumn m1 a | a <- [0..maximum c1]]
-                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
-
-csrTranspose2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
-csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
+csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
              where
                 bs = map (map snd) $ groupBy ((==) `on` fst) $ sortOn fst $ concat qs
                 qs = [ zip (map fst as) (zip (repeat rs) (map snd as))| (rs, as) <- zip [0..] [getRow m1 a | a <- [0..length r1 - 2]] ]
+                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
+
+-- Slow/bad transpose
+csrTranspose2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
+csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
+             where
+                bs = [getColumn m1 a | a <- [0..maximum c1]]
                 emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
 
 -- toList :: CSR a m n -> [(Int, Int a)]
@@ -179,7 +171,6 @@ test1 = CSR {
     col = [ 3,3 ],
     row = [ 0, 1, 1, 2, 2 ]}
 
-
 -- Large
 bigBoi :: CSR Double 10000 10000
 bigBoi = CSR {
@@ -213,12 +204,6 @@ test2 = CSR {
     elems = [ 5, 4, 8, 3, 6 ],
     col = [ 0, 1, 1, 2, 1 ],
     row = [ 0, 2, 3, 4, 5 ]}
-
-test3 :: CSR Double 2 2
-test3 = CSR {
-    elems = [ 5, 6 ],
-    col = [ 0, 1],
-    row = [ 0, 1, 2]}
 
 colVecTest :: CSR Double 4 1
 colVecTest = CSR {
