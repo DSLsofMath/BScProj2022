@@ -90,6 +90,11 @@ nullSpace m = Sub $ [ V b | (a,b) <- splitAt height <$> reduceCol m, all (== zer
     where height = length (head $ unpack m)
           reduceCol m = unpack $ transpose $ utf (transpose m `append` idm)
 
+-- | The range of a linear map is the set of possible outputs
+range :: (Eq f, Field f) => Matrix f m n -> Subspace (Vector f m)
+range = Sub . makeLinIndep . matToList
+
+
           
 -- | A quotient space is a subspace translated by a vector
 data QuotientSpace v = Quot v (Subspace v) deriving (Show)
