@@ -33,7 +33,7 @@ instance (AddGroup f, Eq f) => AddGroup (CSR f m n) where
     neg (CSR e c r) = CSR (map neg e) c r 
     zero = CSR [] [] [0,0] -- row = [replicate (size+1) zero], size from type 
 
-instance (AddGroup f, Mul f, Eq f) => Mul (CSR f m m) where
+instance (KnownNat m, AddGroup f, Mul f, Eq f) => Mul (CSR f m m) where
     (*) = cSRMM
     one = csrIdm
 
@@ -43,8 +43,14 @@ instance (KnownNat m, KnownNat n, AddGroup f, m ~ m', n ~ n') => ToMat m n (CSR 
     fromMat m = undefined
 
 
-csrIdm :: CSR f m n
-csrIdm = undefined
+csrIdm :: (KnownNat m, Mul f) => CSR f m m
+csrIdm = idm
+  where  idm = CSR ones [0..mN-1] [0..mN]
+         ones = replicate mN one
+         mN = fromInteger (natVal idm)
+
+scaleCSR :: Mul f => f -> CSR f m n -> CSR f m n
+scaleCSR c (CSR elems col row) = CSR (map (c*) elems) col row
 
 --Returns the element of a given coordinate in the sparse matrix
 getElem :: AddGroup f => CSR f m n -> (Int,Int) -> f
