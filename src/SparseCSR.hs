@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 
 module SparseCSR where
@@ -27,11 +28,12 @@ data CSR f (m :: Nat) (n :: Nat) = CSR { elems :: [f],
 
 deriving instance Show f => Show (CSR f m n)
 
-instance (AddGroup f, Eq f) => AddGroup (CSR f m n) where
+instance forall m n f. (KnownNat n, AddGroup f, Eq f) => AddGroup (CSR f m n) where
     (+) = cSRAdd
     (-) = cSRSub
     neg (CSR e c r) = CSR (map neg e) c r 
-    zero = CSR [] [] [0,0] -- row = [replicate (size+1) zero], size from type 
+    zero = CSR [] [] (replicate (size+1) 0) -- size from type 
+        where size = fromInteger $ natVal (undefined :: undefined n)
 
 instance (KnownNat m, AddGroup f, Mul f, Eq f) => Mul (CSR f m m) where
     (*) = cSRMM
@@ -96,7 +98,7 @@ cSRMM m1@(CSR e1 c1 r1)
             bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn m2 b)) | b <- [0..maximum c1]]
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
 
-cSRSub :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
+cSRSub :: (KnownNat b, AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
 cSRSub m1 m2 = cSRAdd m1 (neg m2)
 
 cSRAdd :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
