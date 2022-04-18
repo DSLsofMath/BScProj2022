@@ -64,7 +64,7 @@ getRow (CSR elems col row) i = case td i 2 row of
         _     -> []
         where td i j = take j . drop i
 
-getColumn :: (AddGroup f) => CSR f m n -> Int -> [(Int, f)]
+getColumn :: CSR f m n -> Int -> [(Int, f)]
 getColumn (CSR elems col row) i = [ x | (x, y) <- zip cs col, y==i ]
     where
         cs = couple elems row
@@ -121,7 +121,7 @@ cSRAddRow v1@((c1,e1):as) v2@((c2,e2):bs) | c1 == c2 = (c1,e1+e2) : cSRAddRow as
                                           | c1 > c2  = (c2,e2) : cSRAddRow v1 bs
                                           | c1 < c2  = (c1,e1) : cSRAddRow as v2
 
-csrTranspose :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
+csrTranspose :: CSR f a b -> CSR f a b
 csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
              where
                 bs = map (map snd) $ groupBy ((==) `on` fst) $ sortOn fst $ concat qs
@@ -129,7 +129,7 @@ csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
                 emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
 
 -- Slow/bad transpose
-csrTranspose2 :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b
+csrTranspose2 :: CSR f a b -> CSR f a b
 csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
              where
                 bs = [getColumn m1 a | a <- [0..maximum c1]]
@@ -140,21 +140,21 @@ csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
 
 -- Test values/functions
 
-comb :: AddGroup f => CSR f x y -> [(Int, f)] -> CSR f x y
+comb :: CSR f x y -> [(Int, f)] -> CSR f x y
 comb csr [] = csr
 comb (CSR e1 c1 r1) as = CSR (e1++es) (c1++cs) r1
     where
-        (cs, es) = unzip as                                
+        (cs, es) = unzip as
 
--- Matrix Vector Multiplication                                                                                                                                                                                                                                                                                                                                                                       
+-- Matrix Vector Multiplication
 
 -- Multiplies a CSR matrix with a Vector 
-smV :: (AddGroup f, Mul f) => CSR f a b -> Vector f b  -> Vector f a
+smV :: (Ring f) => CSR f a b -> Vector f b  -> Vector f a
 smV m (V v) = V (smv m v)
 
 -- Multiplies a CSR matrix with a list vector
 -- getRow could be used instead of calculating difference to take j from elems&col
-smv :: (AddGroup f, Mul f) => CSR f a b -> [f] -> [f]
+smv :: (Ring f) => CSR f a b -> [f] -> [f]
 smv (CSR _ _ (r:[])) v = []
 smv (CSR [] _ _) v = []
 smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) : 
@@ -162,7 +162,7 @@ smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) :
             where j = head row - r 
 
 -- Multiplies a CSR matrix with a CSR vector
-csrMV :: (AddGroup f, Mul f, Eq f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
+csrMV :: (Ring f, Eq f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
 csrMV m1@(CSR e1 c1 r1) v1 = filter ((/=zero).snd) [(a,dotCsr (getRow m1 a) v1)| a <- [0..length r1 - 2]]
 
 --- Test values/functions
