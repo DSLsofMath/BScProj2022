@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+module Matrix where
 
 import GHC.TypeLits
 import qualified Prelude as P
@@ -153,7 +154,6 @@ instance Matrix CSR.CSR where
               merge _ [] = []
               merge xs ((i,n):ys) = let (cur, next) = splitAt n xs in
                     [ ((Fin (j+1),Fin i), a) | (j,a) <- cur ] : merge next ys
-
 
 
 --------------------------------------------------------------------------
