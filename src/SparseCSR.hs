@@ -44,12 +44,17 @@ instance (KnownNat m, KnownNat n, AddGroup f, m ~ m', n ~ n') => ToMat m n (CSR 
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
     fromMat m = undefined
 
+csrSize :: (KnownNat m, KnownNat n) => CSR f m n -> (Int,Int)
+csrSize csr@(CSR e c r) = (length r - 1, fromInteger (natVal csr))
+
+csrLen :: KnownNat m => CSR f m m -> Int
+csrLen csr = fromInteger (natVal csr)
 
 csrIdm :: (KnownNat m, Mul f) => CSR f m m
 csrIdm = idm
   where  idm = CSR ones [0..mN-1] [0..mN]
          ones = replicate mN one
-         mN = fromInteger (natVal idm)
+         mN = csrLen idm
 
 scaleCSR :: Mul f => f -> CSR f m n -> CSR f m n
 scaleCSR c (CSR elems col row) = CSR (map (c*) elems) col row
@@ -161,7 +166,7 @@ smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) :
                                      smv (CSR (drop j elems) (drop j col) row) v
             where j = head row - r 
 
--- Multiplies a CSR matrix with a CSR vector
+-- Multiplies a CSR matrix with a CSR row/column
 csrMV :: (Ring f, Eq f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
 csrMV m1@(CSR e1 c1 r1) v1 = filter ((/=zero).snd) [(a,dotCsr (getRow m1 a) v1)| a <- [0..length r1 - 2]]
 
@@ -235,19 +240,20 @@ bigVec :: Vector Double 10000
 bigVec = V [1,2..10000]
 
 -- tridiagonal with -2 on diagonal and +1 above and below diagonal
--- TODO make it parameterised on the size n
-pjCSR :: CSR Double 10 10
-pjCSR = CSR {
-    elems = concat stencils,
-    col   = concat scols,
-    row = scanl (+) 0 slens
-  }
-  where  n = 10
-         stencil = [1,-2,1]
+triCSR :: (Ring f, Num f, KnownNat m) => CSR f m m
+triCSR = csr
+  where  csr = CSR (concat stencils) (concat scols) (scanl (+) 0 slens)
+         n = csrLen csr
+         stencil = [one,negate (one + one),one]
          stencils = [drop 1 stencil] ++ replicate (n-2) stencil ++ [take 2 stencil]
          colfun c = [c-1,c,c+1]
          scols    = [drop 1 (colfun 0)] ++ map colfun [1..n-2]  ++ [take 2 (colfun (n-1))]
          slens = map length stencils
 
-pjMat :: MatR 10 10
-pjMat = toMat pjCSR
+-- tomat for triCSR
+-- "triMat :: Matrix Double 5 5" creates a 5 X 5 matrix with type Double
+triMat :: (Ring f, Num f, KnownNat m) => Matrix f m m
+triMat = toMat triCSR
+
+triPJ :: Matrix Double 10 10
+triPJ = triMat
