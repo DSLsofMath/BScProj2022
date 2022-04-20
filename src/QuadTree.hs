@@ -9,58 +9,21 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ExplicitForAll #-}
 
 module QuadTree where
 
 import Prelude hiding ((+), (-), (*), (/), sum, )
 import GHC.TypeLits
+import Data.Type.Bool
 import Data.Kind
 
-import ListVector
+import Data.List
+
+import qualified ListVector as L
+import Matrix
 import Algebra
 
-{- Taken from
- - Matrix Algorithms using Quadtrees Invited Talk, ATABLE-92 Technical Report 357
-
-type Quadrants a = [Matrx a] --list of *four* submatrices.
-
-data Matrx a = Zero | ScalarM a | Mtx (Quadrants a) | ID --used mostly in permutations.
-    deriving Show
-
-instance (Num a) => Num (Matrx a) where
-    fromInteger 0 = Zero
-    fromInteger 1 = ID
-    fromInteger _ = error "fromInteger defined only on zero/1 Matrces."
-    negate Zero = Zero
-    negate (ScalarM x) = ScalarM (negate x)
-    negate (Mtx quads) = Mtx (map negate quads)
-
-    x + Zero = x
-    Zero + y = y
-    ScalarM x + ScalarM y = ScalarM (x + y)    
-    Mtx x + Mtx y = case zipWith (+) x y of [Zero,Zero,Zero,Zero] -> Zero
-                                            quads     -> Mtx quads
-    _ + _ = error "Matrx addition undefined on IdentM"
-
-    Zero * _ = Zero
-    _ * Zero = Zero
-    ID * y = y --NB: multiplication accepts IdentM
-    x * ID = x
-    ScalarM x * ScalarM y = ScalarM (x*y)
-    --Except with infinitesimal floats: case x*y of zero->zero; z->ScalarM z
-    Mtx x * Mtx y = case zipWith (+)
-                            (zipWith (*) (colExchange x)(offDiagSqsh y))
-                            (zipWith (*) x (prmDiagSqsh y))
-                    of 
-                        [Zero,Zero,Zero,Zero] -> Zero 
-                        quads                 -> Mtx quads 
-        where colExchange [nw,ne,sw,se] = [ne,nw,se,sw]
-              prmDiagSqsh [nw,ne,sw,se] = [nw,se,nw,se]
-              offDiagSqsh [nw,ne,sw,se] = [sw,ne,sw,ne]
-              abs _ = error "abs not implemented yet on Matrces."
-              signum _ = error "signum not implemented yet on Matrces."
-
--}
 
 data Nat4 = One | Suc Nat4
 
@@ -69,14 +32,55 @@ data SNat4 (n :: Nat4) where
     SOne :: SNat4 One 
     SSuc :: Sized n => SNat4 n -> SNat4 (Suc n)
 
-type family Pred (n :: Nat4) :: Nat4 where
-     Pred (Suc n)  = n
-
 -- n+n instead of 2*n helps ghc to deduce constraints
 type family ToNat (n :: Nat4) :: Nat where
      ToNat One = 1
-     ToNat (Suc n)  = ToNat n + ToNat n 
+     ToNat (Suc n)  = ToNat n + ToNat n
 
+
+
+type family ToNat4 (m :: Nat) (n :: Nat) :: Nat4 where
+            ToNat4 m n = If ( Max m n <=? 2 ^ Log2 (Max m n) ) (ToNat4' (Max m n))
+                                                          (Suc (ToNat4' (Max m n)))
+
+type family ToNat4' (n :: Nat) :: Nat4 where
+            -- ToNat4' 0 =  -- We should handle case 0
+            ToNat4' 1 = One
+            ToNat4' n = Suc (ToNat4' (n `Div` 2))
+
+type family Max (m :: Nat) (n :: Nat) :: Nat where
+            Max n n = n
+            Max m n = If ( m <=? n ) n m
+
+
+
+-- | A wrapper for Quad, needed for Matrix instance
+data QuadM f (m :: Nat) (n :: Nat) = Sized (ToNat4 m n) => QuadM (Quad (ToNat4 m n) f)
+
+instance (AddGroup (L.Matrix f m n), Show (L.Matrix f m n)) => Show (QuadM f m n) where
+    show = show . toMat
+        where toMat :: QuadM f m n -> L.Matrix f m n
+              toMat = changeRep
+    
+
+
+instance (Sized (ToNat4 m n), AddGroup f) => AddGroup (QuadM f m n) where
+    QuadM m1 + QuadM m2 = QuadM (m1 + m2)
+    QuadM m1 - QuadM m2 = QuadM (m1 - m2)
+    zero = QuadM zero
+    
+
+instance Matrix QuadM where 
+    get (QuadM q) (Fin i, Fin j) = getQ q (i-1, j-1)
+
+    set (QuadM q) (Fin i, Fin j) a = QuadM $ setQ q (i-1, j-1) a
+
+    values (QuadM q) = map toFin $ valuesQ q 
+        where toFin ((i,j),a) = ((Fin (i+1), Fin (j+1)), a)
+
+    tabulate xs = case z of QuadM q -> (QuadM $ setMultipleQ q (map removeFin xs)) `asTypeOf` z
+        where removeFin ((Fin i, Fin j), a) = ((i-1, j-1), a) 
+              z = zero
 
 -- | A matrix representation based on QuadTrees
 --   Represents a matrix of size n*n where n = 2^Nat4
@@ -100,6 +104,41 @@ instance (Eq a) => Eq (Quad n a) where
     Mtx nw1 ne1 sw1 se1 == Mtx nw2 ne2 sw2 se2 = nw1 == nw2 && ne1 == ne2 
                                               && sw1 == sw2 && se1 == se2 
     _ == _ = False
+
+getQ :: AddGroup a => Quad n a -> (Int, Int) -> a
+getQ Zero       _ = zero
+getQ (Scalar a) _ = a
+getQ q@(Mtx nw ne sw se) (i, j) = getQ quad (i `mod` m, j `mod` m)
+    where m = quadSize q `div` 2
+          quad = case (i < m, j < m) of (True,  True) -> nw; (True,  False) -> ne 
+                                        (False, True) -> se; (False, False) -> sw 
+
+valuesQ :: Quad n a -> [((Int, Int), a)]
+valuesQ Zero = []
+valuesQ (Scalar s) = [((0,0), s)]
+valuesQ q@(Mtx nw ne sw se) = concat [s (0,0) nw, s (0,m) ne, s (m,0) sw, s (m,m) se] 
+    where m = quadSize q `div` 2
+          s (i,j) = map (\((i',j'),a) -> ((i'+i, j'+j),a)) . valuesQ
+
+
+setQ :: Sized n => Quad n a -> (Int, Int) -> a -> Quad n a
+setQ q i a = setMultipleQ q [(i,a)]
+
+setMultipleQ :: Sized n => Quad n a -> [((Int, Int), a)] -> Quad n a
+setMultipleQ q = setMultipleQ' (sNatQ q) q
+
+setMultipleQ' :: SNat4 n -> Quad n a -> [((Int, Int), a)] -> Quad n a
+setMultipleQ' _    a [] = a 
+setMultipleQ' SOne _ ((_, a):_) = Scalar a 
+setMultipleQ' (SSuc n) a xs = Mtx (setM nw nws) (setM ne nes) 
+                                  (setM sw sws) (setM se ses)
+    where ((nws, nes), (sws, ses)) = splitOn snd `onBoth` splitOn fst xs
+          ( nw,  ne,    sw,  se)   = case a of Zero            -> (Zero, Zero, Zero,Zero)
+                                               Mtx nw ne sw se -> (nw,   ne,   sw,   se)
+          splitOn f = span (\(i,_) -> f i < m) . sortOn (f . fst) -- TODO: get rid of sort
+          f `onBoth` (a,b) = (f a, f b)
+          setM q = setMultipleQ' n q . map (\(i,a) -> ((`mod` m) `onBoth` i, a)) 
+          m = toInt n
 
 
 -- | The height of the quadtree
@@ -125,6 +164,9 @@ instance forall n. Sized n => Sized (Suc n) where
 --   is always square we only return one value
 quadSize :: forall n a. Sized n => Quad n a -> Int
 quadSize _ = toInt (undefined :: undefined n)
+
+sNatQ :: forall n a. Sized n => Quad n a -> SNat4 n
+sNatQ _ = toSNat4 (undefined :: undefined n)
 
 -- | Applies a function on the Quads scalars
 mapQuad :: (a -> b) -> Quad n a -> Quad n b
@@ -196,14 +238,14 @@ transposeQ (Mtx nw ne sw se) = Mtx (transposeQ nw) (transposeQ sw)
 --
 --   TODO: zero requires a KnownNat constraint but we cannot deduce 
 --   KnownNat in the recursive call even though ToNat is trivial.
-toDense :: (Sized n, Ring a) => Quad n a -> Matrix a (ToNat n) (ToNat n) 
-toDense z@Zero = let n = quadSize z in pack $ replicate n (replicate n zero)
-toDense (Scalar a) = a £ idm    -- Will always be of size 1x1
-toDense (Mtx nw ne sw se) = (toDense nw `append` toDense ne) `append'` 
-                            (toDense sw `append` toDense se)
+toDense :: (Sized n, Ring a) => Quad n a -> L.Matrix a (ToNat n) (ToNat n) 
+toDense z@Zero = let n = quadSize z in L.pack $ replicate n (replicate n zero)
+toDense (Scalar a) = a £ L.idm    -- Will always be of size 1x1
+toDense (Mtx nw ne sw se) = (toDense nw `L.append` toDense ne) `L.append'` 
+                            (toDense sw `L.append` toDense se)
 
 -- TODO: Add fromMat
-instance (Sized n, m' ~ ToNat n, n' ~ ToNat n, Ring a) => ToMat m' n' (Quad n a) where
+instance (Sized n, m' ~ ToNat n, n' ~ ToNat n, Ring a) => L.ToMat m' n' (Quad n a) where
     type Under' (Quad n a) = a
     toMat = toDense
 
@@ -217,9 +259,11 @@ instance (Sized n, m' ~ ToNat n, n' ~ ToNat n, Ring a) => ToMat m' n' (Quad n a)
 -- 
 -- instance (12 <= n) => Mul (Quad n a) where
 
+
 testQ :: Quad (Suc (Suc One)) R
-testQ = Mtx (Mtx Zero (Scalar 3) (Scalar 5) (Scalar 7)) (Mtx Zero (Scalar 6) Zero Zero) 
-            Zero                                        (Mtx (Scalar 2) Zero Zero Zero)
+testQ = Mtx (Mtx Zero (Scalar 3) (Scalar 5) (Scalar 7)) (Mtx Zero       (Scalar 6) (Scalar 5) Zero) 
+            Zero                                        (Mtx (Scalar 2) Zero       (Scalar 7) Zero)
+
 
 ----------------
 -- Just some example code
