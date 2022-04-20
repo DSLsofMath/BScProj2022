@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 
 
@@ -17,6 +18,8 @@ import qualified Data.Ratio
 
 
 type R = Double
+
+type KnownNats m n = (KnownNat m, KnownNat n)
 
 -- | A list with a given length
 newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
@@ -163,13 +166,10 @@ sum = foldr (+) zero
 
 -- | Allows us to define Matrix-matrix-,matrix-vector-multiplication as a single operation
 --   Potentially this should replace or be used to define Mul 
-class Composable a b where
-    type Out a b :: *
-    type Out a b = b
-    comp :: a -> b -> Out a b
+class Composable a b c | a b -> c where
+    comp :: a -> b -> c
 
-instance (b ~ b') => Composable (b -> c) (a -> b') where
-    type Out (b -> c) (a -> b') = a -> c
+instance (b ~ b') => Composable (b -> c) (a -> b') (a -> c) where
     comp = (.)
 
 class Mul a where
