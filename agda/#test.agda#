@@ -63,8 +63,8 @@ module test where
         foldrV B _⊕_ e [] = e
         foldrV B _⊕_ e (x :: xs) = x ⊕ foldrV B _⊕_ e xs
 
-        sumV : Vector ℕ n → ℕ
-        sumV = foldrV _⊕_ 0 _ 
+        --sumV : Vector ℕ n → ℕ
+      
 
         zeroVec : Vector ℕ n
         zeroVec = replicateV 0   
