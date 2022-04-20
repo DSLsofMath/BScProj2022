@@ -116,26 +116,26 @@ getQ q@(Mtx nw ne sw se) (i, j) = getQ quad (i `mod` m, j `mod` m)
 valuesQ :: Quad n a -> [((Int, Int), a)]
 valuesQ Zero = []
 valuesQ (Scalar s) = [((0,0), s)]
-valuesQ q@(Mtx nw ne sw se) = concat [s (0,0) nw, s (m,0) ne, s (0,m) sw, s (m,m) se] 
+valuesQ q@(Mtx nw ne sw se) = concat [s (0,0) nw, s (0,m) ne, s (m,0) sw, s (m,m) se] 
     where m = quadSize q `div` 2
-          s (i,j) = map (\((i',j'),a) -> ((i'+i,j'+j),a)) . valuesQ
+          s (i,j) = map (\((i',j'),a) -> ((i'+i, j'+j),a)) . valuesQ
 
 
 setQ :: Sized n => Quad n a -> (Int, Int) -> a -> Quad n a
 setQ q i a = setMultipleQ q [(i,a)]
 
 setMultipleQ :: Sized n => Quad n a -> [((Int, Int), a)] -> Quad n a
-setMultipleQ q = setMultipleQ' (sNatQ q) q . sortOn fst
+setMultipleQ q = setMultipleQ' (sNatQ q) q
 
 setMultipleQ' :: SNat4 n -> Quad n a -> [((Int, Int), a)] -> Quad n a
 setMultipleQ' _    a [] = a 
 setMultipleQ' SOne _ ((_, a):_) = Scalar a 
 setMultipleQ' (SSuc n) a xs = Mtx (setM nw nws) (setM ne nes) 
-                                 (setM sw sws) (setM se ses)
+                                  (setM sw sws) (setM se ses)
     where ((nws, nes), (sws, ses)) = splitOn snd `onBoth` splitOn fst xs
           ( nw,  ne,    sw,  se)   = case a of Zero            -> (Zero, Zero, Zero,Zero)
                                                Mtx nw ne sw se -> (nw,   ne,   sw,   se)
-          splitOn f = span (\(i,_) -> f i < m) 
+          splitOn f = span (\(i,_) -> f i < m) . sortOn (f . fst) -- TODO: get rid of sort
           f `onBoth` (a,b) = (f a, f b)
           setM q = setMultipleQ' n q . map (\(i,a) -> ((`mod` m) `onBoth` i, a)) 
           m = toInt n
@@ -261,8 +261,8 @@ instance (Sized n, m' ~ ToNat n, n' ~ ToNat n, Ring a) => L.ToMat m' n' (Quad n 
 
 
 testQ :: Quad (Suc (Suc One)) R
-testQ = Mtx (Mtx Zero (Scalar 3) (Scalar 5) (Scalar 7)) (Mtx Zero (Scalar 6) Zero Zero) 
-            Zero                                        (Mtx (Scalar 2) Zero Zero Zero)
+testQ = Mtx (Mtx Zero (Scalar 3) (Scalar 5) (Scalar 7)) (Mtx Zero       (Scalar 6) (Scalar 5) Zero) 
+            Zero                                        (Mtx (Scalar 2) Zero       (Scalar 7) Zero)
 
 
 ----------------

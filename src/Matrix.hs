@@ -48,6 +48,12 @@ raiseBound :: n <= m => Fin n -> Fin m
 raiseBound (Fin n) = Fin n
 
 
+-- | Merges two indexed lists, adding their values if they have the same index
+merge :: (Ord i, AddGroup a) => [(i, a)] -> [(i, a)] -> [(i, a)] 
+merge xs ys = map (foldl1 add) . groupBy ((==) `on` fst) $ sortOn fst (xs ++ ys)
+    where (i, a) `add` (_,b) = (i, a + b)
+
+
 -- | Generic class for a matrix with focus on sparse representations
 --   The class is roughly based on the paper "APLicative Programming with Naperian Functors"
 --   by Jeremy Gibbons. 
@@ -99,6 +105,16 @@ getRow m i = [ (j, a) | ((i', j), a) <- values m, i' == i]
 getCol :: Matrix mat => mat f m n -> Fin n -> [(Fin m, f)]
 getCol m j = [ (i, a) | ((i, j'), a) <- values m, j' == j]
 
+-- | Returns a list of elements and positions corresponding to the diagonal
+getDiagonal :: Matrix mat => mat f n n -> [(Fin n, f)]
+getDiagonal m = [ (i, a) | ((i, j), a) <- values m, i == j ]
+
+setRow :: (Matrix mat, AddGroup (mat f m n)) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
+setRow m i r = tabulate $ new ++ old
+    where old = filter ((i /=) . fst . fst) $ values m
+          new = [ ((i, j), a) | (j, a) <- r ]
+
+
 -- | Appends two matrices, analogous to (++)
 append :: (KnownNat n1, Matrix mat, AddGroup (mat f m (n1 + n2)) ) => mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)
 append m1 m2 = tabulate $ m1' ++ m2'
@@ -118,6 +134,7 @@ changeRep = tabulate . values
 -- | A general implementation of the identity matrix
 identity :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Mul f) => mat f n n
 identity = tabulate [ ((i,i), one) | i <- [minBound .. maxBound]]
+
 
 
 ----------------------------------------------------------------------------------------
@@ -153,7 +170,7 @@ instance Matrix CSR.CSR where
         where perRow = zip [1..] $ zipWith (-) (tail row) row 
               merge _ [] = []
               merge xs ((i,n):ys) = let (cur, next) = splitAt n xs in
-                    [ ((Fin (j+1),Fin i), a) | (j,a) <- cur ] : merge next ys
+                    [ ((Fin i,Fin (j+1)), a) | (j,a) <- cur ] : merge next ys
 
 
 --------------------------------------------------------------------------
