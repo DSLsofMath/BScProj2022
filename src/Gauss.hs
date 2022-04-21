@@ -1,10 +1,13 @@
 {-# language DataKinds #-}
+{-# language FlexibleContexts #-}
 
 module Gauss where
 
 import GHC.TypeLits 
 import qualified Prelude
+import Algebra 
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
+import Data.List 
 
 import Algebra 
 import Matrix 
@@ -31,7 +34,7 @@ showElimOp op = concat $ case op of
     where row i = "R(" ++ show i ++ ")"
 
 
--- | Shows step by step how a matrix is transformed by a ElimOp trace
+-- -- | Shows step by step how a matrix is transformed by a ElimOp trace
 -- showElimOnMat :: (Field f, Show f) => [ElimOp m f] -> Matrix f m n -> String
 -- showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t 
 --                      in unlines [ show m ++ "\n" ++ show op | (m, op) <- zip matTrace t ]
@@ -42,17 +45,52 @@ showElimOp op = concat $ case op of
 elimOpToMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) => ElimOp n f -> mat f n n
 elimOpToMat e = elimOpToFunc e identity
 
+swap :: (Matrix mat, AddGroup (mat f m n)) => Fin m -> Fin m -> mat f m n -> mat f m n
+swap i j m = setRow (setRow m i (getRow m j)) j (getRow m i) 
+
+mul :: (Matrix mat, AddGroup (mat f m n), Ring f) => Fin m -> f -> mat f m n -> mat f m n
+mul i s m = setRow m i (s £ getRow m i) 
+
+mulAdd :: (Matrix mat, AddGroup (mat f m n), Ring f) => Fin m -> Fin m -> f -> mat f m n -> mat f m n
+mulAdd i j s m = setRow m j (s £ getRow m i + getRow m j)
+
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: (Matrix mat, Ring f, AddGroup (mat f m n)) => ElimOp m f -> (mat f m n -> mat f m n)
-elimOpToFunc e m = case e of Swap   i j   -> setRow (setRow m j (row i)) i (row j)
-                             Mul    i   s -> setRow m i (s `scale` row i)
-                             MulAdd i j s -> setRow m j (s `scale` row i `merge` row j)
-    where row = getRow m 
-          scale s l = [ (i, s*a) | (i,a) <- l ]
+elimOpToFunc :: (Matrix mat, AddGroup (mat f m n), Ring f) => ElimOp m f -> (mat f m n -> mat f m n)
+elimOpToFunc e m = case e of Swap   i j   -> swap i j m
+                             Mul    i   s -> mul i s m
+                             MulAdd i j s -> mulAdd i j s m
 
 -- | Reduces a trace of elimOps to a single function
-foldElemOpsFunc :: (Matrix mat, Ring f, AddGroup (mat f m n)) => [ElimOp m f] -> (mat f m n -> mat f m n)
-foldElemOpsFunc = foldr (.) id . map elimOpToFunc . reverse
+foldElimOpsFunc :: (Matrix mat, AddGroup (mat f m n), Ring f) => [ElimOp m f] -> (mat f m n -> mat f m n)
+foldElimOpsFunc = foldr (.) id . map elimOpToFunc . reverse
+
+utf :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) => mat f m n -> mat f m n
+utf m = snd $ utf' m [] [minBound .. maxBound] [minBound .. maxBound] 
+
+utfTrace :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) => mat f m n -> [ElimOp m f]
+utfTrace m = fst $ utf' m [] [minBound .. maxBound] [minBound .. maxBound] 
 
 
+utf' :: (Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) => mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
+utf' m t (_) [] = (t, m)
+utf' m t [] (_) = (t, m)
+utf' m t (i:is) (j:js) = case getCol' j of 
+              [] -> utf' m t (i:is) js
+              (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ map (mulAdd' i a) rs 
+                              in  utf' ((foldElimOpsFunc xs) m) (t ++ xs) is js
+    where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
+          mulAdd' i a (j,b) = MulAdd i j (neg (b/a))
+          filterZ (_,s) = s > 0.0001 || s < -0.0001
+
+
+jordan :: (Matrix mat, Composable (ElimOp  m f) (mat f m n) (mat f m n), Ord f, Field f, Fractional f) => mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
+jordan m t (_) [] = (t, m)
+jordan m t [] (_) = (t, m)
+jordan m t (i:is) (j:js) = case getCol' j of 
+              [] -> jordan m t (i:is) js
+              (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ map (mulAdd' i a) rs 
+                              in  jordan (foldr comp m xs) (t ++ xs) is js
+    where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
+          mulAdd' i a (j,b) = MulAdd i j (neg (b/a))
+          filterZ (_,s) = s > 0.0001 || s < -0.0001
 

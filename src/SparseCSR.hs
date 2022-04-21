@@ -15,6 +15,8 @@ import GHC.TypeLits
 import Algebra
 import Prelude hiding ((+), (-), (*), (/), sum)
 import ListVector 
+import qualified Matrix as M
+import Matrix (values, Fin(..))
 
 import Data.Function
 import Data.List hiding (sum)
@@ -43,6 +45,26 @@ instance (KnownNat m, KnownNat n, AddGroup f, m ~ m', n ~ n') => ToMat m n (CSR 
     type Under' (CSR f m' n') = f
     toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
     fromMat m = undefined
+
+instance M.Matrix CSR where
+
+    extend csr = tabulate' . merge' (values csr)
+        where merge' as bs = map last . groupBy ((==) `on` fst) $ sortOn fst (as ++ bs)
+              count [] i | i >= length (row csr) = [] 
+              count [] i = 0 : count [] (i+1)
+              count cs i = let (t, d) = span ((Fin i==) . fst . fst) cs in
+                  length t : count d (i+1)
+              tabulate' xs = CSR elems col row
+                  where sorted = sortOn fst xs
+                        (col, elems) = unzip $ map (\((_,Fin i),a) -> (i - 1, a)) sorted
+                        row = scanl (+) 0 (count sorted 1)
+
+                        
+    values (CSR elems col row) = concat $ merge (zip col elems) perRow
+        where perRow = zip [1..] $ zipWith (-) (tail row) row 
+              merge _ [] = []
+              merge xs ((i,n):ys) = let (cur, next) = splitAt n xs in
+                    [ ((Fin i,Fin (j+1)), a) | (j,a) <- cur ] : merge next ys
 
 
 csrIdm :: (KnownNat m, Mul f) => CSR f m m

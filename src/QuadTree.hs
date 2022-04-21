@@ -71,16 +71,13 @@ instance (Sized (ToNat4 m n), AddGroup f) => AddGroup (QuadM f m n) where
     
 
 instance Matrix QuadM where 
-    get (QuadM q) (Fin i, Fin j) = getQ q (i-1, j-1)
-
-    set (QuadM q) (Fin i, Fin j) a = QuadM $ setQ q (i-1, j-1) a
+    -- get (QuadM q) (Fin i, Fin j) = getQ q (i-1, j-1)
 
     values (QuadM q) = map toFin $ valuesQ q 
         where toFin ((i,j),a) = ((Fin (i+1), Fin (j+1)), a)
 
-    tabulate xs = case z of QuadM q -> (QuadM $ setMultipleQ q (map removeFin xs)) `asTypeOf` z
+    extend (QuadM m) xs = QuadM $ setMultipleQ m (map removeFin xs)
         where removeFin ((Fin i, Fin j), a) = ((i-1, j-1), a) 
-              z = zero
 
 -- | A matrix representation based on QuadTrees
 --   Represents a matrix of size n*n where n = 2^Nat4
@@ -218,10 +215,6 @@ x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+)
           offDiagSqsh (Mtx nw ne sw se) = Mtx sw ne sw ne
           zipQuad :: (Quad n a -> Quad n a -> Quad n a) -> Quad (Suc n) a -> Quad (Suc n) a -> Quad (Suc n) a
           zipQuad (*) (Mtx a b c d) (Mtx e f g h) = Mtx (a*e) (b*f) (c*g) (d*h)
-
-instance (Ring a, n ~ n', a ~ a') => Composable (Quad n a) (Quad n' a') where
-    type Out (Quad n a) (Quad n' a')  = Quad n a
-    comp = mulQ
 
 instance (Sized n, Ring a) => Mul (Quad n a) where
     (*) = mulQ
