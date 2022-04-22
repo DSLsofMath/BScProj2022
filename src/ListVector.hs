@@ -5,8 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE PatternSynonyms #-}
 
 module ListVector where
 
@@ -38,17 +36,17 @@ import Data.Function
 -- to make the code more general
 
 -- | Dependent typed vector
-newtype Vector f (n :: Nat) = Vector (List f n) deriving (Eq)
+newtype Vector f (n :: Nat) = V [f] deriving (Eq)
 
 mapV :: (a->b) -> Vector a n -> Vector b n
-mapV f (Vector l) = Vector (mapL f l)
+mapV f (V l) = V (map f l)
 
 instance Show f => Show (Vector f n) where
     show v = show . M $ V [v]
 
 -- | Allows us to patternmatch the vector elements
 --   without explicitly unwrapping the underlying List
-pattern V a = Vector (L a)
+-- pattern V a = Vector (L a)
 
 type VecR = Vector Double
 
@@ -86,13 +84,13 @@ instance (KnownNat n, Ring f) => VectorSpace (Vector f n) where
 -- | Vector is further a finite Vector Field
 instance (KnownNat n, Ring f) => Finite (Vector f n) where
     type Dim (Vector f n) = n
-    basis' _ = let M (Vector bs) = idm in bs
+    basis' _ = let M (V bs) = idm in L bs
 
 
 -- | Dot product of two vectors 
 v1, v2 :: Vector Double 3
 v1 = V [2,7,1]::VecR 3
-v2 = V [8,2,8]::VecR 3
+v2 = V [8,2,8]::VecR 3 
 -- test dot product
 testdot = dot v1 v2 == 2*8 + 7*2 + 8*1
 
@@ -143,7 +141,7 @@ idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
 -- | Matrix vector multiplication
 (££) :: (KnownNat m, Ring f) => Matrix f m n -> Vector f n -> Vector f m
-M (Vector vs) ££ v = v `eval` vs
+M (V vs) ££ v = v `eval` L vs
 
 -- | Matrix matrix multiplication
 (£££) :: (KnownNat a, Ring f) => Matrix f a b -> Matrix f b c -> Matrix f a c

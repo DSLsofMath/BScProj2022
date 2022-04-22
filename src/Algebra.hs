@@ -16,7 +16,6 @@ import qualified Prelude as P
 import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRational)
 import qualified Data.Ratio
 
-
 type R = Double
 
 type KnownNats m n = (KnownNat m, KnownNat n)
@@ -184,7 +183,7 @@ a ^ n = product $ replicate n a
 
 type Ring a = (AddGroup a, Mul a)
 
-class (AddGroup a, Mul a) => Field a where
+class (Ring a) => Field a where
     (/) :: a -> a -> a
     a / b = a * recip b
 
@@ -233,9 +232,9 @@ instance Field Rational     where (/) = (P./);
 instance Field Exp          where recip = Recip; 
 instance Field b => Field (a -> b)  where recip f = \x -> recip (f x); 
 
-instance VectorSpace b => VectorSpace (a -> b) where
-    type Under (a -> b) = Under b
-    s £ f = \x -> s £ f x
+instance Ring b => VectorSpace (a -> b) where
+    type Under (a -> b) = b
+    s £ f = \x -> s * f x
 
 
 
