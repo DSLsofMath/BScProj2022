@@ -187,7 +187,7 @@ instance M.Matrix Matrix where
 
     -- TODO: Not sure how we should handle zeros since we do not want a Eq constraint in the class
     values (M (V vs)) = [ ((Fin i, Fin j), a) | (j, V v) <- zip [1..] vs
-                                                  , (i, a)     <- zip [1..] v ]
+                                              , (i, a)   <- zip [1..] v ]
 
 -- Composition on matrices
 -- Note that we write n ~ n' instead of writing n on both places. 

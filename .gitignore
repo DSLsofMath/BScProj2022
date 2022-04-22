@@ -6,3 +6,5 @@ stack.yaml
 *.hi
 *.o
 
+*.agdai
+.#*

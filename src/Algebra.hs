@@ -27,12 +27,12 @@ newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
 mapL :: (a -> b) -> List a n -> List b n
 mapL f (L xs) = L (map f xs)
 
-data Exp =  Const R
-             |  X
-             |  Exp :+: Exp
-             |  Exp :*: Exp
-             |  Recip Exp
-             |  Negate Exp
+data Exp  =  Const R
+          |  X
+          |  Exp :+: Exp
+          |  Negate Exp
+          |  Exp :*: Exp
+          |  Recip Exp
     deriving (Eq, Ord)
 
 
@@ -40,7 +40,7 @@ data Exp =  Const R
 -------------------------------------Only to simplify how to view matrix expressions and determinants--------------------------------
 instance Show Exp where
    show e = replaced1 (replaced (showE e) zerosToReplace) onesToReplace
-
+-- PJ: Ouch! string simplification is a pretty ugly way to simplify algebraic expressions...
 
 -- Remove all substrings in zerosToReplace
 replaceS :: Eq a => [a] -> [a] -> [a] -> [a]
@@ -129,7 +129,7 @@ simplifyE (Const x)       = Const x
 simplifyE (e :+: Const 0) = simplifyE e
 simplifyE (Const 0 :+: e) = simplifyE e
 simplifyE (e1 :+: e2)     = simplifyE e1 :+: simplifyE e2
--- Multiplaciton
+-- Multiplication
 simplifyE (_ :*: Const 0) = zero
 simplifyE (Const 0 :*: _) = zero
 simplifyE (e :*: Const 1) = simplifyE e
@@ -201,7 +201,7 @@ class (AddGroup v, Ring (Under v)) => VectorSpace v where
 --   To generate a basis for a vector space v we can use TypeApplications @:
 --   basis @(v)
 --   e.g. basis @(R^2) = V [V [1.0,0.0],V [0.0,1.0]]
---
+-- **TODO: please use working example - "R^2" is not valid Haskell in this file (perhaps works in ListVector? - if so, instruct the reader)
 class VectorSpace x => Finite x where 
     type Dim x :: Nat
     type BasisVec x :: *
