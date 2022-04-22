@@ -94,3 +94,5 @@ jordan m t (i:is) (j:js) = case getCol' j of
           mulAdd' i a (j,b) = MulAdd i j (neg (b/a))
           filterZ (_,s) = s > 0.0001 || s < -0.0001
 
+-- PJ: some example(s), please. Or at least a comment pointing the
+-- user/reader to where examples can be found.
