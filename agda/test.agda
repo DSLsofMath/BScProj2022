@@ -26,7 +26,7 @@ module test where
           _::_ :  A → Vector A n → Vector A (suc n)
 
         infixr 5 _::_
-        infixr 6 _+_
+--        infixr 6 _+_
           
         vecLength : Vector A n -> ℕ 
         vecLength {n = n} v = n
@@ -45,7 +45,7 @@ module test where
         m1 : Matrix ℕ 2 2 
         m1 =  (1 :: 2 :: []) :: (1 :: 2 :: []) :: []  
 
-        mat1 = Matrix Bool 2 2
+--        mat1 = Matrix Bool 2 2  -- this type in never used
         
         -- Some standard functions for working with vectors
         zipV : (A → B → C) → (Vector A n → Vector B n → Vector C n)
@@ -88,7 +88,7 @@ module test where
 
         -- Dot product
         _•_ : Vector Carrier n → Vector Carrier n → Carrier
-        v • u = sumV (zipV _*_ u v)
+        u • v = sumV (zipV _*_ u v)
 
         -- Cross
         _⊗_ : Vector Carrier 3 → Vector Carrier 3 → Vector Carrier 3
@@ -98,6 +98,7 @@ module test where
 
         -- Scale matrix 
         _◁ₘ_ : Carrier → Matrix Carrier m n → Matrix Carrier m n
+-- TODO: use mapV instead
         c ◁ₘ [] = []
         c ◁ₘ (v :: vs) = c ◁ v :: c ◁ₘ vs
       
@@ -105,7 +106,15 @@ module test where
         _+m_ : Matrix Carrier m n → Matrix Carrier m n → Matrix Carrier m n
         _+m_ = zipV _+v_
         
+
+        altSumV : Vector Carrier n → Carrier
+        altSumV = {!!} -- alternating sum: multiply every second term by minus one
+        
+        submatrices : Matrix Carrier m (suc n) -> Vector (Matrix Carrier m n) (suc n)
+        submatrices = {!!}
+
         -- Determinant - pain 
-        det : Matrix Carrier m n → Carrier
-        --det [] = {!!}
-        --det (m :: m₁) = {!!}
+        det : Matrix Carrier m m → Carrier
+        det [] = 1#
+        det (v :: m) = altSumV (zipV _*_ v (mapV det (submatrices m)))
+
