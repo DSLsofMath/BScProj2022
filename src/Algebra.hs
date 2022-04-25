@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 
 
@@ -15,8 +16,9 @@ import qualified Prelude as P
 import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRational)
 import qualified Data.Ratio
 
-
 type R = Double
+
+type KnownNats m n = (KnownNat m, KnownNat n)
 
 -- | A list with a given length
 newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
@@ -25,12 +27,12 @@ newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
 mapL :: (a -> b) -> List a n -> List b n
 mapL f (L xs) = L (map f xs)
 
-data Exp =  Const R
-             |  X
-             |  Exp :+: Exp
-             |  Exp :*: Exp
-             |  Recip Exp
-             |  Negate Exp
+data Exp  =  Const R
+          |  X
+          |  Exp :+: Exp
+          |  Negate Exp
+          |  Exp :*: Exp
+          |  Recip Exp
     deriving (Eq, Ord)
 
 
@@ -38,7 +40,7 @@ data Exp =  Const R
 -------------------------------------Only to simplify how to view matrix expressions and determinants--------------------------------
 instance Show Exp where
    show e = replaced1 (replaced (showE e) zerosToReplace) onesToReplace
-
+-- PJ: Ouch! string simplification is a pretty ugly way to simplify algebraic expressions...
 
 -- Remove all substrings in zerosToReplace
 replaceS :: Eq a => [a] -> [a] -> [a] -> [a]
@@ -111,10 +113,10 @@ derive      (e1 :*: e2)    =  (derive e1 :*: e2) :+: (e1 :*: derive e2)
 derive      (Negate e)     =  neg (derive e)
 derive      (Recip e)      =  neg (derive e :*: (recip (e:*:e))) -- negate(a' * recip (a^2))
 
-evalExp' :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
+evalExp' :: (Field a, Num a) => Exp -> a -> a
 evalExp' =  evalExp . derive
 
-evalExp'' :: (AddGroup a, Mul a, Field a, Num a) => Exp -> a -> a
+evalExp'' :: (Field a, Num a) => Exp -> a -> a
 evalExp'' = evalExp'.derive
 
 
@@ -127,7 +129,7 @@ simplifyE (Const x)       = Const x
 simplifyE (e :+: Const 0) = simplifyE e
 simplifyE (Const 0 :+: e) = simplifyE e
 simplifyE (e1 :+: e2)     = simplifyE e1 :+: simplifyE e2
--- Multiplaciton
+-- Multiplication
 simplifyE (_ :*: Const 0) = zero
 simplifyE (Const 0 :*: _) = zero
 simplifyE (e :*: Const 1) = simplifyE e
@@ -163,13 +165,10 @@ sum = foldr (+) zero
 
 -- | Allows us to define Matrix-matrix-,matrix-vector-multiplication as a single operation
 --   Potentially this should replace or be used to define Mul 
-class Composable a b where
-    type Out a b :: *
-    type Out a b = b
-    comp :: a -> b -> Out a b
+class Composable a b c | a b -> c where
+    comp :: a -> b -> c
 
-instance (b ~ b') => Composable (b -> c) (a -> b') where
-    type Out (b -> c) (a -> b') = a -> c
+instance (b ~ b') => Composable (b -> c) (a -> b') (a -> c) where
     comp = (.)
 
 class Mul a where
@@ -184,7 +183,7 @@ a ^ n = product $ replicate n a
 
 type Ring a = (AddGroup a, Mul a)
 
-class (AddGroup a, Mul a) => Field a where
+class (Ring a) => Field a where
     (/) :: a -> a -> a
     a / b = a * recip b
 
@@ -202,7 +201,7 @@ class (AddGroup v, Ring (Under v)) => VectorSpace v where
 --   To generate a basis for a vector space v we can use TypeApplications @:
 --   basis @(v)
 --   e.g. basis @(R^2) = V [V [1.0,0.0],V [0.0,1.0]]
---
+-- **TODO: please use working example - "R^2" is not valid Haskell in this file (perhaps works in ListVector? - if so, instruct the reader)
 class VectorSpace x => Finite x where 
     type Dim x :: Nat
     type BasisVec x :: *
@@ -233,9 +232,9 @@ instance Field Rational     where (/) = (P./);
 instance Field Exp          where recip = Recip; 
 instance Field b => Field (a -> b)  where recip f = \x -> recip (f x); 
 
-instance VectorSpace b => VectorSpace (a -> b) where
-    type Under (a -> b) = Under b
-    s £ f = \x -> s £ f x
+instance Ring b => VectorSpace (a -> b) where
+    type Under (a -> b) = b
+    s £ f = \x -> s * f x
 
 
 

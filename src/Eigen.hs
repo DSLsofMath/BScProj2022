@@ -65,7 +65,7 @@ newton :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> a
 newton f eps x = if abs fx < eps then x
                               else if fx' /= 0 then newton f eps next
                                                        else  newton f eps (x+eps)
-      where fx  = evalExp f x-- (f x, f' x, f'' x)
+      where fx  = evalExp f x
             fx' = evalExp' f x
             next = x - (fx/fx')
 
@@ -80,8 +80,8 @@ newtonList f eps x = x : if abs fx < eps then [ ]
             fx' = evalExp' f x
             next = x - (fx/fx')
 
-testNewton :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Exp -> [a]
-testNewton f = map (newton f 0.001) [0.5,1.0..2.0]
+roots :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Exp -> [a]
+roots f = map (newton f 0.001) [0.0,0.5..2.0]
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix Exp 2 2
@@ -89,14 +89,14 @@ matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
 
 -- Using detNN, seems to get some error with detGauss, probably because of derive recip
 eigenM1 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
-eigenM1 = testNewton(detNN matrix1)
+eigenM1 = roots(detNN matrix1)
 
 -- Eigen values = -2, 2, 0
 matrix2 :: Matrix Exp 3 3
 matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2, neg one]] - X £ idm
 
 eigenM2 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
-eigenM2 = testNewton(detNN matrix2)
+eigenM2 = roots(detNN matrix2)
 
 
 -- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
@@ -133,6 +133,7 @@ eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- utf eigen1  => x = y
 two :: Ring a => a
 two = one+one
 
+{-
 pjM :: Ring f => Matrix f 2 2
 pjM = M (Vector (L [Vector (L [one,two]),
                     Vector (L [two,one])]))
@@ -146,7 +147,7 @@ pjFun x = detNN (pjM - scaleM x idm)
 -- zeroes in (-1) and 3
 
 -- TODO pjPoly - using the polynomial instance from DSLsofMath
-
+-}
 
 
 

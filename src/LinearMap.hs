@@ -37,7 +37,7 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span)
 import ListVector hiding (m)
 import qualified SparseCSR
 import qualified QuadTree 
-import Algebra
+import Algebra hiding (comp)
 
 
 -- | Nice notation for a linear map

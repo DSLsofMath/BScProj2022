@@ -1,7 +1,9 @@
 open import Data.List
 open import Data.Nat using (ℕ; zero; suc)
-open import Data.Product 
+open import Data.Product
+open import Data.Vec.Base using (foldr)
 open import Data.Bool
+open import Function using (id; _∘_)
 open import Algebra
 open import Level using (Level)
 
@@ -24,7 +26,8 @@ module test where
           _::_ :  A → Vector A n → Vector A (suc n)
 
         infixr 5 _::_
-
+--        infixr 6 _+_
+          
         vecLength : Vector A n -> ℕ 
         vecLength {n = n} v = n
         
@@ -42,14 +45,13 @@ module test where
         m1 : Matrix ℕ 2 2 
         m1 =  (1 :: 2 :: []) :: (1 :: 2 :: []) :: []  
 
-        mat1 = Matrix Bool 2 2
+--        mat1 = Matrix Bool 2 2  -- this type in never used
         
-        -- zip for vectors
+        -- Some standard functions for working with vectors
         zipV : (A → B → C) → (Vector A n → Vector B n → Vector C n)
         zipV f [] [] = []
         zipV f (x :: xs) (y :: ys) = f x y :: zipV f xs ys
 
-        -- map for vectors
         mapV : (A → B) → Vector A n → Vector B n
         mapV f [] = []
         mapV f (x :: v) = f x :: mapV f v
@@ -57,14 +59,6 @@ module test where
         replicateV : A → Vector A n
         replicateV {n = zero}  x = []
         replicateV {n = suc n} x = x :: replicateV x
-
-        -- Dependent foldr
-        foldrV : (B : ℕ → Set b) → (∀ {n} → A → B n → B (suc n)) → B zero → Vector A n → B n
-        foldrV B _⊕_ e [] = e
-        foldrV B _⊕_ e (x :: xs) = x ⊕ foldrV B _⊕_ e xs
-
-        sumV : Vector ℕ n → ℕ
-        sumV = foldrV _⊕_ 0 _ 
 
         zeroVec : Vector ℕ n
         zeroVec = replicateV 0   
@@ -76,25 +70,51 @@ module test where
         open Vector             
 
         infixr 6 _+v_
-        infixr 7 _*vₛ_
-        infixr 7 _*mₛ_
+        infixr 7 _◁_
+        infixr 7 _◁ₘ_
+        infixr 7 _⊗_
 
-
+        sumV : Vector Carrier n → Carrier
+        sumV {n = zero} v = 0#
+        sumV {n = suc n} (x :: xs) = x + sumV {n} xs
+       
         -- Vector addition
         _+v_ : Vector Carrier n → Vector Carrier n  → Vector Carrier n 
         _+v_ = zipV _+_  
 
         -- Scale vector 
-        _*vₛ_ : Carrier → Vector Carrier n → Vector Carrier n 
-        c *vₛ v = mapV (c *_) v
+        _◁_ : Carrier → Vector Carrier n → Vector Carrier n 
+        c ◁ v = mapV (c *_) v
 
         -- Dot product
-       -- _•_ : Vector Carrier n → Vector Carrier n
-       -- _•_ = 
+        _•_ : Vector Carrier n → Vector Carrier n → Carrier
+        u • v = sumV (zipV _*_ u v)
+
+        -- Cross
+        _⊗_ : Vector Carrier 3 → Vector Carrier 3 → Vector Carrier 3
+        (v1 :: v2 :: v3 :: []) ⊗ (u1 :: u2 :: u3 :: []) = (v2 * u3 + -(v3 * u2) ::
+                                                           v3 * u1 + -(v1 * u3) ::
+                                                           v1 * u2 + -(v2 * u1) :: [])   
 
         -- Scale matrix 
-        _*mₛ_ : Carrier → Matrix Carrier m n → Matrix Carrier m n
-        c *mₛ [] = []
-        c *mₛ (v :: vs) = c *vₛ v :: c *mₛ vs
+        _◁ₘ_ : Carrier → Matrix Carrier m n → Matrix Carrier m n
+-- TODO: use mapV instead
+        c ◁ₘ [] = []
+        c ◁ₘ (v :: vs) = c ◁ v :: c ◁ₘ vs
       
-       
+        -- Add matrix
+        _+m_ : Matrix Carrier m n → Matrix Carrier m n → Matrix Carrier m n
+        _+m_ = zipV _+v_
+        
+
+        altSumV : Vector Carrier n → Carrier
+        altSumV = {!!} -- alternating sum: multiply every second term by minus one
+        
+        submatrices : Matrix Carrier m (suc n) -> Vector (Matrix Carrier m n) (suc n)
+        submatrices = {!!}
+
+        -- Determinant - pain 
+        det : Matrix Carrier m m → Carrier
+        det [] = 1#
+        det (v :: m) = altSumV (zipV _*_ v (mapV det (submatrices m)))
+

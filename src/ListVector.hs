@@ -5,8 +5,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE PatternSynonyms #-}
 
 module ListVector where
 
@@ -17,6 +15,11 @@ import Data.Coerce
 
 import qualified Data.List as L
 import Algebra
+import qualified Matrix as M
+import Matrix (Fin(..))
+import qualified Gauss as G
+import Data.List (sortOn, groupBy)
+import Data.Function 
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
 -- The implementation here is based on lists and should be replaced.
@@ -33,17 +36,17 @@ import Algebra
 -- to make the code more general
 
 -- | Dependent typed vector
-newtype Vector f (n :: Nat) = Vector (List f n) deriving (Eq)
+newtype Vector f (n :: Nat) = V [f] deriving (Eq)
 
 mapV :: (a->b) -> Vector a n -> Vector b n
-mapV f (Vector l) = Vector (mapL f l)
+mapV f (V l) = V (map f l)
 
 instance Show f => Show (Vector f n) where
     show v = show . M $ V [v]
 
 -- | Allows us to patternmatch the vector elements
 --   without explicitly unwrapping the underlying List
-pattern V a = Vector (L a)
+-- pattern V a = Vector (L a)
 
 type VecR = Vector Double
 
@@ -81,13 +84,13 @@ instance (KnownNat n, Ring f) => VectorSpace (Vector f n) where
 -- | Vector is further a finite Vector Field
 instance (KnownNat n, Ring f) => Finite (Vector f n) where
     type Dim (Vector f n) = n
-    basis' _ = let M (Vector bs) = idm in bs
+    basis' _ = let M (V bs) = idm in L bs
 
 
 -- | Dot product of two vectors 
 v1, v2 :: Vector Double 3
 v1 = V [2,7,1]::VecR 3
-v2 = V [8,2,8]::VecR 3
+v2 = V [8,2,8]::VecR 3 
 -- test dot product
 testdot = dot v1 v2 == 2*8 + 7*2 + 8*1
 
@@ -138,7 +141,7 @@ idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
 -- | Matrix vector multiplication
 (££) :: (KnownNat m, Ring f) => Matrix f m n -> Vector f n -> Vector f m
-M (Vector vs) ££ v = v `eval` vs
+M (V vs) ££ v = v `eval` L vs
 
 -- | Matrix matrix multiplication
 (£££) :: (KnownNat a, Ring f) => Matrix f a b -> Matrix f b c -> Matrix f a c
@@ -172,16 +175,28 @@ instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix f m n) where
     s £ m = (s£) `onCols` m
 
 
+instance M.Matrix Matrix where 
+    set (M (V vs)) (Fin i, Fin j) a = M . V $ as ++ V (as' ++ a:bs') : bs
+        where (as, V v:bs) = splitAt (j-1) vs
+              (as', _:bs') = splitAt (i-1) v
+
+   -- extend listM = tabulate' . merge' (M.values listM)
+   --     where merge' as bs = map (\x -> last x : []) . groupBy ((==) `on` fst) $ sortOn fst (as ++ bs)
+   --           tabulate' xs = M $ V [V [ b| ((_, _), b) <- a] | a <- xs] 
+
+
+    -- TODO: Not sure how we should handle zeros since we do not want a Eq constraint in the class
+    values (M (V vs)) = [ ((Fin i, Fin j), a) | (j, V v) <- zip [1..] vs
+                                              , (i, a)   <- zip [1..] v ]
+
 -- Composition on matrices
 -- Note that we write n ~ n' instead of writing n on both places. 
 -- This tells GHC that this is the only match for Matrix*Vector or Matrix*Matrix,
 -- and allows it to infer the type of e.g. m44 `comp` idm
-instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') where
-    type Out (Matrix f m n) (Vector f' n') = Vector f m
+instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') (Vector f m) where
     comp = (££)
 
-instance (KnownNat a, Ring f, f ~ f', b ~ b' ) => Composable (Matrix f a b) (Matrix f' b' c) where
-    type Out (Matrix f a b) (Matrix f' b' c) = Matrix f a c
+instance (KnownNat a, Ring f, f ~ f', b ~ b' ) => Composable (Matrix f a b) (Matrix f' b' c) (Matrix f a c) where
     comp = (£££)
 
 -- | Square matrices form a multiplicative group
@@ -294,23 +309,35 @@ showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t
 --   If we want to apply it to a matrix we can then use onCols. 
 --   Doing so will also remove the need for transpose.
 swap :: Index -> Index -> Matrix f m n -> Matrix f m n
-swap i j = onUnpackedTrans $ \m -> 
+swap i j = onCols $ \(V v) -> 
     let (i', j') = (min i j - 1, max i j - 1)
-        (m1,x:xs) = splitAt i' m
+        (m1,x:xs) = splitAt i' v
         (xs',y:m2) = splitAt (j' - i'-1) xs
-    in m1++y:xs'++x:m2
+    in V $ m1++y:xs'++x:m2
 
 mul :: Mul f => Index -> f -> Matrix f m n -> Matrix f m n
-mul i s = onUnpackedTrans $ \m -> 
-    let (m1,x:m2) = splitAt (i-1) m in m1++(map (s*) x): m2
+mul i s = onCols $ \(V v) -> 
+    let (m1,x:m2) = splitAt (i-1) v in V $ m1++(s*x): m2
 
 muladd :: Ring f => Index -> Index -> f -> Matrix f m n -> Matrix f m n
-muladd i j s = onUnpackedTrans $ \m -> 
+muladd i j s = onCols $ \(V v) -> 
     let (i', j') = (i - 1, j - 1)
-        (_,x:_) = splitAt i' m
-        (m1,y:m2) = splitAt j' m
-        y' = zipWith (+) y (map (s*) x)
-    in m1++y':m2
+        (_,x:_) = splitAt i' v
+        (m1,y:m2) = splitAt j' v
+        y' = (s*x) + y
+    in V $ m1++y':m2
+
+instance (Ring f, f ~ f') => Composable (ElimOp f') (Matrix f m n) (Matrix f m n) where
+    (Swap i j) `comp` m = swap i j m
+    (Mul i s) `comp` m = mul i s m
+    (MulAdd i j s) `comp` m = muladd i j s m
+
+
+instance (Ring f, n ~ n', f ~ f') => Composable (G.ElimOp n' f') (Matrix f m n) (Matrix f m n) where
+    (G.Swap (Fin i) (Fin j)) `comp` m = swap i j m
+    (G.Mul (Fin i) s) `comp` m = mul i s m
+    (G.MulAdd (Fin i) (Fin j) s) `comp` m = muladd i j s m
+
 
 -- | Representation of an elementary row operation as a matrix 
 elimOpToMat :: (KnownNat n, Ring f) => ElimOp f -> Matrix f n n
