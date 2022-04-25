@@ -65,7 +65,7 @@ newton :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> a
 newton f eps x = if abs fx < eps then x
                               else if fx' /= 0 then newton f eps next
                                                        else  newton f eps (x+eps)
-      where fx  = evalExp f x-- (f x, f' x, f'' x)
+      where fx  = evalExp f x
             fx' = evalExp' f x
             next = x - (fx/fx')
 
@@ -133,6 +133,7 @@ eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- utf eigen1  => x = y
 two :: Ring a => a
 two = one+one
 
+{-
 pjM :: Ring f => Matrix f 2 2
 pjM = M (Vector (L [Vector (L [one,two]),
                     Vector (L [two,one])]))
@@ -146,7 +147,7 @@ pjFun x = detNN (pjM - scaleM x idm)
 -- zeroes in (-1) and 3
 
 -- TODO pjPoly - using the polynomial instance from DSLsofMath
-
+-}
 
 
 
