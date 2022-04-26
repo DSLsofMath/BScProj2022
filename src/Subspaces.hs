@@ -15,6 +15,7 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span, elem
 
 import Algebra
 import ListVector
+import Eigen
 
 -- Mathematically, a subspace is a set and we would therefore like to represent a 
 -- given subspace as its own type -- in the same way we do with normal vector spaces.
@@ -54,9 +55,9 @@ elem v (Sub vs) = span' (M $ V vs) v
 --   span [w1..wn] v = v `elem` span(w1..w2)
 span' :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
 span' m v = all (\x -> pivotLen x /= 1) . unpack . transpose . utf $ append m v'
-    where v' = M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
+    where v' = M (V @_ @1 ([v])) -- Forces the matrix to size n 1
           pivotLen xs = length (dropWhile (==zero) xs)
-
+-- M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
 -- | Checks that m1 spans at least as much as m2 
 spans :: (KnownNat m, KnownNat n2, Eq f, Field f) => Matrix f m n1 -> Matrix f m n2 -> Bool
 m1 `spans` m2 = all (span' m1) (matToList m2)

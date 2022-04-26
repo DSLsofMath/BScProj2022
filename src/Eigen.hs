@@ -110,7 +110,7 @@ evalColnRow :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [[Exp]] ->
 evalColnRow [] _       = []
 evalColnRow (x:xs) val = evalCol x val : evalColnRow xs val
 
-evalMat :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Matrix Exp m n -> a -> Matrix a m n
+evalMat :: (Field f, Num f, Eq f, Ord f, Enum f, Fractional f) => Matrix Exp m n -> f -> Matrix f m n
 evalMat m val = pack $ evalColnRow (unpack m) val
 
 {-
