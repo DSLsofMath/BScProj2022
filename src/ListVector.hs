@@ -70,11 +70,13 @@ vec ss = V (ss ++ repeat zero) + zero
 e :: (KnownNat n, Ring f) => Int -> Vector f n
 e i = V (replicate (i-1) zero ++ (one : repeat zero)) + zero
 
+zipWithV :: (a -> b -> c) -> Vector a n -> Vector b n -> Vector c n
+zipWithV op (V as) (V bs) = V $ zipWith op as bs
 
 -- Vector is a vector space over a field
 instance (KnownNat n, AddGroup f) => AddGroup (Vector f n) where
-    V as + V bs = V $ zipWith (+) as bs
-    V as - V bs = V $ zipWith (-) as bs
+    (+) = zipWithV (+)
+    (-) = zipWithV (-) 
     zero = zeroVec
 
 instance (KnownNat n, Ring f) => VectorSpace (Vector f n) where
@@ -166,8 +168,8 @@ getDiagonal m = V $ zipWith (!!) (unpack m) [0..]
   
 -- Matrices also forms a vector space
 instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix f m n) where
-    M (V as) + M (V bs) = M . V $ zipWith (+) as bs
-    M (V as) - M (V bs) = M . V $ zipWith (-) as bs
+    M as + M bs = M $ zipWithV (+) as bs
+    M as - M bs = M $ zipWithV (-) as bs
     zero = let v = V $ replicate (vecLen v) zero in M v
 
 instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix f m n) where
