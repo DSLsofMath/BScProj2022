@@ -96,11 +96,11 @@ System of equations
 
 -- Column vectors of coefficients
 vx, vy, vz, vb :: VecR 3
-vx = vec [2,-3,-2] :: VecR 3
-vy = vec [1,-1,1]  :: VecR 3
-vz = vec [-1,2,2]  :: VecR 3
+vx = vec [2,-3,-2]
+vy = vec [1,-1,1]
+vz = vec [-1,2,2] 
 
-vb = vec [8,-11,-3] :: VecR 3
+vb = vec [8,-11,-3]
 
 -- A matrix with infinite solutions
 vx2, vy2, vz2, vb2 :: VecR 3
@@ -127,7 +127,7 @@ aM =  (mx `append` my) `append` mz
 
 -- B matrix
 bM :: MatR 3 1
-bM = toMat [vb] :: MatR 3 1
+bM = toMat [vb]
 
 {-      A      b
     |2  1 -1 | 8 |
@@ -135,15 +135,15 @@ bM = toMat [vb] :: MatR 3 1
     |2  1  2 |-3 |
 -}
 -- Augmented matrix
-augM :: MatR 3 4
-augM = aM `append` bM
+augmentedM :: MatR 3 4
+augmentedM = aM `append` bM
 
 -- Triangular form
 triM :: MatR 3 4
-triM = utf augM
+triM = utf augmentedM
 
 solvedSystem :: MatR 3 1
-solvedSystem = toMat [solvesys augM]
+solvedSystem = toMat [solvesys augmentedM]
 {- 
 -- A matrix
 aM :: Matrix Double 3 3
