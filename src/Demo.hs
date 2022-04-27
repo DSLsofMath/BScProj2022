@@ -94,13 +94,12 @@ System of equations
 
 -}
 
--- Column vectors of coefficients
-vx, vy, vz, vb :: VecR 3
-vx = vec [2,-3,-2]
-vy = vec [1,-1,1]
-vz = vec [-1,2,2] 
+-- Column matrices of coefficients
+mx, my, mz :: MatR 3 1
+mx = toMat [[2,-3,-2]]
+my = toMat [[1,-1,1]]
+mz = toMat [[-1,2,2]] 
 
-vb = vec [8,-11,-3]
 
 -- A matrix with infinite solutions
 vx2, vy2, vz2, vb2 :: VecR 3
@@ -120,14 +119,10 @@ solveMatx = toMat [solvesys matx]
 -- A matrix
 aM :: MatR 3 3
 aM =  (mx `append` my) `append` mz
-    where
-        mx = toMat [vx] :: MatR 3 1
-        my = toMat [vy] :: MatR 3 1
-        mz = toMat [vz] :: MatR 3 1
 
 -- B matrix
 bM :: MatR 3 1
-bM = toMat [vb]
+bM = toMat [[8,-11,-3]]
 
 {-      A      b
     |2  1 -1 | 8 |

@@ -111,7 +111,7 @@ derive      X              =  Const 1
 derive      (e1 :+: e2)    =  derive e1 :+: derive e2
 derive      (e1 :*: e2)    =  (derive e1 :*: e2) :+: (e1 :*: derive e2)
 derive      (Negate e)     =  neg (derive e)
-derive      (Recip e)      =  neg (derive e :*: (recip (e:*:e))) -- negate(a' * recip (a^2))
+derive      (Recip e)      =  neg (derive e :*: (recip (e^2)))
 
 evalExp' :: (Field a, Num a) => Exp -> a -> a
 evalExp' =  evalExp . derive
