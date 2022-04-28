@@ -64,7 +64,7 @@ module test where
         zeroVec = replicateV 0
 
         cycleV : Vector A n → Vector A n
-        cycleV = ?
+        cycleV = {!!}
 
 -- Operations
 
@@ -75,6 +75,7 @@ module test where
         infixr 6 _+v_
         infixr 7 _◁_
         infixr 7 _◁ₘ_
+        infixr 7 _x_
         infixr 7 _⊗_
 
         sumV : Vector Carrier n → Carrier
@@ -94,10 +95,15 @@ module test where
         u • v = sumV (zipV _*_ u v)
 
         -- Cross
-        _⊗_ : Vector Carrier 3 → Vector Carrier 3 → Vector Carrier 3
-        (v1 :: v2 :: v3 :: []) ⊗ (u1 :: u2 :: u3 :: []) = (v2 * u3 + -(v3 * u2) ::
+        _x_ : Vector Carrier 3 → Vector Carrier 3 → Vector Carrier 3
+        (v1 :: v2 :: v3 :: []) x (u1 :: u2 :: u3 :: []) = (v2 * u3 + -(v3 * u2) ::
                                                            v3 * u1 + -(v1 * u3) ::
-                                                           v1 * u2 + -(v2 * u1) :: [])   
+                                                           v1 * u2 + -(v2 * u1) :: [])
+
+        -- Yttre produkt
+        _⊗_ : Vector Carrier m → Vector Carrier n → Matrix Carrier m n
+        _⊗_ [] ys = []
+        _⊗_ (x :: xs) ys = mapV (x *_) ys :: xs ⊗ ys 
 
         -- Scale matrix 
         _◁ₘ_ : Carrier → Matrix Carrier m n → Matrix Carrier m n
