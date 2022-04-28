@@ -66,31 +66,37 @@ instance M.Matrix CSR where
               merge xs ((i,n):ys) = let (cur, next) = splitAt n xs in
                     [ ((Fin i,Fin (j+1)), a) | (j,a) <- cur ] : merge next ys
 
+-- | returns size of the sparse matrix
 csrSize :: (KnownNat m, KnownNat n) => CSR f m n -> (Int,Int)
 csrSize csr@(CSR e c r) = (length r - 1, fromInteger (natVal csr))
 
+-- | returns only column size, useful for square sparse matrixes
 csrLen :: KnownNat m => CSR f m m -> Int
 csrLen csr = fromInteger (natVal csr)
 
+-- | identity matrix for CSR representation
 csrIdm :: (KnownNat m, Mul f) => CSR f m m
 csrIdm = idm
   where  idm = CSR ones [0..mN-1] [0..mN]
          ones = replicate mN one
          mN = csrLen idm
 
+-- | scale function for CSR
 scaleCSR :: Mul f => f -> CSR f m n -> CSR f m n
 scaleCSR c (CSR elems col row) = CSR (map (c*) elems) col row
 
---Returns the element of a given coordinate in the sparse matrix
+-- | returns the element of a given coordinate in the sparse matrix
 getElem :: AddGroup f => CSR f m n -> (Int,Int) -> f
 getElem csr (x,y) = maybe zero id $ lookup x $ getRow csr y
 
+-- | returns a given row in the sparse matrix
 getRow :: CSR f m n -> Int -> [(Int, f)]
 getRow (CSR elems col row) i = case td i 2 row of
         [a,b] -> td a (b-a) (zip col elems) 
         _     -> []
         where td i j = take j . drop i
 
+-- | returns a given column in the sparse matrix
 getColumn :: CSR f m n -> Int -> [(Int, f)]
 getColumn (CSR elems col row) i = [ x | (x, y) <- zip cs col, y==i ]
     where
@@ -99,10 +105,11 @@ getColumn (CSR elems col row) i = [ x | (x, y) <- zip cs col, y==i ]
         couple e rw@(r:r':rs) = let (xs, ys) = splitAt (r'-r) e in 
                                 zip (repeat (length row - length rw)) xs ++ couple ys (r':rs)
 
+-- | dot product between two lists
 dotL :: (AddGroup f, Mul f) => [f] -> [f] -> f
 dotL v1 v2 = sum $ zipWith (*) v1 v2
 
--- dot product between two "csr vectors".
+-- | dot product between two "csr vectors".
 dotCsr :: (AddGroup f, Mul f) => [(Int,f)] -> [(Int,f)]  -> f
 dotCsr v [] = zero
 dotCsr [] v = zero
@@ -116,7 +123,8 @@ dotCsr (v1:vs1) (v2:vs2) | c1 == c2 =  e1 * e2 + dotCsr vs1 vs2
 -- Matrix operations
 --  
 
--- currently slightly off, transposing answer corrects it
+-- | matrix multiplication
+--  currently slightly off, transposing answer corrects it
 -- as it places column vectors as row vectors in the answer. 
 cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
 cSRMM m1@(CSR e1 c1 r1) 

@@ -27,11 +27,13 @@ main = putStrLn "Test loaded"
 -- | Generator for arbitrary vectors of a given size.
 --   To see some example vectors of length 5 
 --   > sample (arbitrary @(Vector R 5) ) 
-instance forall n f. (KnownNat n, Arbitrary f) => Arbitrary (Vector f n) where
+instance forall n f. (KnownNat n, Arbitrary f) => 
+                        Arbitrary (Vector f n) where
     arbitrary = V <$> vector ( vecLen (undefined :: Vector () n) )
 
 -- | Generator for matrices of a given size
-instance forall m n f. (KnownNat m, KnownNat n, Arbitrary f) => Arbitrary (Matrix f m n) where
+instance forall m n f. (KnownNat m, KnownNat n, Arbitrary f) => 
+                        Arbitrary (Matrix f m n) where
     arbitrary = do 
         let v = arbitrary @(Vector f m)
         M . V <$> vectorOf (vecLen (undefined :: Vector () n)) v
@@ -54,8 +56,12 @@ instance forall m n f. (KnownNat m, KnownNat n, Arbitrary f) => Arbitrary (Matri
 prop_vectorAddZero :: KnownNat n => Vector R n -> Bool
 prop_vectorAddZero v = v + zero == v
 
-prop_vectorAddAssoc :: KnownNat n => Vector R n -> Vector R n -> Bool
-prop_vectorAddAssoc v w = v + w == w + v
+prop_vectorAddComm :: KnownNat n => Vector R n -> Vector R n -> Bool
+prop_vectorAddComm v1 v2 = v1 + v2 == v2 + v1
+
+prop_vectorAddAssoc :: KnownNat n => Vector R n -> 
+                        Vector R n -> Vector R n -> Bool
+prop_vectorAddAssoc v1 v2 v3 = (v1 + v2) + v3 == v1 + (v2 + v3)
 
 -- | Tests cross product properties for a given vector lenght
 
@@ -71,7 +77,8 @@ prop_crossProduct v1 v2 = cross v1 v2 == neg (cross v2 v1)
 prop_dotProduct :: KnownNat n => Vector R n -> Vector R n -> Bool
 prop_dotProduct v1 v2 = dot v1 v2 == dot v2 v1
 
--- | Tests matrix multipliciation properties for a given matrix/vector lenght
+-- | Tests matrix multipliciation properties
+-- | for a given matrix/vector lenght
 
 prop_matVecmul :: (KnownNat m, Field f,Eq f) =>
                     Matrix f m n -> Vector f n -> Bool
