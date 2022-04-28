@@ -15,6 +15,7 @@ import ListVector hiding (v1,v2,m1,m2)
 import qualified Prelude
 import Prelude hiding ((*),(+),(/),(-))
 import Eigen
+import Subspaces
 --import Test.QuickCheck
 -- To run QuickCheck:
 -- type ":set -package QuickCheck" in the ghci prompt
@@ -109,12 +110,16 @@ vz2 = vec [1,2,1]  :: VecR 3
 
 vb2 = vec [1,3,2] :: VecR 3
 
+aM2 :: MatR 3 3
+aM2 = toMat [vx2,vy2,vz2]
+
+aM3 :: MatR 2 2
+aM3 = toMat [[1,0],[0,1]]
+
 matx :: MatR 3 4
 matx = toMat [vx2,vy2,vz2,vb2]
 
--- | Should give [1-x,1,x], currently very wrong
-solveMatx :: MatR 3 1
-solveMatx = toMat [solvesys matx]
+smatx = solveQ' matx
 
 -- A matrix
 aM :: MatR 3 3
@@ -124,6 +129,8 @@ aM =  (mx `append` my) `append` mz
 bM :: MatR 3 1
 bM = toMat [[8,-11,-3]]
 
+s1 = solveQ aM (V(head $ unpack bM))
+s2 = solveQ' augmentedM
 {-      A      b
     |2  1 -1 | 8 |
     |3 -1  2 |-11|
@@ -133,9 +140,6 @@ bM = toMat [[8,-11,-3]]
 augmentedM :: MatR 3 4
 augmentedM = aM `append` bM
 
--- Triangular form
-triM :: MatR 3 4
-triM = utf augmentedM
 
 solvedSystem :: MatR 3 1
 solvedSystem = toMat [solvesys augmentedM]
@@ -158,4 +162,3 @@ trMiM = utf augM
 
 main :: IO()
 main = putStrLn $ show solvedSystem
-
