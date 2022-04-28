@@ -425,7 +425,7 @@ pivot (x:xs) | x == zero = 1 + pivot xs
 
 -- | Solve systems of equations
 --   Check in Demo.hs how to use
-solve :: Ring f => [[f]] -> [f]
+solve :: (Eq f, Field f) => [[f]] -> [f]
 solve m = foldr next [last (last m)] (init m)
     where
         next row found = let
