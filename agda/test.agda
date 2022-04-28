@@ -32,7 +32,7 @@ module test where
         vecLength {n = n} v = n
         
         -- Matrices are defined as vector of vectors 
-        Matrix : (A : Set a) (m n : ℕ) → Set a
+        Matrix : (A : Set a) → (m n : ℕ) → Set a
         Matrix A m n = Vector (Vector A n) m
 
         matLength : Matrix A m n -> ℕ × ℕ 
@@ -62,9 +62,6 @@ module test where
 
         zeroVec : Vector ℕ n
         zeroVec = replicateV 0
-
-        cycleV : Vector A n → Vector A n
-        cycleV = {!!}
 
 -- Operations
 
@@ -100,7 +97,7 @@ module test where
                                                            v3 * u1 + -(v1 * u3) ::
                                                            v1 * u2 + -(v2 * u1) :: [])
 
-        -- Yttre produkt
+        -- Outer product
         _⊗_ : Vector Carrier m → Vector Carrier n → Matrix Carrier m n
         _⊗_ [] ys = []
         _⊗_ (x :: xs) ys = mapV (x *_) ys :: xs ⊗ ys 

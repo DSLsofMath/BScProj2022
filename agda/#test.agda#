@@ -26,13 +26,12 @@ module test where
           _::_ :  A → Vector A n → Vector A (suc n)
 
         infixr 5 _::_
---        infixr 6 _+_
-          
+
         vecLength : Vector A n -> ℕ 
         vecLength {n = n} v = n
         
         -- Matrices are defined as vector of vectors 
-        Matrix : (A : Set a) (m n : ℕ) → Set a
+        Matrix : (A : Set a) → (m n : ℕ) → Set a
         Matrix A m n = Vector (Vector A n) m
 
         matLength : Matrix A m n -> ℕ × ℕ 
@@ -44,8 +43,6 @@ module test where
 
         m1 : Matrix ℕ 2 2 
         m1 =  (1 :: 2 :: []) :: (1 :: 2 :: []) :: []  
-
---        mat1 = Matrix Bool 2 2  -- this type in never used
         
         -- Some standard functions for working with vectors
         zipV : (A → B → C) → (Vector A n → Vector B n → Vector C n)
@@ -97,7 +94,7 @@ module test where
                                                            v3 * u1 + -(v1 * u3) ::
                                                            v1 * u2 + -(v2 * u1) :: [])
 
-        -- Yttre produkt
+        -- Outer product
         _⊗_ : Vector Carrier m → Vector Carrier n → Matrix Carrier m n
         _⊗_ [] ys = []
         _⊗_ (x :: xs) ys = mapV (x *_) ys :: xs ⊗ ys 
