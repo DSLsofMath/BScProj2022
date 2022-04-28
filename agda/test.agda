@@ -26,8 +26,7 @@ module test where
           _::_ :  A → Vector A n → Vector A (suc n)
 
         infixr 5 _::_
---        infixr 6 _+_
-          
+
         vecLength : Vector A n -> ℕ 
         vecLength {n = n} v = n
         
@@ -44,8 +43,6 @@ module test where
 
         m1 : Matrix ℕ 2 2 
         m1 =  (1 :: 2 :: []) :: (1 :: 2 :: []) :: []  
-
---        mat1 = Matrix Bool 2 2  -- this type in never used
         
         -- Some standard functions for working with vectors
         zipV : (A → B → C) → (Vector A n → Vector B n → Vector C n)
