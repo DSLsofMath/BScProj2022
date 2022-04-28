@@ -90,12 +90,17 @@ instance (Ord i, Ring a) => VectorSpace [(i,a)] where
 class Matrix (mat :: * -> Nat -> Nat -> *) where
     {-# MINIMAL (set | extend) , values #-}
 
+    -- | Returns all nonzero values with corresponding index 
+    values :: mat f m n -> [((Fin m, Fin n), f)]
+
+    -- | Builds a matrix from a list of positions and values
+    --   Initializes with the zero matrix
+    tabulate :: AddGroup (mat f m n) => [((Fin m, Fin n), f)] -> mat f m n
+    tabulate = extend zero 
+
     -- | Sets the value at a given position
     set :: mat f m n -> (Fin m, Fin n) -> f -> mat f m n 
     set m i f = extend m [(i,f)]
-
-    -- | Returns all nonzero values with corresponding index 
-    values :: mat f m n -> [((Fin m, Fin n), f)]
 
     extend :: mat f m n -> [((Fin m, Fin n), f)] -> mat f m n
     extend = foldl (\m (i, a) -> set m i a) 
@@ -122,11 +127,6 @@ setRow m i r = extend m [ ((i, j), a) | (j, a) <- r ]
 -- setRow m i r = tabulate $ new ++ old
 --     where old = filter ((i /=) . fst . fst) $ values m
 --           new = [ ((i, j), a) | (j, a) <- r ]
-
--- | Builds a matrix from a list of positions and values
---   Initializes with the zero matrix
-tabulate :: (Matrix mat, AddGroup (mat f m n)) => [((Fin m, Fin n), f)] -> mat f m n
-tabulate = extend zero 
 
 -- | Appends two matrices, analogous to (++)
 append :: (KnownNat n1, Matrix mat, AddGroup (mat f m (n1 + n2)) ) => mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)

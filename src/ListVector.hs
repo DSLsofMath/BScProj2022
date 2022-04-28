@@ -110,6 +110,10 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 
 
 -- | Takes a Vector and a List of vectors and returns the linear combination
+linComb :: VectorSpace v => Vector v n -> Vector (Under v) n -> v
+linComb (V vs) (V fs) = sum $ zipWith (£) fs vs
+
+-- | Takes a Vector and a List of vectors and returns the linear combination
 --   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
 eval :: (VectorSpace v, Under v ~ f) => Vector f n -> List v n -> v
 eval (V fs) (L vs) = sum $ zipWith (£) fs vs
@@ -120,7 +124,7 @@ eval (V fs) (L vs) = sum $ zipWith (£) fs vs
 
 -- | Matrix as a vector of vectors
 --   note that the outmost vector is not matimatically a vector 
-newtype Matrix f m n = M (Vector (Vector f m) n)  deriving (Eq)
+newtype Matrix f (m :: Nat) (n :: Nat) = M (Vector (Vector f m) n)  deriving (Eq)
 
 type MatR = Matrix Double
 
@@ -143,7 +147,7 @@ idm = let v = V [ e i | i <- [1 .. vecLen v] ] in M v
 
 -- | Matrix vector multiplication
 (££) :: (KnownNat m, Ring f) => Matrix f m n -> Vector f n -> Vector f m
-M (V vs) ££ v = v `eval` L vs
+M vs ££ v = linComb vs v
 
 -- | Matrix matrix multiplication
 (£££) :: (KnownNat a, Ring f) => Matrix f a b -> Matrix f b c -> Matrix f a c
