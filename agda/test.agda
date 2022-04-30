@@ -1,7 +1,6 @@
 open import Data.List
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product
-open import Data.Vec.Base using (foldr)
 open import Data.Bool
 open import Function using (id; _∘_)
 open import Algebra
@@ -29,6 +28,12 @@ module test where
         vecLength : Vector A n -> ℕ
         vecLength {n = n} v = n
 
+        headV : Vector A (suc n) -> A
+        headV (x :: _) = x
+
+        tailV : Vector A (suc n) -> Vector A n
+        tailV (_ :: xs) = xs
+
         -- Matrices are defined as vector of vectors
         Matrix : (A : Set a) → (m n : ℕ) → Set a
         Matrix A m n = Vector (Vector A n) m
@@ -41,7 +46,7 @@ module test where
         v1 = 1 :: 3 :: 4 :: 5 :: []
 
         m1 : Matrix ℕ 2 2
-        m1 =  (1 :: 2 :: []) :: (1 :: 2 :: []) :: []
+        m1 =  (1 :: 2 :: []) :: (3 :: 4 :: []) :: []
 
         -- Some standard functions for working with vectors
         zipV : (A → B → C) → (Vector A n → Vector B n → Vector C n)
@@ -60,13 +65,13 @@ module test where
         zeroVec = replicateV 0
 
         -- Pointwise equality on vectors (lifting _∼_ from elements to vectors)
-        data Pointwise {A : Set a} (_∼_ : A -> A -> Set c) :
+        data EqV {A : Set a} (_∼_ : A -> A -> Set c) :
                        ∀ {m n} (xs : Vector A m) (ys : Vector A n) → Set (a ⊔ c)
                        where
-          eq-[]  : Pointwise _∼_ [] []
+          eq-[]  : EqV _∼_ [] []
           eq-::   : ∀ {m n x y} {xs : Vector A m} {ys : Vector A n}
-                  (x∼y : x ∼ y) (xs∼ys : Pointwise _∼_ xs ys) →
-                  Pointwise _∼_ (x :: xs) (y :: ys)
+                  (x∼y : x ∼ y) (xs∼ys : EqV _∼_ xs ys) →
+                  EqV _∼_ (x :: xs) (y :: ys)
 
 -- Operations
 
@@ -115,29 +120,52 @@ module test where
         _+m_ : Matrix Carrier m n → Matrix Carrier m n → Matrix Carrier m n
         _+m_ = zipV _+v_
 
+        Sign = Carrier
+        altSumVHelp : Sign -> Vector Carrier n → Carrier
+        altSumVHelp s [] = 0#
+        altSumVHelp s (x :: xs) = s * x + altSumVHelp (- s) xs
+
         altSumV : Vector Carrier n → Carrier
-        altSumV v = {!!} -- alternating sum: multiply every second term by minus one
+        altSumV = altSumVHelp 1# -- alternating sum: multiply every second term by minus one
+
+        submatricesStep : Matrix Carrier m (suc (suc n)) -> Vector (Matrix Carrier m (suc n)) (suc (suc n))
 
         submatrices : Matrix Carrier m (suc n) -> Vector (Matrix Carrier m n) (suc n)
-        submatrices = {!!}
+        submatrices {m} {ℕ.zero} ma = replicateV [] :: []
+        submatrices {m} {suc n}   ma = submatricesStep ma
+
+        submatricesStep ma with mapV headV ma | mapV tailV ma 
+        submatricesStep ma | heads | tails with submatrices tails
+        submatricesStep ma | heads | tails | rec = tails :: mapV (zipV _::_ heads) rec
 
         -- Determinant
         det : Matrix Carrier m m → Carrier
         det [] = 1#
         det (v :: m) = altSumV (zipV _*_ v (mapV det (submatrices m)))
 
+        module TestM (a11 a12 a21 a22 : Carrier) where
+          m22 : Matrix Carrier 2 2
+          m22 = (a11 :: a12 :: []) :: (a21 :: a22 :: []) :: []
+          test : Carrier
+          test = det m22
+
         -- Equality on our vectors is a lifted version of the
         -- underlying equality of the ring of components.
         eqVec : Vector Carrier n -> Vector Carrier m -> Set (c ⊔ ℓ)
-        eqVec = Pointwise _≈_
+        eqVec = EqV _≈_
+        -- The equality type is basically just a vector of equality
+        -- proofs between pairs of corresponding elements.
 
+        -- Vector addition is commutative (statement, and inductive proof)
         vectorAddComm :  (v1 v2 : Vector Carrier n) ->
                          eqVec (v1 +v v2) (v2 +v v1)
-        vectorAddComm v1 v2 = {!!}
+        vectorAddComm [] [] = eq-[]
+        vectorAddComm (x1 :: v1) (x2 :: v2) =
+            eq-:: (+-comm x1 x2) (vectorAddComm v1 v2)
 
         -- Vector addition is associative (statement, and inductive proof)
         vectorAddAssoc :  (v1 v2 v3 : Vector Carrier n) ->
                           eqVec ((v1 +v v2) +v v3) (v1 +v (v2 +v v3))
         vectorAddAssoc [] [] [] = eq-[]
-        vectorAddAssoc (x1 :: v1) (x2 :: v2) (x3 :: v3)
-          = eq-:: (+-assoc x1 x2 x3) (vectorAddAssoc v1 v2 v3)
+        vectorAddAssoc (x1 :: v1) (x2 :: v2) (x3 :: v3) =
+            eq-:: (+-assoc x1 x2 x3) (vectorAddAssoc v1 v2 v3)
