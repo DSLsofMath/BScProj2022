@@ -52,10 +52,8 @@ data EqQ {A : Set a} (_∼_ : A -> A -> Set d) :
                ( sw : EqQ _∼_ sw1 sw2 ) ( se : EqQ _∼_ se1 se2 ) →
                EqQ _∼_ (Mtx nw1 ne1 sw1 se1) (Mtx nw2 ne2 sw2 se2) 
 
-
-
-eqQuad : Quad Carrier n -> Quad Carrier n -> Set ( c ⊔ ℓ)
-eqQuad = EqQ _≈_
+_=q_ : Quad Carrier n -> Quad Carrier n -> Set ( c ⊔ ℓ)
+_=q_ = EqQ _≈_
 
 -- Functions
 
@@ -87,39 +85,46 @@ q2 = Mtx q1 q1 Zero (Mtx (Scalar 1) Zero Zero (Scalar 1))
 
 -- Proofs
 
-quad-refl : ( a : Quad Carrier n ) → eqQuad a a
-quad-refl Zero = eq-Zero
-quad-refl (Scalar x) = eq-Scalar refl
-quad-refl (Mtx a a₁ a₂ a₃) = eq-Mtx (quad-refl a) (quad-refl a₁) (quad-refl a₂) (quad-refl a₃)
+quad-refl : { a : Quad Carrier n } → a =q a
+quad-refl { n } { Zero } = eq-Zero
+quad-refl { n } { (Scalar x) } = eq-Scalar refl
+quad-refl { n } { (Mtx a a₁ a₂ a₃) } = eq-Mtx quad-refl quad-refl quad-refl quad-refl
 
-quad-sym : { a b : Quad Carrier n } → eqQuad a b → eqQuad b a
+quad-sym : { a b : Quad Carrier n } → a =q b → b =q a
 quad-sym eq-Zero = eq-Zero
 quad-sym (eq-Scalar x∼y) = eq-Scalar (sym x∼y)
 quad-sym (eq-Mtx x x₁ x₂ x₃) = eq-Mtx (quad-sym x) (quad-sym x₁) (quad-sym x₂) (quad-sym x₃)
 
 
 
-quad-zerol : ∀ { n } ( x : Quad Carrier n ) → eqQuad ( Zero +q x ) x
-quad-zerol Zero = eq-Zero
-quad-zerol (Scalar x) = eq-Scalar refl
-quad-zerol (Mtx x x₁ x₂ x₃) = eq-Mtx (quad-refl x) (quad-refl x₁) (quad-refl x₂) (quad-refl x₃)
+quad-zerol : ∀ { n } ( x : Quad Carrier n ) → ( Zero +q x ) =q x
+quad-zerol x = quad-refl
 
-quad-zeror : ∀ { n } ( x : Quad Carrier n ) → eqQuad ( x +q Zero ) x
-quad-zeror Zero = eq-Zero
-quad-zeror (Scalar x) = eq-Scalar refl
-quad-zeror (Mtx x x₁ x₂ x₃) = eq-Mtx (quad-refl x) (quad-refl x₁) (quad-refl x₂) (quad-refl x₃)
+quad-zeror : ∀ { n } ( x : Quad Carrier n ) → ( x +q Zero ) =q x
+quad-zeror Zero = quad-refl
+quad-zeror (Scalar x) = quad-refl
+quad-zeror (Mtx x x₁ x₂ x₃) = quad-refl
 
 -- Need a proof that Zero is left and right +q-identity
 -- Should be some kind of (quad-zerol, quad-zeror)
 
 
 
-quad-comm : ( a b : Quad Carrier n ) → eqQuad ( a +q b) ( b +q a )
+quad-comm : ( a b : Quad Carrier n ) → ( a +q b) =q ( b +q a )
 quad-comm Zero b = quad-sym (quad-zeror b)
 quad-comm (Scalar x) Zero = eq-Scalar refl
 quad-comm (Scalar x) (Scalar x₁) = eq-Scalar (+-comm x x₁)
-quad-comm (Mtx a a₁ a₂ a₃) Zero = eq-Mtx (quad-refl a) (quad-refl a₁) (quad-refl a₂) (quad-refl a₃)
-quad-comm (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) = eq-Mtx (quad-comm a b) (quad-comm a₁ b₁) (quad-comm a₂ b₂) (quad-comm a₃ b₃)
+quad-comm (Mtx a a₁ a₂ a₃) Zero = quad-refl 
+quad-comm (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) = eq-Mtx (quad-comm a b) (quad-comm a₁ b₁)
+                                                     (quad-comm a₂ b₂) (quad-comm a₃ b₃)
 
 
-
+quad-assoc : ( a b c : Quad Carrier n ) → ((a +q b ) +q c ) =q ( a +q ( b +q c )) 
+quad-assoc Zero b c = quad-refl 
+quad-assoc (Scalar x) Zero c = quad-refl 
+quad-assoc (Scalar x) (Scalar x₁) Zero = quad-refl
+quad-assoc (Scalar x) (Scalar x₁) (Scalar x₂) = eq-Scalar (+-assoc x x₁ x₂)
+quad-assoc (Mtx a a₁ a₂ a₃) Zero c = quad-refl
+quad-assoc (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) Zero = quad-refl
+quad-assoc (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) (Mtx c c₁ c₂ c₃) = eq-Mtx (quad-assoc a  b  c ) (quad-assoc a₁ b₁ c₁)
+                                                                       (quad-assoc a₂ b₂ c₂) (quad-assoc a₃ b₃ c₃)
