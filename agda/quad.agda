@@ -31,6 +31,10 @@ data Quad ( A : Set a ) : Nat4 → Set a where
 zeroQ : ( n : Nat4) → Quad A n 
 zeroQ n = Zero
 
+oneQ : ∀ { n } → Quad Carrier n
+oneQ {One} = Scalar 1#
+oneQ {Suc n} = Mtx oneQ Zero
+                   Zero oneQ
 
 -- Equality
 
@@ -65,8 +69,9 @@ mapq f (Mtx nw ne sw se) = Mtx (mapq f nw) (mapq f ne) (mapq f sw) (mapq f se)
 
 _+q_ : ( x y : Quad Carrier n) → Quad Carrier n
 Zero +q y = y
-x +q Zero = x
+Scalar x +q Zero = Scalar x
 Scalar x +q Scalar x₁ = Scalar (x + x₁)
+Mtx x x₁ x₂ x₃ +q Zero = Mtx x x₁ x₂ x₃
 Mtx x x₁ x₂ x₃ +q Mtx y y₁ y₂ y₃ = Mtx (x +q y) (x₁ +q y₁) (x₂ +q y₂) (x₃ +q y₃)
 
 
@@ -104,13 +109,17 @@ quad-zeror Zero = eq-Zero
 quad-zeror (Scalar x) = eq-Scalar refl
 quad-zeror (Mtx x x₁ x₂ x₃) = eq-Mtx (quad-refl x) (quad-refl x₁) (quad-refl x₂) (quad-refl x₃)
 
-quad-zero : ( x : Quad Carrier n ) → eqQuad ( Zero +q x ) ( x +q Zero )
-quad-zero x = quad-sym (quad-zeror x)
+-- Need a proof that Zero is left and right +q-identity
+-- Should be some kind of (quad-zerol, quad-zeror)
+
 
 
 quad-comm : ( a b : Quad Carrier n ) → eqQuad ( a +q b) ( b +q a )
-quad-comm Zero b = quad-zero b
-quad-comm a Zero = quad-zeror a
+quad-comm Zero b = quad-sym (quad-zeror b)
+quad-comm (Scalar x) Zero = eq-Scalar refl
 quad-comm (Scalar x) (Scalar x₁) = eq-Scalar (+-comm x x₁)
+quad-comm (Mtx a a₁ a₂ a₃) Zero = eq-Mtx (quad-refl a) (quad-refl a₁) (quad-refl a₂) (quad-refl a₃)
 quad-comm (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) = eq-Mtx (quad-comm a b) (quad-comm a₁ b₁) (quad-comm a₂ b₂) (quad-comm a₃ b₃)
+
+
 
