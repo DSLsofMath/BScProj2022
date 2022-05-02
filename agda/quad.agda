@@ -1,4 +1,4 @@
-open import Data.Nat hiding ( _+_; _⊔_; zero ) 
+open import Data.Nat hiding ( _+_; _*_; _⊔_; zero ) 
 open import Algebra hiding (Zero) 
 open import Level using (Level; _⊔_)
 open import Data.Product
@@ -15,8 +15,10 @@ data Nat4 : Set where
 
 
 variable
-  a d : Level
+  a b d : Level
   A : Set a
+  B : Set b
+  C : Set c
   m n : Nat4
 
 
@@ -64,13 +66,48 @@ mapq f (Mtx nw ne sw se) = Mtx (mapq f nw) (mapq f ne) (mapq f sw) (mapq f se)
 
 
 -- Addition on Quads
-
 _+q_ : ( x y : Quad Carrier n) → Quad Carrier n
 Zero +q y = y
 Scalar x +q Zero = Scalar x
 Scalar x +q Scalar x₁ = Scalar (x + x₁)
 Mtx x x₁ x₂ x₃ +q Zero = Mtx x x₁ x₂ x₃
 Mtx x x₁ x₂ x₃ +q Mtx y y₁ y₂ y₃ = Mtx (x +q y) (x₁ +q y₁) (x₂ +q y₂) (x₃ +q y₃)
+
+
+-- Multiplication
+
+data Q' ( A : Set a) : Set a where
+  Mtx' : ( nw ne sw se : A ) → Q' A
+
+Q'toQuad : Q' (Quad A n) → Quad A (Suc n)
+Q'toQuad (Mtx' Zero Zero Zero Zero) = Zero
+Q'toQuad (Mtx' nw ne sw se) = Mtx nw ne sw se
+
+zipQ' : ( A → B → C ) → Q' A → Q' B → Q' C
+zipQ' _op_ (Mtx' nw ne sw se) (Mtx' nw₁ ne₁ sw₁ se₁) = Mtx' (se op se₁) (se op se₁)
+                                                                (se op se₁) (se op se₁)
+
+colExchange : Q' A → Q' A
+colExchange (Mtx' nw ne sw se) = Mtx' ne nw se sw
+
+prmDiagSqsh : Q' A → Q' A
+prmDiagSqsh (Mtx' nw ne sw se) = Mtx' nw se nw se
+
+offDiagSqsh : Q' A → Q' A
+offDiagSqsh (Mtx' nw ne sw se) = Mtx' sw ne sw se
+
+
+_*q_ : ( x y : Quad Carrier n) → Quad Carrier n
+Zero *q y = Zero
+Scalar x *q Zero = Zero
+Scalar x *q Scalar x₁ = Scalar (x * x₁)
+Mtx x x₁ x₂ x₃ *q Zero = Zero
+Mtx x x₁ x₂ x₃ *q Mtx y y₁ y₂ y₃ =
+      let X = Mtx' x x₁ x₂ x₃
+          Y = Mtx' y y₁ y₂ y₃
+      in Q'toQuad (zipQ' _+q_ (zipQ' _*q_ (colExchange X) (offDiagSqsh Y))
+                              (zipQ' _*q_              X  (prmDiagSqsh Y)))
+
 
 
 -- Example Quad
