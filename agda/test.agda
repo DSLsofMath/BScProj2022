@@ -89,6 +89,9 @@ module test where
         sumV {n = zero} v = 0#
         sumV {n = suc n} (x :: xs) = x + sumV {n} xs
 
+        0v : Vector Carrier n
+        0v = replicateV 0#
+
         -- Vector addition
         _+v_ : Vector Carrier n → Vector Carrier n  → Vector Carrier n
         _+v_ = zipV _+_
@@ -155,6 +158,10 @@ module test where
         _≈v_ = EqV _≈_
         -- The equality type is basically just a vector of equality
         -- proofs between pairs of corresponding elements.
+
+        vectorAddZero : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) ≈v v1
+        vectorAddZero [] = eq-[]
+        --vectorAddZero (x1 :: v1) = {!eq-:: (+-identity x1 0#) (vectorAddZero v1 0v)!}
 
         -- Vector addition is commutative (statement, and inductive proof)
         vectorAddComm : ∀ {n} (v1 v2 : Vector Carrier n) →
