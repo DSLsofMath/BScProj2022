@@ -65,7 +65,7 @@ module test where
         zeroVec = replicateV 0
 
         -- Pointwise equality on vectors (lifting _∼_ from elements to vectors)
-        data EqV {A : Set a} (_∼_ : A -> A -> Set c) :
+        data EqV {A : Set a} (_∼_ : A → A → Set c) :
                        ∀ {m n} (xs : Vector A m) (ys : Vector A n) → Set (a ⊔ c)
                        where
           eq-[]  : EqV _∼_ [] []
@@ -88,6 +88,9 @@ module test where
         sumV : Vector Carrier n → Carrier
         sumV {n = zero} v = 0#
         sumV {n = suc n} (x :: xs) = x + sumV {n} xs
+
+        0v : Vector Carrier n
+        0v = replicateV 0#
 
         -- Vector addition
         _+v_ : Vector Carrier n → Vector Carrier n  → Vector Carrier n
@@ -151,21 +154,25 @@ module test where
 
         -- Equality on our vectors is a lifted version of the
         -- underlying equality of the ring of components.
-        eqVec : Vector Carrier n -> Vector Carrier m -> Set (c ⊔ ℓ)
-        eqVec = EqV _≈_
+        _≈v_ : Vector Carrier n → Vector Carrier m → Set (c ⊔ ℓ)
+        _≈v_ = EqV _≈_
         -- The equality type is basically just a vector of equality
         -- proofs between pairs of corresponding elements.
 
+        vectorAddZero : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) ≈v v1
+        vectorAddZero [] = eq-[]
+        --vectorAddZero (x1 :: v1) = {!eq-:: (+-identity x1 0#) (vectorAddZero v1 0v)!}
+
         -- Vector addition is commutative (statement, and inductive proof)
-        vectorAddComm :  (v1 v2 : Vector Carrier n) ->
-                         eqVec (v1 +v v2) (v2 +v v1)
+        vectorAddComm : ∀ {n} (v1 v2 : Vector Carrier n) →
+                        (v1 +v v2) ≈v (v2 +v v1)
         vectorAddComm [] [] = eq-[]
         vectorAddComm (x1 :: v1) (x2 :: v2) =
             eq-:: (+-comm x1 x2) (vectorAddComm v1 v2)
 
         -- Vector addition is associative (statement, and inductive proof)
-        vectorAddAssoc :  (v1 v2 v3 : Vector Carrier n) ->
-                          eqVec ((v1 +v v2) +v v3) (v1 +v (v2 +v v3))
+        vectorAddAssoc : ∀ {n} (v1 v2 v3 : Vector Carrier n) →
+                         ((v1 +v v2) +v v3) ≈v (v1 +v (v2 +v v3))
         vectorAddAssoc [] [] [] = eq-[]
         vectorAddAssoc (x1 :: v1) (x2 :: v2) (x3 :: v3) =
             eq-:: (+-assoc x1 x2 x3) (vectorAddAssoc v1 v2 v3)
