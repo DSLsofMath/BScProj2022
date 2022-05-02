@@ -25,20 +25,20 @@ module test where
 
         infixr 5 _::_
 
-        vecLength : Vector A n -> ℕ
+        vecLength : Vector A n → ℕ
         vecLength {n = n} v = n
 
-        headV : Vector A (suc n) -> A
+        headV : Vector A (suc n) → A
         headV (x :: _) = x
 
-        tailV : Vector A (suc n) -> Vector A n
+        tailV : Vector A (suc n) → Vector A n
         tailV (_ :: xs) = xs
 
         -- Matrices are defined as vector of vectors
         Matrix : (A : Set a) → (m n : ℕ) → Set a
         Matrix A m n = Vector (Vector A n) m
 
-        matLength : Matrix A m n -> ℕ × ℕ
+        matLength : Matrix A m n → ℕ × ℕ
         matLength {m = m} {n = n} mat  = m , n
 
         -- Some examples
@@ -124,16 +124,16 @@ module test where
         _+m_ = zipV _+v_
 
         Sign = Carrier
-        altSumVHelp : Sign -> Vector Carrier n → Carrier
+        altSumVHelp : Sign → Vector Carrier n → Carrier
         altSumVHelp s [] = 0#
         altSumVHelp s (x :: xs) = s * x + altSumVHelp (- s) xs
 
         altSumV : Vector Carrier n → Carrier
         altSumV = altSumVHelp 1# -- alternating sum: multiply every second term by minus one
 
-        submatricesStep : Matrix Carrier m (suc (suc n)) -> Vector (Matrix Carrier m (suc n)) (suc (suc n))
+        submatricesStep : Matrix Carrier m (suc (suc n)) → Vector (Matrix Carrier m (suc n)) (suc (suc n))
 
-        submatrices : Matrix Carrier m (suc n) -> Vector (Matrix Carrier m n) (suc n)
+        submatrices : Matrix Carrier m (suc n) → Vector (Matrix Carrier m n) (suc n)
         submatrices {m} {ℕ.zero} ma = replicateV [] :: []
         submatrices {m} {suc n}   ma = submatricesStep ma
 
@@ -159,10 +159,13 @@ module test where
         -- The equality type is basically just a vector of equality
         -- proofs between pairs of corresponding elements.
 
-        vectorAddZero : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) ≈v v1
-        vectorAddZero [] = eq-[]
-        --vectorAddZero (x1 :: v1) = {!eq-:: (+-identity x1 0#) (vectorAddZero v1 0v)!}
+        -- Left and right proof of identity with vector addition
+        vectorAddIdentityˡ : ∀ {n} (v1 : Vector Carrier n) → (0v +v v1) ≈v v1
+        vectorAddIdentityˡ (x1 :: v1) = eq-::(+-identityˡ x1) (vectorAddIdentityˡ v1)
 
+        vectorAddIdentityʳ : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) ≈v v1
+        vectorAddIdentityʳ (x1 :: v1) = eq-::(+-identityʳ x1) (vectorAddIdentityʳ v1)
+        
         -- Vector addition is commutative (statement, and inductive proof)
         vectorAddComm : ∀ {n} (v1 v2 : Vector Carrier n) →
                         (v1 +v v2) ≈v (v2 +v v1)
