@@ -89,7 +89,7 @@ jordan m t [] (_) = (t, m)
 jordan m t (i:is) (j:js) = case getCol' j of 
               [] -> jordan m t (i:is) js
               (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ map (mulAdd' i a) rs 
-                              in  jordan (foldr comp m xs) (t ++ xs) is js
+                              in  jordan (foldr (**) m xs) (t ++ xs) is js
     where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
           mulAdd' i a (j,b) = MulAdd i j (neg (b/a))
           filterZ (_,s) = s > 0.0001 || s < -0.0001

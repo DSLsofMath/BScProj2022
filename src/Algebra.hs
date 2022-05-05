@@ -13,7 +13,7 @@ module Algebra where
 
 import GHC.TypeLits hiding ( type (^) )
 import qualified Prelude as P
-import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRational)
+import Prelude hiding ((+), (-), (*), (/), (^), (**), sum, product, recip, fromRational)
 import qualified Data.Ratio
 
 type R = Double
@@ -166,10 +166,10 @@ sum = foldr (+) zero
 -- | Allows us to define Matrix-matrix-,matrix-vector-multiplication as a single operation
 --   Potentially this should replace or be used to define Mul 
 class Composable a b c | a b -> c where
-    comp :: a -> b -> c
+    (**) :: a -> b -> c
 
 instance (b ~ b') => Composable (b -> c) (a -> b') (a -> c) where
-    comp = (.)
+    (**) = (.)
 
 class Mul a where
     (*) :: a -> a -> a

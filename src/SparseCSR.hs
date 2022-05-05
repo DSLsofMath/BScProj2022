@@ -7,6 +7,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 
 
 module SparseCSR where
@@ -26,25 +28,34 @@ import qualified Data.List as L
 data CSR f (m :: Nat) (n :: Nat) = CSR { elems :: [f],
                             col :: [Int],
                             row :: [Int]}
-    deriving (Eq)
 
 deriving instance Show f => Show (CSR f m n)
 
-instance forall m n f. (KnownNat n, AddGroup f, Eq f) => AddGroup (CSR f m n) where
+instance (Eq f, AddGroup f, AddGroup (CSR f m n)) => Eq (CSR f m n) where
+    m1 == m2 = and bs
+        where
+            (m1', m2') = (M.purge m1, M.purge m2)
+            bs = [
+                elems m1' == elems m2',
+                col m1' == col m2',
+                row m1' == row m2']
+
+instance forall m n f. (KnownNat n, AddGroup f) => AddGroup (CSR f m n) where
     (+) = cSRAdd
     (-) = cSRSub
     neg (CSR e c r) = CSR (map neg e) c r 
     zero = CSR [] [] (replicate (size+1) 0) -- size from type 
         where size = fromInteger $ natVal (undefined :: undefined n)
 
-instance (KnownNat m, AddGroup f, Mul f, Eq f) => Mul (CSR f m m) where
+instance (KnownNat m, AddGroup f, Mul f) => Mul (CSR f m m) where
     (*) = cSRMM
     one = csrIdm
 
-instance (KnownNat m, KnownNat n, AddGroup f, m ~ m', n ~ n') => ToMat m n (CSR f m' n') where
-    type Under' (CSR f m' n') = f
-    toMat csr = M ( V [ V [ getElem csr (x,y) | y <- [0..] ] | x <- [0..] ]) + zero
-    fromMat m = undefined
+instance (Ring f, f ~ f', n ~ n') => Composable (CSR f m n) (Vector f' n') (Vector f m) where
+    (**) = (smV)
+
+instance (Ring f, f ~ f', b ~ b') => Composable (CSR f a b) (CSR f' b' c) (CSR f a c) where
+    (**) = (cSRMM)
 
 instance M.Matrix CSR where
 
@@ -126,17 +137,17 @@ dotCsr (v1:vs1) (v2:vs2) | c1 == c2 =  e1 * e2 + dotCsr vs1 vs2
 -- | matrix multiplication
 --  currently slightly off, transposing answer corrects it
 -- as it places column vectors as row vectors in the answer. 
-cSRMM :: (AddGroup f, Mul f, Eq f) => CSR f a b -> CSR f b c  -> CSR f a c
+cSRMM :: (Ring f) => CSR f a b -> CSR f b c  -> CSR f a c
 cSRMM m1@(CSR e1 c1 r1) 
       m2@(CSR e2 c2 r2) = csrTranspose $ foldl comb emptyCSR bs
         where 
-            bs = [ filter ((/=zero).snd) (csrMV m1 (getColumn m2 b)) | b <- [0..maximum c1]]
+            bs = [(csrMV m1 (getColumn m2 b)) | b <- [0..maximum c1]]
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
 
-cSRSub :: (KnownNat b, AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
+cSRSub :: (KnownNat b, AddGroup f) => CSR f a b -> CSR f a b  -> CSR f a b
 cSRSub m1 m2 = cSRAdd m1 (neg m2)
 
-cSRAdd :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b  -> CSR f a b
+cSRAdd :: (AddGroup f) => CSR f a b -> CSR f a b  -> CSR f a b
 cSRAdd (CSR e1 c1 [r]) _ = CSR [] [] [r]
 cSRAdd m1@(CSR e1 c1 r1) 
        m2@(CSR e2 c2 r2) = foldl comb emptyCSR bs
@@ -145,8 +156,8 @@ cSRAdd m1@(CSR e1 c1 r1)
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a b
 
 -- Could move this to be apart of cSRAdd
-opRows :: (AddGroup f, Eq f) => CSR f a b -> CSR f a b -> ([(Int,f)] -> [(Int,f)]  -> [(Int,f)]) -> [[(Int, f)]]
-opRows m1@(CSR e1 c1 r1) m2 op =  [ filter ((/=zero).snd) (op (getRow m1 a) (getRow m2 a)) | a <- [0..length r1 - 2]]
+opRows :: (AddGroup f) => CSR f a b -> CSR f a b -> ([(Int,f)] -> [(Int,f)]  -> [(Int,f)]) -> [[(Int, f)]]
+opRows m1@(CSR e1 c1 r1) m2 op =  [ (op (getRow m1 a) (getRow m2 a)) | a <- [0..length r1 - 2]]
 
 cSRAddRow :: AddGroup f => [(Int,f)] -> [(Int,f)]  -> [(Int,f)]
 cSRAddRow [] [] = []
@@ -197,8 +208,8 @@ smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) :
             where j = head row - r 
 
 -- Multiplies a CSR matrix with a CSR row/column
-csrMV :: (Ring f, Eq f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
-csrMV m1@(CSR e1 c1 r1) v1 = filter ((/=zero).snd) [(a,dotCsr (getRow m1 a) v1)| a <- [0..length r1 - 2]]
+csrMV :: (Ring f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
+csrMV m1@(CSR e1 c1 r1) v1 = [(a,dotCsr (getRow m1 a) v1)| a <- [0..length r1 - 2]]
 
 --- Test values/functions
 

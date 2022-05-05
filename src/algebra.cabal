@@ -25,12 +25,12 @@ common common-fields
 library
   import: common-fields
   exposed-modules: 	Algebra
-            , ListVector
             , Eigen
             , LinearMap
             , Subspaces
   other-modules : QuadTree
                 , SparseCSR
+                , ListVector
 
 
 Test-Suite test

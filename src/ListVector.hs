@@ -198,12 +198,12 @@ instance M.Matrix Matrix where
 -- Composition on matrices
 -- Note that we write n ~ n' instead of writing n on both places. 
 -- This tells GHC that this is the only match for Matrix*Vector or Matrix*Matrix,
--- and allows it to infer the type of e.g. m44 `comp` idm
+-- and allows it to infer the type of e.g. m44 (**) idm
 instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') (Vector f m) where
-    comp = (££)
+    (**) = (££)
 
 instance (KnownNat a, Ring f, f ~ f', b ~ b' ) => Composable (Matrix f a b) (Matrix f' b' c) (Matrix f a c) where
-    comp = (£££)
+    (**) = (£££)
 
 -- | Square matrices form a multiplicative group
 instance (KnownNat n, Ring f) => Mul (Matrix f n n) where
@@ -216,6 +216,11 @@ class ToMat m n x where
     type Under' x 
     toMat   :: x -> Matrix (Under' x) m n
     fromMat :: Matrix (Under' x) m n -> x
+
+instance (M.Matrix mat, m ~ m', n ~ n', AddGroup (mat f m n), AddGroup (Matrix f m n)) => ToMat m' n' (mat f m n) where
+    type Under' (mat f m n) = f
+    toMat = M.changeRep
+    fromMat = M.changeRep
 
 instance ToMat n 1 (Vector f n) where
     type Under' (Vector f n) = f
@@ -232,11 +237,6 @@ instance (KnownNat n, Field f) => ToMat n n (Vector f n) where
     type Under' (Vector f n) = f
     toMat (V ss) = M . V $ zipWith (\s i-> s £ e i) ss [1..]
     fromMat m = vec $ zipWith (!!) (fromMat m) [0..]
-
-instance (m' ~ m, n' ~ n) => ToMat m' n' (Matrix f m n) where
-    type Under' (Matrix f m n) = f
-    toMat = id
-    fromMat = id
 
 instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [Vector f m] where
     type Under' [Vector f m] = f
@@ -334,15 +334,15 @@ muladd i j s = onCols $ \(V v) ->
     in V $ m1++y':m2
 
 instance (Ring f, f ~ f') => Composable (ElimOp f') (Matrix f m n) (Matrix f m n) where
-    (Swap i j) `comp` m = swap i j m
-    (Mul i s) `comp` m = mul i s m
-    (MulAdd i j s) `comp` m = muladd i j s m
+    (Swap i j) ** m = swap i j m
+    (Mul i s) ** m = mul i s m
+    (MulAdd i j s) ** m = muladd i j s m
 
 
 instance (Ring f, n ~ n', f ~ f') => Composable (G.ElimOp n' f') (Matrix f m n) (Matrix f m n) where
-    (G.Swap (Fin i) (Fin j)) `comp` m = swap i j m
-    (G.Mul (Fin i) s) `comp` m = mul i s m
-    (G.MulAdd (Fin i) (Fin j) s) `comp` m = muladd i j s m
+    (G.Swap (Fin i) (Fin j)) ** m = swap i j m
+    (G.Mul (Fin i) s) ** m = mul i s m
+    (G.MulAdd (Fin i) (Fin j) s) ** m = muladd i j s m
 
 
 -- | Representation of an elementary row operation as a matrix 

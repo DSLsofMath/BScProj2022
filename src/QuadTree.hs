@@ -68,6 +68,9 @@ instance (Sized (ToNat4 m n), AddGroup f) => AddGroup (QuadM f m n) where
     QuadM m1 + QuadM m2 = QuadM (m1 + m2)
     QuadM m1 - QuadM m2 = QuadM (m1 - m2)
     zero = QuadM zero
+
+instance (Eq f, AddGroup f, AddGroup (QuadM f m n)) => Eq (QuadM f m n) where
+    q1 == q2 = let (QuadM q1', QuadM q2') = (purge q1, purge q2) in q1' == q2'
     
 
 instance Matrix QuadM where 
@@ -216,9 +219,15 @@ x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+)
           zipQuad :: (Quad n a -> Quad n a -> Quad n a) -> Quad (Suc n) a -> Quad (Suc n) a -> Quad (Suc n) a
           zipQuad (*) (Mtx a b c d) (Mtx e f g h) = Mtx (a*e) (b*f) (c*g) (d*h)
 
+mulQM :: (Ring f, ToNat4 m n ~ ToNat4 n c, ToNat4 m c ~ ToNat4 n c) => QuadM f m n -> QuadM f n c -> QuadM f m c
+mulQM (QuadM q1) (QuadM q2) = QuadM $ mulQ q1 q2
+
 instance (Sized n, Ring a) => Mul (Quad n a) where
     (*) = mulQ
     one = idQ
+
+instance (Ring f, f ~ f', b ~ b', ToNat4 a b ~ ToNat4 b' c, ToNat4 b' c ~ ToNat4 a c) => Composable (QuadM f a b) (QuadM f' b' c) (QuadM f a c) where
+   (**) = (mulQM)
 
 -- | Transposes a Quad matrix
 transposeQ :: Quad n a -> Quad n a
@@ -237,13 +246,6 @@ toDense (Scalar a) = a £ L.idm    -- Will always be of size 1x1
 toDense (Mtx nw ne sw se) = (toDense nw `L.append` toDense ne) `L.append'` 
                             (toDense sw `L.append` toDense se)
 
--- TODO: Add fromMat
-instance (Sized n, m' ~ ToNat n, n' ~ ToNat n, Ring a) => L.ToMat m' n' (Quad n a) where
-    type Under' (Quad n a) = a
-    toMat = toDense
-
--- TODO a nice example would be to implement toCSN - from one sparse
--- format to another.
 
 -- Potentally use parallelism for big enough Quads
 -- class Mul a where
