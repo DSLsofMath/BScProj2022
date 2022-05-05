@@ -13,7 +13,7 @@ module test where
       A : Set a
       B : Set b
       C : Set c
-      m n o : ℕ
+      m n o p : ℕ
 
 -- Vector representation
 
@@ -36,7 +36,7 @@ module test where
 
         -- Matrices are defined as vector of vectors
         Matrix : (A : Set a) → (m n : ℕ) → Set a
-        Matrix A m n = Vector (Vector A n) m
+        Matrix A m n = Vector (Vector A m) n
 
         matLength : Matrix A m n → ℕ × ℕ
         matLength {m = m} {n = n} mat  = m , n
@@ -61,7 +61,7 @@ module test where
         replicateV {n = zero} x = []
         replicateV {n = suc n} x = x :: replicateV x
 
-        transpose : ∀{A m n} → Matrix A m n → Matrix A n m
+        transpose : Matrix A m n → Matrix A n m
         transpose [] = replicateV []
         transpose (x :: xs) = ((zipV _::_) x) (transpose xs)
 
@@ -113,7 +113,7 @@ module test where
                                                            v1 * u2 + -(v2 * u1) :: [])
 
         -- Outer product
-        _⊗_ : Vector Carrier m → Vector Carrier n → Matrix Carrier m n
+        _⊗_ : Vector Carrier m → Vector Carrier n → Matrix Carrier n m
         _⊗_ [] ys = []
         _⊗_ (x :: xs) ys = mapV (x *_) ys :: xs ⊗ ys
 
@@ -126,13 +126,13 @@ module test where
         _+m_ = zipV _+v_
 
         -- Mul matrix/vector
-        _*mv_ : Matrix Carrier m n → Vector Carrier n → Vector Carrier m
+        _*mv_ : Matrix Carrier n m → Vector Carrier n → Vector Carrier m
         m *mv v = mapV (_• v) m
 
         -- Mul matrix/matrix
-        _*m_ : Matrix Carrier m n → Matrix Carrier n o → Matrix Carrier m o
-        --m1 *m m2 = mapV (_*mv (transpose m2)) m1
-
+        _*m_ : Matrix Carrier o m → Matrix Carrier o o → Matrix Carrier m o
+        m1 *m m2 =  mapV (m1 *mv_) m2 
+        
         Sign = Carrier
         altSumVHelp : Sign → Vector Carrier n → Carrier
         altSumVHelp s [] = 0#
@@ -141,11 +141,13 @@ module test where
         altSumV : Vector Carrier n → Carrier
         altSumV = altSumVHelp 1# -- alternating sum: multiply every second term by minus one
 
-        submatricesStep : Matrix Carrier m (suc (suc n)) → Vector (Matrix Carrier m (suc n)) (suc (suc n))
+        -- submatricesStep : Matrix Carrier m (suc (suc n)) → Vector (Matrix Carrier m (suc n)) (suc (suc n))
+        submatricesStep : Matrix Carrier (suc (suc m)) n → Vector (Matrix Carrier (suc m) n) (suc (suc m)) 
 
-        submatrices : Matrix Carrier m (suc n) → Vector (Matrix Carrier m n) (suc n)
-        submatrices {m} {ℕ.zero} ma = replicateV [] :: []
-        submatrices {m} {suc n}   ma = submatricesStep ma
+        -- submatrices : Matrix Carrier m (suc n) → Vector (Matrix Carrier m n) (suc n)
+        submatrices : Matrix Carrier (suc m) n → Vector (Matrix Carrier m n) (suc m)
+        submatrices {ℕ.zero} {n} ma = replicateV [] :: []
+        submatrices {suc m} {n}  ma = submatricesStep ma
 
         submatricesStep ma with mapV headV ma | mapV tailV ma 
         submatricesStep ma | heads | tails with submatrices tails
