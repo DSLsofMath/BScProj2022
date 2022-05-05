@@ -13,7 +13,7 @@ module test where
       A : Set a
       B : Set b
       C : Set c
-      m n : ℕ
+      m n o : ℕ
 
 -- Vector representation
 
@@ -61,15 +61,16 @@ module test where
         replicateV {n = zero} x = []
         replicateV {n = suc n} x = x :: replicateV x
 
-        zeroVec : Vector ℕ n
-        zeroVec = replicateV 0
+        transpose : ∀{A m n} → Matrix A m n → Matrix A n m
+        transpose [] = replicateV []
+        transpose (x :: xs) = ((zipV _::_) x) (transpose xs)
 
         -- Pointwise equality on vectors (lifting _∼_ from elements to vectors)
         data EqV {A : Set a} (_∼_ : A → A → Set c) :
                        ∀ {m n} (xs : Vector A m) (ys : Vector A n) → Set (a ⊔ c)
                        where
           eq-[]  : EqV _∼_ [] []
-          eq-::   : ∀ {m n x y} {xs : Vector A m} {ys : Vector A n}
+          eq-::  : ∀ {m n x y} {xs : Vector A m} {ys : Vector A n}
                   (x∼y : x ∼ y) (xs∼ys : EqV _∼_ xs ys) →
                   EqV _∼_ (x :: xs) (y :: ys)
 
@@ -84,6 +85,7 @@ module test where
         infixr 7 _◁ₘ_
         infixr 7 _x_
         infixr 7 _⊗_
+        infixr 7 _*m_ 
 
         sumV : Vector Carrier n → Carrier
         sumV {n = zero} v = 0#
@@ -119,9 +121,17 @@ module test where
         _◁ₘ_ : Carrier → Matrix Carrier m n → Matrix Carrier m n
         c ◁ₘ m = mapV (c ◁_) m
 
-        -- Add matrix
+        -- Add matrix/matrix
         _+m_ : Matrix Carrier m n → Matrix Carrier m n → Matrix Carrier m n
         _+m_ = zipV _+v_
+
+        -- Mul matrix/vector
+        _*mv_ : Matrix Carrier m n → Vector Carrier n → Vector Carrier m
+        m *mv v = mapV (_• v) m
+
+        -- Mul matrix/matrix
+        _*m_ : Matrix Carrier m n → Matrix Carrier n o → Matrix Carrier m o
+        --m1 *m m2 = mapV (_*mv (transpose m2)) m1
 
         Sign = Carrier
         altSumVHelp : Sign → Vector Carrier n → Carrier
@@ -161,9 +171,11 @@ module test where
 
         -- Left and right proof of identity with vector addition
         vectorAddIdentityˡ : ∀ {n} (v1 : Vector Carrier n) → (0v +v v1) ≈v v1
+        vectorAddIdentityˡ [] = eq-[]
         vectorAddIdentityˡ (x1 :: v1) = eq-::(+-identityˡ x1) (vectorAddIdentityˡ v1)
 
         vectorAddIdentityʳ : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) ≈v v1
+        vectorAddIdentityʳ [] = eq-[]
         vectorAddIdentityʳ (x1 :: v1) = eq-::(+-identityʳ x1) (vectorAddIdentityʳ v1)
         
         -- Vector addition is commutative (statement, and inductive proof)
