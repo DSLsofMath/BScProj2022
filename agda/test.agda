@@ -73,7 +73,7 @@ module test where
           eq-::  : ∀ {m n x y} {xs : Vector A m} {ys : Vector A n}
                   (x∼y : x ∼ y) (xs∼ys : EqV _∼_ xs ys) →
                   EqV _∼_ (x :: xs) (y :: ys)
-
+                  
 -- Operations
 
     module Operations (R : Ring c ℓ) where
@@ -93,6 +93,9 @@ module test where
 
         0v : Vector Carrier n
         0v = replicateV 0#
+
+        0m : Matrix Carrier m n
+        0m = replicateV 0v
 
         -- Vector addition
         _+v_ : Vector Carrier n → Vector Carrier n  → Vector Carrier n
@@ -127,11 +130,13 @@ module test where
 
         -- Mul matrix/vector
         _*mv_ : Matrix Carrier n m → Vector Carrier n → Vector Carrier m
+        [] *mv m = 0v
         m *mv v = mapV (_• v) m
 
         -- Mul matrix/matrix
-        _*m_ : Matrix Carrier o m → Matrix Carrier o o → Matrix Carrier m o
-        m1 *m m2 =  mapV (m1 *mv_) m2 
+        _*m_ : {m n o : ℕ} → Matrix Carrier m n → Matrix Carrier m o → Matrix Carrier n o 
+        _ *m [] = 0m
+        m1 *m m2 = mapV (m1 *mv_) m2 
         
         Sign = Carrier
         altSumVHelp : Sign → Vector Carrier n → Carrier
@@ -166,30 +171,38 @@ module test where
 
         -- Equality on our vectors is a lifted version of the
         -- underlying equality of the ring of components.
-        _≈v_ : Vector Carrier n → Vector Carrier m → Set (c ⊔ ℓ)
-        _≈v_ = EqV _≈_
+        _=v_ : Vector Carrier n → Vector Carrier m → Set (c ⊔ ℓ)
+        _=v_ = EqV _≈_
         -- The equality type is basically just a vector of equality
         -- proofs between pairs of corresponding elements.
 
         -- Left and right proof of identity with vector addition
-        vectorAddIdentityˡ : ∀ {n} (v1 : Vector Carrier n) → (0v +v v1) ≈v v1
+        vectorAddIdentityˡ : ∀ {n} (v1 : Vector Carrier n) → (0v +v v1) =v v1
         vectorAddIdentityˡ [] = eq-[]
         vectorAddIdentityˡ (x1 :: v1) = eq-::(+-identityˡ x1) (vectorAddIdentityˡ v1)
 
-        vectorAddIdentityʳ : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) ≈v v1
+        vectorAddIdentityʳ : ∀ {n} (v1 : Vector Carrier n) → (v1 +v 0v) =v v1
         vectorAddIdentityʳ [] = eq-[]
         vectorAddIdentityʳ (x1 :: v1) = eq-::(+-identityʳ x1) (vectorAddIdentityʳ v1)
         
         -- Vector addition is commutative (statement, and inductive proof)
         vectorAddComm : ∀ {n} (v1 v2 : Vector Carrier n) →
-                        (v1 +v v2) ≈v (v2 +v v1)
+                        (v1 +v v2) =v (v2 +v v1)
         vectorAddComm [] [] = eq-[]
         vectorAddComm (x1 :: v1) (x2 :: v2) =
             eq-:: (+-comm x1 x2) (vectorAddComm v1 v2)
 
         -- Vector addition is associative (statement, and inductive proof)
         vectorAddAssoc : ∀ {n} (v1 v2 v3 : Vector Carrier n) →
-                         ((v1 +v v2) +v v3) ≈v (v1 +v (v2 +v v3))
+                         ((v1 +v v2) +v v3) =v (v1 +v (v2 +v v3))
         vectorAddAssoc [] [] [] = eq-[]
         vectorAddAssoc (x1 :: v1) (x2 :: v2) (x3 :: v3) =
             eq-:: (+-assoc x1 x2 x3) (vectorAddAssoc v1 v2 v3)
+
+        dotComm : ∀ {n} (v1 v2 : Vector Carrier n) → (v1 • v2) ≈ (v2 • v1)
+        dotComm [] v2 = refl
+        dotComm (v1 :: vs) v2 = {!!} --hmmm
+        
+
+        
+        
