@@ -11,11 +11,15 @@ module Main where
 
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
+import qualified Matrix as M
 
 import qualified Prelude
-import Prelude hiding ((*),(+),(/),(-))
+import Prelude hiding ((*),(+),(/),(-),(**))
 import Eigen
 import Subspaces
+import QuadTree
+import SparseCSR
+
 --import Test.QuickCheck
 -- To run QuickCheck:
 -- type ":set -package QuickCheck" in the ghci prompt
@@ -72,6 +76,54 @@ crossProd = cross v2 v3 == vec [7*8-1*2, 1*8-2*8, 2*2-7*8]
 
 orth = dot v2 (cross v2 v3) == dot v3 (cross v2 v3)
                             && dot v2 (cross v2 v3) == 0
+
+
+--Functions and example matrixes for performance tests.
+
+-- use :set +s and :set +r when running tests
+
+--Sparse matrixes, identity matrix
+
+testM51 = M.identity :: Matrix Double 5 5
+testM5001 = M.identity :: Matrix Double 500 500
+
+testC51 = M.identity :: CSR Double 5 5
+testC5001 = M.identity :: CSR Double 500 500
+
+testQ51 =  M.identity :: QuadM Double 5 5
+testQ5001 = M.identity :: QuadM Double 500 500
+
+--Less sparse matrixes, tridiagonal matrix
+
+testM5 = M.pjMat :: Matrix Double 5 5
+testM500 = M.pjMat :: Matrix Double 500 500
+
+testC5 = M.pjMat :: CSR Double 5 5
+testC500 = M.pjMat :: CSR Double 500 500
+
+testQ5 =  M.pjMat :: QuadM Double 5 5
+testQ500 =  M.pjMat :: QuadM Double 500 500
+
+-- Performance test functions
+-- Designed to avoid GHCi prints when running m + m,
+-- will add the equal time to solution which could be
+-- deducted manually or ignored as it still gives a 
+-- general idea of which is fast. 
+
+performaddtest :: ((AddGroup (mat Double m n)), (Eq (mat Double m n)), 
+                    M.Matrix mat) => mat Double m n -> Bool
+performaddtest m = a == a
+    where a = m + m
+
+performmultest :: ((Mul (mat Double m n)), (Eq (mat Double m n)), 
+                    M.Matrix mat) => mat Double m n -> Bool
+performmultest m = a == a
+    where a = m * m
+
+-- note, add mulgroup for QuadM
+
+testquadperf = a == a
+    where a = testQ5001 ** testQ5001 
 
 -- test transpose
 m1 :: Matrix Double 3 3

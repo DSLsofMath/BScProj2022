@@ -233,11 +233,11 @@ bigBoi = CSR {
     row = [0,1..10000]}
 
 -- Large
-denseBigBoi :: CSR Double 10000 10000
-denseBigBoi = CSR {
-    elems = [1..50000],
-    col = concat $ replicate 5 [0,1..9999],
-    row = [0,5..50000]}
+denseCSR :: CSR Double 500 500
+denseCSR = CSR {
+    elems = [1..500*500],
+    col = [0,1..(500*500 - 1)],
+    row = [0,500..500*500]}
 
 -- Large in one row
 bigBoi2 :: CSR Double 10000 10000
