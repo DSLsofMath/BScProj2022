@@ -15,6 +15,7 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span, elem
 
 import Algebra
 import ListVector
+import ListVecGauss
 import Eigen
 
 -- Mathematically, a subspace is a set and we would therefore like to represent a 
@@ -102,7 +103,7 @@ data QuotientSpace v = Quot v (Subspace v) deriving (Show)
 
 -- | Returns the set of solutions to Ax=v
 solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix f m n -> Vector f m -> QuotientSpace (Vector f n)
-solveQ m v = Quot (solvesys $ m `append'` v) (nullSpace m)
+solveQ m v = Quot (particularSol $ m `append'` v) (nullSpace m)
     where append' :: Matrix f m n -> Vector f m -> Matrix f m (n+1)
           m `append'` v = m `append` M (V [v]) 
 

@@ -69,6 +69,10 @@ instance (Sized (ToNat4 m n), AddGroup f) => AddGroup (QuadM f m n) where
     QuadM m1 - QuadM m2 = QuadM (m1 - m2)
     zero = QuadM zero
 
+instance (Sized (ToNat4 n n), Ring f) => Mul (QuadM f n n) where
+    (*) = mulQM
+    one = QuadM idQ
+
 instance (Eq f, AddGroup f, AddGroup (QuadM f m n)) => Eq (QuadM f m n) where
     q1 == q2 = let (QuadM q1', QuadM q2') = (purge q1, purge q2) in q1' == q2'
     
