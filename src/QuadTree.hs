@@ -97,7 +97,6 @@ data Quad (n :: Nat4) a where
         sw :: Quad n a, 
         se :: Quad n a 
            } -> Quad (Suc n) a 
-    -- Id :: Quad n a --used mostly in permutations.
 
 instance (Sized n, Ring a, Show a) => Show (Quad n a) where
     show = show . toDense
@@ -179,16 +178,19 @@ mapQuad f (Scalar s) = Scalar (f s)
 mapQuad f (Mtx nw ne sw se) = Mtx (mapQuad f nw) (mapQuad f ne) 
                                   (mapQuad f sw) (mapQuad f se)
 
+addQ :: AddGroup a => Quad n a -> Quad n a -> Quad n a
+Zero     `addQ` x        = x
+x        `addQ` Zero     = x
+Scalar a `addQ` Scalar b = Scalar (a+b)
+Mtx nw1 ne1 sw1 se1 `addQ` Mtx nw2 ne2 sw2 se2 = Mtx (nw1+nw2) (ne1+ne2) 
+                                                     (sw1+sw2) (se1+se2)
+
 instance Functor (Quad n) where
    fmap = mapQuad 
 
 -- Quad is a vector
 instance AddGroup a => AddGroup (Quad n a) where
-    Zero + x    = x
-    x    + Zero = x
-    Scalar a + Scalar b = Scalar (a+b)
-    Mtx nw1 ne1 sw1 se1 + Mtx nw2 ne2 sw2 se2 = Mtx (nw1+nw2) (ne1+ne2) 
-                                                    (sw1+sw2) (se1+se2)
+    (+) = addQ
     neg = fmap neg
     zero = Zero 
 
