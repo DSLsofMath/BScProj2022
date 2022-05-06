@@ -6,17 +6,18 @@ open import Function using (id; _∘_)
 open import Algebra
 open import Level using (Level; _⊔_)
 
+
 module test where
 
     variable
-      a b c ℓ : Level
+      a b c ℓ c₂ ℓ₂ : Level
       A : Set a
       B : Set b
       C : Set c
       m n o p : ℕ
 
 -- Vector representation
-
+    
     module Vector where
         -- Inductive definition of a vector
         data Vector (A : Set a) : (n : ℕ) → Set a where
@@ -81,11 +82,7 @@ module test where
         open Vector
 
         infixr 6 _+v_
-        infixr 7 _◁_
-        infixr 7 _◁ₘ_
-        infixr 7 _x_
-        infixr 7 _⊗_
-        infixr 7 _*m_ 
+        infixr 7 _◁_ _◁ₘ_ _x_ _⊗_ _*m_ 
 
         sumV : Vector Carrier n → Carrier
         sumV {n = zero} v = 0#
@@ -163,12 +160,14 @@ module test where
         det [] = 1#
         det (v :: m) = altSumV (zipV _*_ v (mapV det (submatrices m)))
 
-        module TestM (a11 a12 a21 a22 : Carrier) where
-          m22 : Matrix Carrier 2 2
-          m22 = (a11 :: a12 :: []) :: (a21 :: a22 :: []) :: []
-          test : Carrier
-          test = det m22
+        module Property (a11 a12 a21 a22 : Carrier) where
 
+         m22 : Matrix Carrier 2 2
+         m22 = (a11 :: a12 :: []) :: (a21 :: a22 :: []) :: []
+         test : Carrier
+         test = det m22
+         
+        
         -- Equality on our vectors is a lifted version of the
         -- underlying equality of the ring of components.
         _=v_ : Vector Carrier n → Vector Carrier m → Set (c ⊔ ℓ)
@@ -202,7 +201,11 @@ module test where
         dotComm : ∀ {n} (v1 v2 : Vector Carrier n) → (v1 • v2) ≈ (v2 • v1)
         dotComm [] v2 = refl
         dotComm (v1 :: vs) v2 = {!!} --hmmm
-        
 
-        
-        
+        module Morphism (G : Group c ℓ) (H : Group c₂ ℓ₂) where
+          open Group G renaming (_∙_ to _*m_; ε to 0m)
+          open Group H renaming (_∙_ to _*_; ε to 0#)
+
+          
+         -- show the determinant is a homomorphism
+
