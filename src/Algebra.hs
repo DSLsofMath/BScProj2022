@@ -39,37 +39,7 @@ data Exp  =  Const R
 -- Remove + const 0 from Exp matrices
 -------------------------------------Only to simplify how to view matrix expressions and determinants--------------------------------
 instance Show Exp where
-   show e = replaced1 (replaced (showE e) zerosToReplace) onesToReplace
--- PJ: Ouch! string simplification is a pretty ugly way to simplify algebraic expressions...
-
--- Remove all substrings in zerosToReplace
-replaceS :: Eq a => [a] -> [a] -> [a] -> [a]
-replaceS [] _ _ = []
-replaceS s find repl =
-    if take (length find) s == find
-        then repl ++ (replaceS (drop (length find) s) find repl)
-        else [head s] ++ (replaceS (tail s) find repl)
-
-zerosToReplace :: [String]
-zerosToReplace = [ " + (-0.0)", " + 0.0", " - (-0.0)", " - 0.0", "0.0 + ", "(-0,0) + ","0.0 - ","(-0.0) - ",
-                        " + -((X) * (0.0))" ]
-
-onesToReplace :: [String]
-onesToReplace = [ "-((X) * (1.0))"]
-
-replaced :: String -> [String] -> String
-replaced s []      = s
-replaced s (x:xs)  = replaced sub xs
-    where
-        sub = replaceS s x ""
-
-replaced1 :: String -> [String] -> String
-replaced1 s []      = s
-replaced1 s (x:xs)  = replaced sub xs
-    where
-        sub = replaceS s x "-X" 
-
-
+   show = showE . simplifyE
 
 showE :: Exp -> String
 showE X = "X"
@@ -121,26 +91,53 @@ evalExp'' = evalExp'.derive
 
 
 
-simplifyE :: Exp -> Exp
--- Values
-simplifyE X               = X
-simplifyE (Const x)       = Const x
--- Addition
-simplifyE (e :+: Const 0) = simplifyE e
-simplifyE (Const 0 :+: e) = simplifyE e
-simplifyE (e1 :+: e2)     = simplifyE e1 :+: simplifyE e2
--- Multiplication
-simplifyE (_ :*: Const 0) = zero
-simplifyE (Const 0 :*: _) = zero
-simplifyE (e :*: Const 1) = simplifyE e
-simplifyE (Const 1 :*: e) = simplifyE e
-simplifyE (e1 :*: e2)     = e1 :*: e2
--- Division and Minus
-simplifyE (Negate e)      = Negate e
-simplifyE (Recip e)       = Recip e
+-- Added this implementation from DSLsofMath to simplify algebraic expressions
+type SimplifiedExp = Exp
+simplifyE  ::  Exp -> SimplifiedExp
+simplifyE (x :+: y)   = simplifyAdd (simplifyE x) (simplifyE y)
+simplifyE (x :*: y)   = simplifyMul (simplifyE x) (simplifyE y)
+simplifyE (Negate x)  = simplifyNeg (simplifyE x)
+simplifyE (Recip x)   = simplifyRec (simplifyE x)
+simplifyE X           = X
+simplifyE (Const c)   = Const c
 
+simplifyAdd :: Exp -> Exp -> Exp
+simplifyAdd (Const a)   (Const b)   = Const (a+b)
+simplifyAdd (Const 0)   x           = x
+simplifyAdd x           (Const 0)   = x
+simplifyAdd (x:+:y)     z           = simplifyAdd x (y:+:z)
+simplifyAdd (Const a)   (Const b:+:x) = simplifyAdd (Const (a+b)) x
+simplifyAdd x           y             = case scaledEq x y of
+    Left    (a,b,x) -> simplifyMul (Const (a+b)) x
+    Right   (x,y)   -> x :+: y
 
+simplifyMul :: Exp -> Exp -> Exp
+simplifyMul (Const a)  (Const b)  = Const (a*b)
+simplifyMul (Const 0)  _x         = Const 0
+simplifyMul _x         (Const 0)  = Const 0
+simplifyMul (Const 1)  x          = x
+simplifyMul x          (Const 1)  = x
+simplifyMul (x:*:y)    z          = simplifyMul x (y:*:z)
+simplifyMul x          (Const c)  = simplifyMul (Const c) x
+simplifyMul (Const a)  (Const b :*: x) = simplifyMul (Const (a*b)) x
+simplifyMul x          (Const c :*: y) = simplifyMul (Const c) (x :*: y)
+simplifyMul x          y          = x :*: y
 
+scaledEq x y                         | x==y = Left (1,1,x)
+scaledEq            x  (Const b:*:y) | x==y = Left (1,b,x)
+scaledEq (Const a:*:x)            y  | x==y = Left (a,1,x)
+scaledEq (Const a:*:x) (Const b:*:y) | x==y = Left (a,b,x)
+scaledEq x y = Right (x,y)
+
+simplifyNeg :: Exp -> Exp
+simplifyNeg (Const c)   = Const (negate c)
+simplifyNeg (Negate x)  = x
+simplifyNeg x           = Negate x
+
+simplifyRec :: Exp -> Exp
+simplifyRec (Const c)   = Const (recip c)
+simplifyRec (Recip x)   = x
+simplifyRec x           = Recip x
 
 infixl 6 -
 infixl 6 +
