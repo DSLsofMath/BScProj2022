@@ -80,12 +80,12 @@ data Q' ( A : Set a) : Set a where
   Mtx' : ( nw ne sw se : A ) → Q' A
 
 Q'toQuad : Q' (Quad A n) → Quad A (Suc n)
-Q'toQuad (Mtx' Zero Zero Zero Zero) = Zero
+-- Q'toQuad (Mtx' Zero Zero Zero Zero) = Zero
 Q'toQuad (Mtx' nw ne sw se) = Mtx nw ne sw se
 
 zipQ' : ( A → B → C ) → Q' A → Q' B → Q' C
-zipQ' _op_ (Mtx' nw ne sw se) (Mtx' nw₁ ne₁ sw₁ se₁) = Mtx' (se op se₁) (se op se₁)
-                                                                (se op se₁) (se op se₁)
+zipQ' _op_ (Mtx' nw ne sw se) (Mtx' nw₁ ne₁ sw₁ se₁) = Mtx' (nw op nw₁) (ne op ne₁)
+                                                            (sw op sw₁) (se op se₁)
 
 colExchange : Q' A → Q' A
 colExchange (Mtx' nw ne sw se) = Mtx' ne nw se sw
@@ -133,7 +133,6 @@ quad-sym (eq-Scalar x∼y) = eq-Scalar (sym x∼y)
 quad-sym (eq-Mtx x x₁ x₂ x₃) = eq-Mtx (quad-sym x) (quad-sym x₁) (quad-sym x₂) (quad-sym x₃)
 
 
-
 quad-zerol : ∀ { n } ( x : Quad Carrier n ) → ( Zero +q x ) =q x
 quad-zerol x = quad-refl
 
@@ -149,7 +148,7 @@ quad-zeror (Mtx x x₁ x₂ x₃) = quad-refl
 
 quad-comm : ( a b : Quad Carrier n ) → ( a +q b) =q ( b +q a )
 quad-comm Zero b = quad-sym (quad-zeror b)
-quad-comm (Scalar x) Zero = eq-Scalar refl
+quad-comm (Scalar x) Zero = quad-refl
 quad-comm (Scalar x) (Scalar x₁) = eq-Scalar (+-comm x x₁)
 quad-comm (Mtx a a₁ a₂ a₃) Zero = quad-refl 
 quad-comm (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) = eq-Mtx (quad-comm a b) (quad-comm a₁ b₁)
@@ -165,3 +164,27 @@ quad-assoc (Mtx a a₁ a₂ a₃) Zero c = quad-refl
 quad-assoc (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) Zero = quad-refl
 quad-assoc (Mtx a a₁ a₂ a₃) (Mtx b b₁ b₂ b₃) (Mtx c c₁ c₂ c₃) = eq-Mtx (quad-assoc a  b  c ) (quad-assoc a₁ b₁ c₁)
                                                                        (quad-assoc a₂ b₂ c₂) (quad-assoc a₃ b₃ c₃)
+
+
+
+quad-*-zerol : ( x : Quad Carrier n ) → ( Zero *q x ) =q Zero
+quad-*-zerol x = eq-Zero
+
+quad-*-zeror : ( x : Quad Carrier n ) → ( x *q Zero ) =q Zero
+quad-*-zeror Zero = eq-Zero
+quad-*-zeror (Scalar x) = eq-Zero
+quad-*-zeror (Mtx x x₁ x₂ x₃) = eq-Zero
+
+
+quad-onel : ( x : Quad Carrier n ) → ( oneQ *q x ) =q x
+
+quad-onel-lemma : ( x : Quad Carrier n ) → ((oneQ *q x) +q Zero) =q x
+quad-onel-lemma {One} Zero = eq-Zero
+quad-onel-lemma {Suc n} Zero = eq-Zero
+quad-onel-lemma (Scalar x) = eq-Scalar (*-identityˡ x)
+quad-onel-lemma (Mtx x x₁ x₂ x₃) = eq-Mtx (quad-onel x) (quad-onel-lemma x₁) (quad-onel-lemma x₂) (quad-onel x₃)
+
+quad-onel Zero = quad-*-zeror oneQ
+quad-onel (Scalar x) = eq-Scalar (*-identityˡ x)
+quad-onel (Mtx x x₁ x₂ x₃) = eq-Mtx (quad-onel x) (quad-onel-lemma x₁) (quad-onel-lemma x₂) (quad-onel x₃)
+

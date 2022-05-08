@@ -182,8 +182,9 @@ addQ :: AddGroup a => Quad n a -> Quad n a -> Quad n a
 Zero     `addQ` x        = x
 x        `addQ` Zero     = x
 Scalar a `addQ` Scalar b = Scalar (a+b)
-Mtx nw1 ne1 sw1 se1 `addQ` Mtx nw2 ne2 sw2 se2 = Mtx (nw1+nw2) (ne1+ne2) 
-                                                     (sw1+sw2) (se1+se2)
+Mtx nw1 ne1 sw1 se1 `addQ` Mtx nw2 ne2 sw2 se2 = 
+                                    Mtx (nw1 `addQ` nw2) (ne1 `addQ` ne2) 
+                                        (sw1 `addQ` sw2) (se1 `addQ` se2)
 
 instance Functor (Quad n) where
    fmap = mapQuad 
