@@ -30,7 +30,11 @@ instance KnownNat n => Show (Fin n) where
 
 instance KnownNat n => Num (Fin n) where
     fromInteger = fin . fromInteger
-
+    (+) = undefined
+    (*) = undefined
+    abs = undefined 
+    signum = undefined 
+    negate = undefined
 -- Enum and Bounded allows for list sequencing 
 -- i.e. [Fin 2 .. maxBound]
 instance KnownNat n => Enum (Fin n) where
