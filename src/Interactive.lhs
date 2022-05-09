@@ -39,7 +39,7 @@ example matrix from a list of lists
 
 \begin{code}
 m1 :: Matrix Double 4 4
-m1 = toMat [[1,0,0,0],[2,0,8,0],[3,0,3,1],[4,0,2,0]]
+m1 = toMat [[1,0,0,3],[2,0,8,0],[3,0,3,1],[4,0,2,0]]
 \end{code}
 
 using key value pairs to create the same matrix,

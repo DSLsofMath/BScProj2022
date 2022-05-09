@@ -89,7 +89,7 @@ roots f as = map (newton f 0.001) as
 matrix1 :: Matrix Exp 2 2
 matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
 
--- Using detNN, seems to get some error with detGauss, probably because of derive recip
+-- Using detNN, better for characteristic polynomial
 eigenM1 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
 eigenM1 = roots(detNN matrix1) [0.0,0.5..2.0]
 
