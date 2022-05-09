@@ -107,9 +107,9 @@ foldElemOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 onUnpackedTrans :: ([[f]] -> [[f]]) -> Matrix f m n -> Matrix f m n
 onUnpackedTrans f = pack . L.transpose . f . L.transpose . unpack
 
--- | Transform a matrix to upper triangular form
-utf :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
-utf = onUnpackedTrans (sort . f) 
+-- | Transform a matrix to upper echelon form
+gauss :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
+gauss = onUnpackedTrans (sort . f) 
     where
           f []     = []
           f (x:[]) = let (x', n) = pivot x in [x']
@@ -120,15 +120,15 @@ utf = onUnpackedTrans (sort . f)
           reduce n p x = zipWith (-) x (map ((x!!n)*) p)
           sort = L.sortOn (length . takeWhile (==zero))
 
--- | Generate a trace of ElimOps from reducing a matrix to upper triangular form
-utfTrace :: (Field f, Eq f) => Matrix f m n -> [ElimOp f]
-utfTrace m0 = case separateCols m0 of
+-- | Generate a trace of ElimOps from reducing a matrix to upper echelon form
+gaussTrace :: (Field f, Eq f) => Matrix f m n -> [ElimOp f]
+gaussTrace m0 = case separateCols m0 of
       []               -> []
       (V (x:xs), m):_  -> let 
                       trace  = mul x ++ [ mulAdd s j | (s,j) <- zip xs [2..], s /= zero ]
                       augM = foldElemOpsFunc trace m
                       in trace ++ case (m, separateRows augM) of
-                         (M (V (_:_)), (_,m'):_ ) -> map incIndex $ utfTrace m'
+                         (M (V (_:_)), (_,m'):_ ) -> map incIndex $ gaussTrace m'
                          _                        -> []
     where
         mulAdd s j = MulAdd 1 j (neg s)
@@ -153,5 +153,5 @@ solve m = foldr next [last (last m)] (init m)
 --   each element in list represents variable values
 --   TODO: handle case when there is no solution, return Maybe 
 particularSol :: (Eq f, Field f) => Matrix f m n -> Vector f (n -1)
-particularSol = V . solve . unpack . transpose . utf
+particularSol = V . solve . unpack . transpose . gauss
 

@@ -28,6 +28,13 @@ fin i = finite
 instance KnownNat n => Show (Fin n) where
     show n = show (finToInt n) ++ " of " ++ show (natVal n)
 
+instance KnownNat n => Num (Fin n) where
+    fromInteger = fin . fromInteger
+    (+) = undefined
+    (*) = undefined
+    abs = undefined 
+    signum = undefined 
+    negate = undefined
 -- Enum and Bounded allows for list sequencing 
 -- i.e. [Fin 2 .. maxBound]
 instance KnownNat n => Enum (Fin n) where
@@ -90,7 +97,7 @@ instance (Ord i, Ring a) => VectorSpace [(i,a)] where
 class Matrix (mat :: * -> Nat -> Nat -> *) where
     {-# MINIMAL (set | extend) , values #-}
 
-    -- | Returns all nonzero values with corresponding index 
+    -- | Returns all values with corresponding index 
     values :: mat f m n -> [((Fin m, Fin n), f)]
 
     -- | Builds a matrix from a list of positions and values
@@ -102,8 +109,14 @@ class Matrix (mat :: * -> Nat -> Nat -> *) where
     set :: mat f m n -> (Fin m, Fin n) -> f -> mat f m n 
     set m i f = extend m [(i,f)]
 
+    -- | Creates a matrix given a list of keyvalue pairs
     extend :: mat f m n -> [((Fin m, Fin n), f)] -> mat f m n
     extend = foldl (\m (i, a) -> set m i a) 
+
+-- | Transforms keyvalue pairs into a matrix
+fromKeyValue :: (AddGroup (mat f m n), Matrix mat, KnownNats m n) => [(Int,Int,f)] -> mat f m n
+fromKeyValue as = tabulate m 
+    where m = [((fin a,fin b),f) | (a,b,f) <- as ]
 
 -- | Indexes into a matrix and gets a value
 get :: (Matrix mat, AddGroup f) => mat f m n -> (Fin m, Fin n) -> f
@@ -122,6 +135,7 @@ getCol m j = [ (i, a) | ((i, j'), a) <- values m, j' == j]
 getDiagonal :: Matrix mat => mat f n n -> [(Fin n, f)]
 getDiagonal m = [ (i, a) | ((i, j), a) <- values m, i == j ]
 
+-- | Sets a given row in a matrix into the given values
 setRow :: (Matrix mat, AddGroup (mat f m n)) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
 setRow m i r = extend m [ ((i, j), a) | (j, a) <- r ]
 -- setRow m i r = tabulate $ new ++ old
@@ -153,6 +167,7 @@ identity = tabulate [ ((i,i), one) | i <- [minBound .. maxBound]]
 purgeToList :: (Matrix mat, Eq f, AddGroup f) => mat f m n -> [((Fin m, Fin n), f)]
 purgeToList = (filter ((zero /=) . snd)) . values
 
+-- | Removes all zeroes from a matrix
 purge :: (Matrix mat, Eq f, AddGroup f, AddGroup (mat f m n)) => mat f m n -> mat f m n
 purge = toSparse
 

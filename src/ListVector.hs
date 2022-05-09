@@ -204,7 +204,7 @@ instance M.Matrix Matrix where
 instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') (Vector f m) where
     (**) = (££)
 
-instance (KnownNat a, Ring f, f ~ f', b ~ b' ) => Composable (Matrix f a b) (Matrix f' b' c) (Matrix f a c) where
+instance (KnownNat a, Ring f, f ~ f', b ~ b', mat ~ Matrix) => Composable (Matrix f a b) (mat f' b' c) (Matrix f a c) where
     (**) = (£££)
 
 -- | Square matrices form a multiplicative group

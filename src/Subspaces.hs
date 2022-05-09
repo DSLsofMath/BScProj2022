@@ -44,9 +44,11 @@ instance (AddGroup v) => AddGroup (Subspace v) where
 -- Properties on Finite-Dimensional Vector Spaces
 -- Span, linear independence and basis
 
+-- | Creates a subspace of a span of vectors
 span :: [v] -> Subspace v
 span = Sub
 
+-- | Checks if a vector exists within a subspace 
 elem :: (Eq f, Field f) => Vector f n -> Subspace (Vector f n) -> Bool
 elem v (Sub vs) = span' (M $ V vs) v
 
@@ -54,7 +56,7 @@ elem v (Sub vs) = span' (M $ V vs) v
 --   Normally span is defined as a set, but here we use it as a condition such that
 --   span [w1..wn] v = v `elem` span(w1..w2)
 span' :: (Eq f, Field f) => Matrix f m n -> Vector f m -> Bool
-span' m v = all (\x -> pivotLen x /= 1) . unpack . transpose . utf $ append m v'
+span' m v = all (\x -> pivotLen x /= 1) . unpack . transpose . gauss $ append m v'
     where v' = M (V @_ @1 ([v])) -- Forces the matrix to size n 1
           pivotLen xs = length (dropWhile (==zero) xs)
 -- M (Vector @_ @1 (L [v])) -- Forces the matrix to size n 1
@@ -89,7 +91,7 @@ isBasis m = spansSpace m && linIndep m
 nullSpace :: (KnownNat n, Field f, Eq f) =>  Matrix f m n -> Subspace (Vector f n)
 nullSpace m = Sub $ [ V b | (a,b) <- splitAt height <$> reduceCol m, all (== zero) a]
     where height = length (head $ unpack m)
-          reduceCol m = unpack $ transpose $ utf (transpose m `append` idm)
+          reduceCol m = unpack $ transpose $ gauss (transpose m `append` idm)
 
 -- | The range of a linear map is the set of possible outputs
 range :: (Eq f, Field f) => Matrix f m n -> Subspace (Vector f m)
