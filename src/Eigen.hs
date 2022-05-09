@@ -18,6 +18,7 @@ import qualified Data.List as L
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
+import Subspaces
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
 -- The implementation here is based on lists and should be replaced.
@@ -151,6 +152,10 @@ pjFun x = detNN (pjM - scaleM x idm)
 -- TODO pjPoly - using the polynomial instance from DSLsofMath
 -}
 
+
+-- TODO
+-- toExpMat :: (Field f, Num f) => Matrix f m n -> Matrix Exp m n
+-- toExpMat = tabulate . map (\(i,f) -> (i, Const f) . values
 
 
 

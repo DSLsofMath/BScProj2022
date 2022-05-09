@@ -77,7 +77,7 @@ utf' m t [] (_) = (t, m)
 utf' m t (i:is) (j:js) = case getCol' j of 
               [] -> utf' m t (i:is) js
               (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ [Mul i (recip(a))] ++ map (mulAdd' i) rs 
-                              in  utf' ((foldElimOpsFunc xs) m) (t ++ xs) is js
+                              in  utf' (foldElimOpsFunc xs m) (t ++ xs) is js
     where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
           mulAdd' i (j,b) = MulAdd i j (neg (b))
           filterZ (_,s) = s > 0.0001 || s < -0.0001

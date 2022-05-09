@@ -278,6 +278,9 @@ append m1 m2 = pack $ unpack m1 ++ unpack m2
 append' :: Matrix f m1 n -> Matrix f m2 n -> Matrix f (m1+m2) n
 append' m1 m2 = pack $ zipWith (++) (unpack m1) (unpack m2)
 
+appendV :: Matrix f m n -> Vector f m -> Matrix f m (n + 1)
+appendV m (V vs) = pack $ unpack m ++ [vs]
+
 -- | Converts a Matrix to a list of Vectors 
 matToList :: Matrix f m n -> [Vector f m]
 matToList = coerce

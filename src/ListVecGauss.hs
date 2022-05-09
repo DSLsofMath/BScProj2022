@@ -29,9 +29,9 @@ import Data.Function
 data ElimOp a = Swap Index Index 
               | Mul Index a 
               | MulAdd Index Index a
-              deriving (Eq)
+              deriving (Eq, Show)
 
-instance Show a => Show (ElimOp a) where show = showElimOp
+-- instance Show a => Show (ElimOp a) where show = showElimOp
 
 -- | Prettier show function for ElimOp a
 showElimOp :: Show a => ElimOp a -> String

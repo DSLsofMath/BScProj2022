@@ -16,7 +16,6 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span, elem
 import Algebra
 import ListVector
 import ListVecGauss
-import Eigen
 
 -- Mathematically, a subspace is a set and we would therefore like to represent a 
 -- given subspace as its own type -- in the same way we do with normal vector spaces.
@@ -103,9 +102,8 @@ data QuotientSpace v = Quot v (Subspace v) deriving (Show)
 
 -- | Returns the set of solutions to Ax=v
 solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix f m n -> Vector f m -> QuotientSpace (Vector f n)
-solveQ m v = Quot (particularSol $ m `append'` v) (nullSpace m)
-    where append' :: Matrix f m n -> Vector f m -> Matrix f m (n+1)
-          m `append'` v = m `append` M (V [v]) 
+solveQ m v = Quot (particularSol $ m `appendV` v) (nullSpace m)
+
 
 -- | Equivalent to solveQ but takes a matrix A `append` v representing Ax=v
 solveQ' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix f m (n+1)  -> QuotientSpace (Vector f n)
