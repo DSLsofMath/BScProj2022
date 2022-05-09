@@ -75,6 +75,10 @@ instance (Sized (ToNat4 n n), Ring f) => Mul (QuadM f n n) where
 
 instance (Eq f, AddGroup f, AddGroup (QuadM f m n)) => Eq (QuadM f m n) where
     q1 == q2 = let (QuadM q1', QuadM q2') = (purge q1, purge q2) in q1' == q2'
+
+instance (Sized (ToNat4 m n), Ring f) => VectorSpace (QuadM f m n) where
+    type Under (QuadM f m n) = f
+    s £ (QuadM q) = QuadM $ s £ q
     
 
 instance Matrix QuadM where 

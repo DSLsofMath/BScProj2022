@@ -57,6 +57,10 @@ instance (Ring f, f ~ f', n ~ n') => Composable (CSR f m n) (Vector f' n') (Vect
 instance (Ring f, f ~ f', b ~ b') => Composable (CSR f a b) (CSR f' b' c) (CSR f a c) where
     (**) = (cSRMM)
 
+instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (CSR f m n) where
+    type Under (CSR f m n) = f
+    s £ m = s `scaleCSR` m
+
 instance M.Matrix CSR where
 
     extend csr = tabulate' . merge' (values csr)

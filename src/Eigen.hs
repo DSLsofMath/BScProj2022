@@ -43,9 +43,9 @@ detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do
 -- | Uses Guassian elimination to compute the determinant
 --   This algorithm is only O(n^3)
 detGauss :: (Field f, Eq f) => Matrix f n n -> f
-detGauss m = let V diag = getDiagonal utfM in product diag / traceProduct
-    where trace = utfTrace m 
-          utfM = foldElemOpsFunc trace m
+detGauss m = let V diag = getDiagonal gaussM in product diag / traceProduct
+    where trace = gaussTrace m 
+          gaussM = foldElemOpsFunc trace m
           traceProduct = product [ s | Mul _ s <- trace ]
 
 
@@ -62,7 +62,7 @@ exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Ex
 
 
 -- Use newton to find the zeros of the characteristic equation = the eigen values
-newton :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> a
+newton :: (Field a, Num a, Ord a) => Exp -> a -> a -> a
 newton f eps x = if abs fx < eps then x
                               else if fx' /= 0 then newton f eps next
                                                        else  newton f eps (x+eps)
@@ -70,10 +70,10 @@ newton f eps x = if abs fx < eps then x
             fx' = evalExp' f x
             next = x - (fx/fx')
 
-newtonLast :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> a
+newtonLast :: (Field a, Num a, Ord a) => Exp -> a -> a -> a
 newtonLast f eps x = last (newtonList f eps x)
 
-newtonList :: (Field a, Num a, Eq a, Ord a) => Exp -> a -> a -> [a]
+newtonList :: (Field a, Num a, Ord a) => Exp -> a -> a -> [a]
 newtonList f eps x = x : if abs fx < eps then [ ]
                                   else if fx' /= 0 then newtonList f eps next
                                                            else newtonList f eps (x+eps)
@@ -81,38 +81,37 @@ newtonList f eps x = x : if abs fx < eps then [ ]
             fx' = evalExp' f x
             next = x - (fx/fx')
 
--- Todo, let user choose span
-roots :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => Exp -> [a]
-roots f = map (newton f 0.001) [0.0,0.5..2.0]
+roots :: (Field a, Num a, Ord a, Enum a, Fractional a) => Exp -> [a] -> [a]
+roots f as = map (newton f 0.001) as
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix Exp 2 2
 matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
 
 -- Using detNN, seems to get some error with detGauss, probably because of derive recip
-eigenM1 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
-eigenM1 = roots(detNN matrix1)
+eigenM1 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
+eigenM1 = roots(detNN matrix1) [0.0,0.5..2.0]
 
 -- Eigen values = -2, 2, 0
 matrix2 :: Matrix Exp 3 3
 matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2, neg one]] - X £ idm
 
-eigenM2 :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [a]
-eigenM2 = roots(detNN matrix2)
+eigenM2 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
+eigenM2 = roots(detNN matrix2) [0.0,0.5..2.0]
 
 
 -- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
 -- 
 
-evalCol :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [Exp] -> a -> [a]
+evalCol :: (Field a, Num a, Ord a, Enum a, Fractional a) => [Exp] -> a -> [a]
 evalCol [] _ = []
 evalCol (x:xs) val = [evalExp x val] ++ evalCol xs val
 
-evalColnRow :: (Field a, Num a, Eq a, Ord a, Enum a, Fractional a) => [[Exp]] -> a -> [[a]]
+evalColnRow :: (Field a, Num a, Ord a, Enum a, Fractional a) => [[Exp]] -> a -> [[a]]
 evalColnRow [] _       = []
 evalColnRow (x:xs) val = evalCol x val : evalColnRow xs val
 
-evalMat :: (Field f, Num f, Eq f, Ord f, Enum f, Fractional f) => Matrix Exp m n -> f -> Matrix f m n
+evalMat :: (Field f, Num f, Ord f, Enum f, Fractional f) => Matrix Exp m n -> f -> Matrix f m n
 evalMat m val = pack $ evalColnRow (unpack m) val
 
 {-
@@ -125,10 +124,10 @@ Gauss $ evalMat matrix 1 `append` zeroVec => Solution = eigenvector
 -}
 
 eigen05 :: Matrix Double 2 3
-eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0,0]] -- utf eigen05 => x = -y 
+eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0,0]] -- gauss eigen05 => x = -y 
 
 eigen1 :: Matrix Double 2 3
-eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- utf eigen1  => x = y
+eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- gauss eigen1  => x = y
 
 ----------------
 
@@ -155,12 +154,12 @@ pjFun x = detNN (pjM - scaleM x idm)
 
 
 -- | Idea for visualizing the answers of systems of equations as strings
---   Try running showSol on an row echelon form matrix (utf matrix)
+--   Try running showSol on an row echelon form matrix (gauss matrix)
 
 leadingZeros :: (Field f, Eq f, Num f) => [f] -> Int
 leadingZeros = length . takeWhile (== 0)
 
-showVariableValues :: (Field f, Eq f, Num f, Ord f, Show f) => [f] -> [String] -> String
+showVariableValues :: (Field f, Num f, Ord f, Show f) => [f] -> [String] -> String
 showVariableValues r var_names
   | not (null other_coefficients) = var_str ++ other_vars_str
   | otherwise = var_str
@@ -181,7 +180,7 @@ showVariableValues r var_names
 variables :: [String]
 variables = [ x ++ show(i) | x <- ["x"] , i <- [1..] ] -- ["x1", "x2", "x3" ...]
 
-showColnRow :: (Field f, Eq f, Num f, Ord f, Show f) => [[f]] -> [String] -> String
+showColnRow :: (Field f, Num f, Ord f, Show f) => [[f]] -> [String] -> String
 showColnRow [] _        = []
 showColnRow (x:xs) vars | skipRow == length x = showColnRow xs vars
                         | otherwise           = showVariableValues x vars ++ "\n" ++ showColnRow xs vars
@@ -189,10 +188,10 @@ showColnRow (x:xs) vars | skipRow == length x = showColnRow xs vars
         skipRow = leadingZeros x
 
 
--- showSol $ utf eigen1
--- showSOl $ utf eigen05
+-- showSol $ gauss eigen1
+-- showSOl $ gauss eigen05
 
-showSol :: (Field f, Eq f, Num f, Ord f, Show f, KnownNat m, KnownNat n) => Matrix f m n -> IO()
+showSol :: (Field f, Num f, Ord f, Show f, KnownNats m n) => Matrix f m n -> IO()
 showSol m = putStr $ showColnRow (unpack $ transpose m) vars
     where
         rows     = unpack $ transpose m
