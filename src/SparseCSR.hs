@@ -31,14 +31,6 @@ data CSR f (m :: Nat) (n :: Nat) = CSR { elems :: [f],
 
 deriving instance Show f => Show (CSR f m n)
 
-instance (Eq f, AddGroup f, AddGroup (CSR f m n)) => Eq (CSR f m n) where
-    m1 == m2 = and bs
-        where
-            (m1', m2') = (M.purge m1, M.purge m2)
-            bs = [
-                elems m1' == elems m2',
-                col m1' == col m2',
-                row m1' == row m2']
 
 instance forall m n f. (KnownNat n, AddGroup f) => AddGroup (CSR f m n) where
     (+) = cSRAdd
@@ -47,15 +39,8 @@ instance forall m n f. (KnownNat n, AddGroup f) => AddGroup (CSR f m n) where
     zero = CSR [] [] (replicate (size+1) 0) -- size from type 
         where size = fromInteger $ natVal (undefined :: undefined n)
 
-instance (KnownNat m, AddGroup f, Mul f) => Mul (CSR f m m) where
-    (*) = cSRMM
-    one = csrIdm
-
 instance (Ring f, f ~ f', n ~ n') => Composable (CSR f m n) (Vector f' n') (Vector f m) where
     (**) = (smV)
-
-instance (Ring f, f ~ f', b ~ b') => Composable (CSR f a b) (CSR f' b' c) (CSR f a c) where
-    (**) = (cSRMM)
 
 instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (CSR f m n) where
     type Under (CSR f m n) = f
@@ -74,12 +59,13 @@ instance M.Matrix CSR where
                         (col, elems) = unzip $ map (\((_,Fin i),a) -> (i - 1, a)) sorted
                         row = scanl (+) 0 (count sorted 1)
 
-                        
     values (CSR elems col row) = concat $ merge (zip col elems) perRow
         where perRow = zip [1..] $ zipWith (-) (tail row) row 
               merge _ [] = []
               merge xs ((i,n):ys) = let (cur, next) = splitAt n xs in
                     [ ((Fin i,Fin (j+1)), a) | (j,a) <- cur ] : merge next ys
+
+    mulMat = cSRMM
 
 -- | returns size of the sparse matrix
 csrSize :: (KnownNat m, KnownNat n) => CSR f m n -> (Int,Int)

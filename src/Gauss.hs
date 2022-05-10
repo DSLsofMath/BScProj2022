@@ -46,15 +46,15 @@ elimOpToMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) =>
                 ElimOp n f -> mat f n n
 elimOpToMat e = elimOpToFunc e identity
 
-swap :: (Matrix mat, AddGroup (mat f m n)) => 
+swap :: (Matrix mat, AddGroup f) => 
           Fin m -> Fin m -> mat f m n -> mat f m n
 swap i j m = setRow (setRow m i (getRow m j)) j (getRow m i) 
 
-mul :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+mul :: (Matrix mat, AddGroup f, Ring f) => 
         Fin m -> f -> mat f m n -> mat f m n
 mul i s m = setRow m i (s £ getRow m i) 
 
-mulAdd :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+mulAdd :: (Matrix mat, AddGroup f, Ring f) => 
             Fin m -> Fin m -> f -> mat f m n -> mat f m n
 mulAdd i j s m = setRow m j (s £ getRow m i + getRow m j)
 

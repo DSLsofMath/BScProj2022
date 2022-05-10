@@ -2,6 +2,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module Matrix where
 
@@ -94,16 +98,16 @@ instance (Ord i, Ring a) => VectorSpace [(i,a)] where
 --   As it is now we have to deal with some rather hefty type constraint, 
 --   see for example identity or pjMat
 --   
-class Matrix (mat :: * -> Nat -> Nat -> *) where
-    {-# MINIMAL (set | extend) , values #-}
+class (forall f m n. (KnownNats m n, AddGroup f) => AddGroup (mat f m n) ) => Matrix (mat :: * -> Nat -> Nat -> *) where
+    {-# MINIMAL (set | extend), values, mulMat#-}
 
     -- | Returns all values with corresponding index 
     values :: mat f m n -> [((Fin m, Fin n), f)]
 
     -- | Builds a matrix from a list of positions and values
     --   Initializes with the zero matrix
-    tabulate :: AddGroup (mat f m n) => [((Fin m, Fin n), f)] -> mat f m n
-    tabulate = extend zero 
+    tabulate :: (KnownNats m n, AddGroup f) => [((Fin m, Fin n), f)] -> mat f m n
+    tabulate = extend zero
 
     -- | Sets the value at a given position
     set :: mat f m n -> (Fin m, Fin n) -> f -> mat f m n 
@@ -113,8 +117,11 @@ class Matrix (mat :: * -> Nat -> Nat -> *) where
     extend :: mat f m n -> [((Fin m, Fin n), f)] -> mat f m n
     extend = foldl (\m (i, a) -> set m i a) 
 
+    mulMat :: (KnownNat a, Ring f) => mat f a b -> mat f b c -> mat f a c
+
+
 -- | Transforms keyvalue pairs into a matrix
-fromKeyValue :: (AddGroup (mat f m n), Matrix mat, KnownNats m n) => [(Int,Int,f)] -> mat f m n
+fromKeyValue :: (KnownNats m n, Matrix mat, AddGroup f) => [(Int,Int,f)] -> mat f m n
 fromKeyValue as = tabulate m 
     where m = [((fin a,fin b),f) | (a,b,f) <- as ]
 
@@ -136,54 +143,66 @@ getDiagonal :: Matrix mat => mat f n n -> [(Fin n, f)]
 getDiagonal m = [ (i, a) | ((i, j), a) <- values m, i == j ]
 
 -- | Sets a given row in a matrix into the given values
-setRow :: (Matrix mat, AddGroup (mat f m n)) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
+setRow :: (Matrix mat, AddGroup f) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
 setRow m i r = extend m [ ((i, j), a) | (j, a) <- r ]
 -- setRow m i r = tabulate $ new ++ old
 --     where old = filter ((i /=) . fst . fst) $ values m
 --           new = [ ((i, j), a) | (j, a) <- r ]
 
 -- | Appends two matrices, analogous to (++)
-append :: (KnownNat n1, Matrix mat, AddGroup (mat f m (n1 + n2)) ) => mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)
+append :: (KnownNats m (n1 + n2), KnownNat n1, Matrix mat, AddGroup f) => mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)
 append m1 m2 = tabulate $ m1' ++ m2'
     where m1' = [ ((i, Fin j),       a) | ((i, Fin j), a) <- values m1 ]
           m2' = [ ((i, Fin (n + j)), a) | ((i, Fin j), a) <- values m2 ]
           n = fromInteger (natVal m1)
 
-transpose :: (Matrix mat, AddGroup (mat f n m)) => mat f m n -> mat f n m
+transpose :: (KnownNats m n, Matrix mat, AddGroup f) => mat f m n -> mat f n m
 transpose = tabulate . map (\((i,j),a) -> ((j,i),a)) . values
 
 -- | Changes the underlying matrix type
 --   useful when converting from one representation to another
 --   changeRep (identity :: CSR R 5 5) :: Matrix R 5 5
-changeRep :: (Matrix mat1, Matrix mat2, AddGroup (mat2 f m n)) => mat1 f m n -> mat2 f m n
+changeRep :: (KnownNats m n, Matrix mat1, Matrix mat2, AddGroup f) => mat1 f m n -> mat2 f m n
 changeRep = tabulate . values
 
 -- | A general implementation of the identity matrix
-identity :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Mul f) => mat f n n
+identity :: (KnownNat n, Matrix mat, Ring f) => mat f n n
 identity = tabulate [ ((i,i), one) | i <- [minBound .. maxBound]]
 
+-- | A general implementation of the zero matrix
+zeroMat :: (KnownNats m n, Matrix mat, AddGroup f) => mat f m n
+zeroMat = tabulate []
 
 -- | Like values but also removes zeros
 purgeToList :: (Matrix mat, Eq f, AddGroup f) => mat f m n -> [((Fin m, Fin n), f)]
 purgeToList = (filter ((zero /=) . snd)) . values
 
 -- | Removes all zeroes from a matrix
-purge :: (Matrix mat, Eq f, AddGroup f, AddGroup (mat f m n)) => mat f m n -> mat f m n
+purge :: (KnownNats m n, Matrix mat, Eq f, AddGroup f) => mat f m n -> mat f m n
 purge = toSparse
 
 -- | Like changeRep but also removes zeros
-toSparse :: (Matrix mat1, Matrix mat2, Eq f, AddGroup f, AddGroup (mat2 f m n)) => mat1 f m n -> mat2 f m n
+toSparse :: (KnownNats m n, Matrix mat1, Matrix mat2, Eq f, AddGroup f) => mat1 f m n -> mat2 f m n
 toSparse = tabulate . purgeToList
 
 ----------------------------------------------------------------------------------------
 -- Instances of Matrix
 
- 
+instance (Matrix mat, AddGroup f, Eq f ) => Eq (mat f m n) where
+    m1 == m2 = purgeToList m1 == purgeToList m2
+
+instance (KnownNat a, Matrix mat, Ring f, mat ~ mat', f ~ f', b ~ b') => 
+            Composable (mat f a b) (mat' f' b' c) (mat f a c) where
+   (**) = (mulMat)
+
+instance (KnownNat n, Matrix mat, Ring f) => Mul (mat f n n) where
+    (*) = mulMat
+    one = identity
 
 --------------------------------------------------------------------------
 -- examples
 
-pjMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) => mat f n n
+pjMat :: (KnownNat n, Matrix mat, Ring f) => mat f n n
 pjMat = tabulate $ concat [ f i | i <- [minBound .. maxBound] ]
     where f i | i == minBound = tail $ stencil i
               | i == maxBound = init $ stencil i

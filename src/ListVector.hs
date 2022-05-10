@@ -126,7 +126,7 @@ eval (V fs) (L vs) = sum $ zipWith (£) fs vs
 
 -- | Matrix as a vector of vectors
 --   note that the outmost vector is not matimatically a vector 
-newtype Matrix f (m :: Nat) (n :: Nat) = M (Vector (Vector f m) n)  deriving (Eq)
+newtype Matrix f (m :: Nat) (n :: Nat) = M (Vector (Vector f m) n) 
 
 type MatR = Matrix Double
 
@@ -188,14 +188,16 @@ instance M.Matrix Matrix where
         where (as, V v:bs) = splitAt (j-1) vs
               (as', _:bs') = splitAt (i-1) v
 
-   -- extend listM = tabulate' . merge' (M.values listM)
-   --     where merge' as bs = map (\x -> last x : []) . groupBy ((==) `on` fst) $ sortOn fst (as ++ bs)
-   --           tabulate' xs = M $ V [V [ b| ((_, _), b) <- a] | a <- xs] 
+    -- extend listM = tabulate' . merge' (M.values listM)
+    --    where merge' as bs = map (\x -> last x : []) . groupBy ((==) `on` fst) $ sortOn fst (as ++ bs)
+    --          tabulate' xs = M $ V [V [ b| ((_, _), b) <- a] | a <- xs] 
 
 
     -- TODO: Not sure how we should handle zeros since we do not want a Eq constraint in the class
     values (M (V vs)) = [ ((Fin i, Fin j), a) | (j, V v) <- zip [1..] vs
                                               , (i, a)   <- zip [1..] v ]
+
+    mulMat = (£££)
 
 -- Composition on matrices
 -- Note that we write n ~ n' instead of writing n on both places. 
@@ -204,13 +206,6 @@ instance M.Matrix Matrix where
 instance (KnownNat m, Ring f, f ~ f', n ~ n') => Composable (Matrix f m n) (Vector f' n') (Vector f m) where
     (**) = (££)
 
-instance (KnownNat a, Ring f, f ~ f', b ~ b', mat ~ Matrix) => Composable (Matrix f a b) (mat f' b' c) (Matrix f a c) where
-    (**) = (£££)
-
--- | Square matrices form a multiplicative group
-instance (KnownNat n, Ring f) => Mul (Matrix f n n) where
-    (*) = (£££)
-    one = idm
 
 -- | Converts objects to and from Matrices.
 --   PROPOSAL: Should we get rid of this class and simply define functions instead?
@@ -219,7 +214,7 @@ class ToMat m n x where
     toMat   :: x -> Matrix (Under' x) m n
     fromMat :: Matrix (Under' x) m n -> x
 
-instance (M.Matrix mat, m ~ m', n ~ n', AddGroup (mat f m n), AddGroup (Matrix f m n)) => ToMat m' n' (mat f m n) where
+instance (KnownNats m n, M.Matrix mat, m ~ m', n ~ n', AddGroup f) => ToMat m' n' (mat f m n) where
     type Under' (mat f m n) = f
     toMat = M.changeRep
     fromMat = M.changeRep

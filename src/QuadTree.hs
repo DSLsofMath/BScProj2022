@@ -37,6 +37,10 @@ type family ToNat (n :: Nat4) :: Nat where
      ToNat One = 1
      ToNat (Suc n)  = ToNat n + ToNat n
 
+type family Max' (m :: Nat4) (n :: Nat4) where
+            Max' One     n       = n
+            Max' m       One     = m
+            Max' (Suc m) (Suc n) = Suc (Max' m n)
 
 
 type family ToNat4 (m :: Nat) (n :: Nat) :: Nat4 where
@@ -53,28 +57,23 @@ type family Max (m :: Nat) (n :: Nat) :: Nat where
             Max m n = If ( m <=? n ) n m
 
 
+-- The guaranteed max size of a QuadM
+type QuadMSize = ToNat4' 20000 
 
 -- | A wrapper for Quad, needed for Matrix instance
-data QuadM f (m :: Nat) (n :: Nat) = Sized (ToNat4 m n) => QuadM (Quad (ToNat4 m n) f)
+data QuadM f (m :: Nat) (n :: Nat) = QuadM (Quad QuadMSize f)
 
-instance (AddGroup (L.Matrix f m n), Show (L.Matrix f m n)) => Show (QuadM f m n) where
+instance (KnownNats m n, AddGroup f, Show f) => Show (QuadM f m n) where
     show = show . toMat
         where toMat :: QuadM f m n -> L.Matrix f m n
               toMat = changeRep
     
 
 
-instance (Sized (ToNat4 m n), AddGroup f) => AddGroup (QuadM f m n) where
+instance AddGroup f => AddGroup (QuadM f m n) where
     QuadM m1 + QuadM m2 = QuadM (m1 + m2)
     QuadM m1 - QuadM m2 = QuadM (m1 - m2)
     zero = QuadM zero
-
-instance (Sized (ToNat4 n n), Ring f) => Mul (QuadM f n n) where
-    (*) = mulQM
-    one = QuadM idQ
-
-instance (Eq f, AddGroup f, AddGroup (QuadM f m n)) => Eq (QuadM f m n) where
-    q1 == q2 = let (QuadM q1', QuadM q2') = (purge q1, purge q2) in q1' == q2'
 
 instance (Sized (ToNat4 m n), Ring f) => VectorSpace (QuadM f m n) where
     type Under (QuadM f m n) = f
@@ -83,12 +82,14 @@ instance (Sized (ToNat4 m n), Ring f) => VectorSpace (QuadM f m n) where
 
 instance Matrix QuadM where 
     -- get (QuadM q) (Fin i, Fin j) = getQ q (i-1, j-1)
-
+    
     values (QuadM q) = map toFin $ valuesQ q 
         where toFin ((i,j),a) = ((Fin (i+1), Fin (j+1)), a)
 
     extend (QuadM m) xs = QuadM $ setMultipleQ m (map removeFin xs)
         where removeFin ((Fin i, Fin j), a) = ((i-1, j-1), a) 
+
+    mulMat = mulQM
 
 -- | A matrix representation based on QuadTrees
 --   Represents a matrix of size n*n where n = 2^Nat4
@@ -230,15 +231,18 @@ x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+)
           zipQuad :: (Quad n a -> Quad n a -> Quad n a) -> Quad (Suc n) a -> Quad (Suc n) a -> Quad (Suc n) a
           zipQuad (*) (Mtx a b c d) (Mtx e f g h) = Mtx (a*e) (b*f) (c*g) (d*h)
 
-mulQM :: (Ring f, ToNat4 m n ~ ToNat4 n c, ToNat4 m c ~ ToNat4 n c) => QuadM f m n -> QuadM f n c -> QuadM f m c
-mulQM (QuadM q1) (QuadM q2) = QuadM $ mulQ q1 q2
+mulQ' :: Ring a => Quad n a -> Quad m a -> Quad (Max' m n) a
+mulQ' a b = Zero
+
+mulQM ::  Ring f => QuadM f m n -> QuadM f n c -> QuadM f m c
+mulQM (QuadM q1) (QuadM q2) =  QuadM $ mulQ q1 q2
+
+
 
 instance (Sized n, Ring a) => Mul (Quad n a) where
     (*) = mulQ
     one = idQ
 
-instance (Ring f, f ~ f', b ~ b', ToNat4 a b ~ ToNat4 b' c, ToNat4 b' c ~ ToNat4 a c) => Composable (QuadM f a b) (QuadM f' b' c) (QuadM f a c) where
-   (**) = (mulQM)
 
 -- | Transposes a Quad matrix
 transposeQ :: Quad n a -> Quad n a
