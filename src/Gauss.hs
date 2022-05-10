@@ -59,39 +59,39 @@ mulAdd :: (Matrix mat, AddGroup f, Ring f) =>
 mulAdd i j s m = setRow m j (s £ getRow m i + getRow m j)
 
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+elimOpToFunc :: (Matrix mat, Ring f) => 
                   ElimOp m f -> (mat f m n -> mat f m n)
 elimOpToFunc e m = case e of Swap   i j   -> swap i j m
                              Mul    i   s -> mul i s m
                              MulAdd i j s -> mulAdd i j s m
 
 -- | Reduces a trace of elimOps to a single function
-foldElimOpsFunc :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+foldElimOpsFunc :: (Matrix mat, Ring f) => 
                     [ElimOp m f] -> (mat f m n -> mat f m n)
 foldElimOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
 -- | Transforms a given matrix into row echelon form
-gauss :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) =>
+gauss :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) =>
            mat f m n -> mat f m n
 gauss m = snd $ gauss' m [] [minBound .. maxBound] [minBound .. maxBound] 
 
 -- | Returns the required row operations to 
 -- transform a given matrix into row echelon form
-gaussTrace :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) =>
+gaussTrace :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) =>
                mat f m n -> [ElimOp m f]
 gaussTrace m = fst $ gauss' m [] [minBound .. maxBound] [minBound .. maxBound] 
 
 
-gauss' :: (Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) => 
+gauss' :: (Matrix mat, Field f, Ord f, Fractional f) => 
             mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
-gauss' m t (_) [] = (t, m)
-gauss' m t [] (_) = (t, m)
+gauss' m t _      []     = (t, m)
+gauss' m t []     _      = (t, m)
 gauss' m t (i:is) (j:js) = case getCol' j of 
-              [] -> gauss' m t (i:is) js
-              (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ [Mul i (recip(a))] ++ map (mulAdd' i) rs 
+              []           -> gauss' m t (i:is) js
+              (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ [Mul i (recip a)] ++ map mulAdd' rs 
                               in  gauss' (foldElimOpsFunc xs m) (t ++ xs) is js
     where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
-          mulAdd' i (j,b) = MulAdd i j (neg (b))
+          mulAdd' (j,b) = MulAdd i j (neg (b))
           filterZ (_,s) = s > 0.0001 || s < -0.0001
 
 

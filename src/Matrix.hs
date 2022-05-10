@@ -81,23 +81,6 @@ instance (Ord i, Ring a) => VectorSpace [(i,a)] where
 --   However we make some changes to better suite sparse matrices,
 --   most notably we only allow implementations for two dimensions.
 --   
---
---   When implementing an instance, the only functions that are needed are set and values.
---   Although, performance may greatly increase with a custom tabulate implementation.
---   
---   TODO/Notes: To use tabulate we currently need a AddGroup constraint
---   since we need a zero representation. This is bit awkward since it carries
---   over to seemingly unrelated functions, like transpose and changeRep.
---   It would be nice if the zero state was part of the Matrix class directly.
---   But it is unclear how one would do that in a reasonable way. 
---
---   Another related annoyance is that AddGroup (mat f m n)
---   does not imply AddGroup f, or vice verse. 
---   It would be nice, and it seams plausible, to have at least 
---   VectorSpace (mat f m n) => Ring f
---   As it is now we have to deal with some rather hefty type constraint, 
---   see for example identity or pjMat
---   
 class (forall f m n. (KnownNats m n, AddGroup f) => AddGroup (mat f m n) ) => Matrix (mat :: * -> Nat -> Nat -> *) where
     {-# MINIMAL (set | extend), values, mulMat#-}
 
@@ -117,13 +100,14 @@ class (forall f m n. (KnownNats m n, AddGroup f) => AddGroup (mat f m n) ) => Ma
     extend :: mat f m n -> [((Fin m, Fin n), f)] -> mat f m n
     extend = foldl (\m (i, a) -> set m i a) 
 
+    -- | Matrix multiplication is needed in the class to 
+    --   define Composable for matrices in a nice way.
     mulMat :: (KnownNat a, Ring f) => mat f a b -> mat f b c -> mat f a c
 
 
 -- | Transforms keyvalue pairs into a matrix
 fromKeyValue :: (KnownNats m n, Matrix mat, AddGroup f) => [(Int,Int,f)] -> mat f m n
-fromKeyValue as = tabulate m 
-    where m = [((fin a,fin b),f) | (a,b,f) <- as ]
+fromKeyValue as = tabulate [ ((fin a,fin b),f) | (a,b,f) <- as ]
 
 -- | Indexes into a matrix and gets a value
 get :: (Matrix mat, AddGroup f) => mat f m n -> (Fin m, Fin n) -> f
@@ -162,8 +146,11 @@ transpose = tabulate . map (\((i,j),a) -> ((j,i),a)) . values
 -- | Changes the underlying matrix type
 --   useful when converting from one representation to another
 --   changeRep (identity :: CSR R 5 5) :: Matrix R 5 5
-changeRep :: (KnownNats m n, Matrix mat1, Matrix mat2, AddGroup f) => mat1 f m n -> mat2 f m n
+changeRep :: (Matrix mat2, KnownNats m n, Matrix mat1, AddGroup f) => mat1 f m n -> mat2 f m n
 changeRep = tabulate . values
+
+changeUnder :: (AddGroup f2, KnownNats m n, Matrix mat) => (f1 -> f2) -> mat f1 m n -> mat f2 m n
+changeUnder f = tabulate . map (\(i,a) -> (i, f a)) . values
 
 -- | A general implementation of the identity matrix
 identity :: (KnownNat n, Matrix mat, Ring f) => mat f n n
@@ -182,7 +169,7 @@ purge :: (KnownNats m n, Matrix mat, Eq f, AddGroup f) => mat f m n -> mat f m n
 purge = toSparse
 
 -- | Like changeRep but also removes zeros
-toSparse :: (KnownNats m n, Matrix mat1, Matrix mat2, Eq f, AddGroup f) => mat1 f m n -> mat2 f m n
+toSparse :: (Matrix mat2, KnownNats m n, Matrix mat1, Eq f, AddGroup f) => mat1 f m n -> mat2 f m n
 toSparse = tabulate . purgeToList
 
 ----------------------------------------------------------------------------------------
@@ -193,7 +180,7 @@ instance (Matrix mat, AddGroup f, Eq f ) => Eq (mat f m n) where
 
 instance (KnownNat a, Matrix mat, Ring f, mat ~ mat', f ~ f', b ~ b') => 
             Composable (mat f a b) (mat' f' b' c) (mat f a c) where
-   (**) = (mulMat)
+    (**) = mulMat
 
 instance (KnownNat n, Matrix mat, Ring f) => Mul (mat f n n) where
     (*) = mulMat

@@ -23,6 +23,7 @@ import qualified SparseCSR as C
 import ListVector (Vector, type (^), vec, dot, cross, Matrix, ToMat (..))
 import qualified ListVector as L
 import ListVecGauss (particularSol)
+import qualified ListVecGauss as LG
 
 import Prelude hiding ((+), (-), (*), (/), (^), (**), sum, product, recip, fromRational, span, elem)
 import qualified Prelude as P
