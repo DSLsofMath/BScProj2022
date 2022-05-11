@@ -11,7 +11,7 @@ module Main where
 
 import GHC.TypeLits hiding (type (^))
 import qualified Prelude
-import Prelude hiding ((+), (-), (/), recip, sum, product, (**), span)
+import Prelude hiding ((+),(*), (-), (/), recip, sum, product, (**), span)
 
 import Algebra
 import ListVector
@@ -97,7 +97,7 @@ prop_matMatmul2 m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3
 -- Test on determinant
 
 prop_detHomomorphism :: (KnownNat a, Field f, Mul f, Eq f) => Matrix f a a -> Matrix f a a -> Bool
-prop_detHomomorphism m1 m2 = detNN(m1 £££ m2) == detNN(m1) Algebra.* detNN(m2) 
+prop_detHomomorphism m1 m2 = detNN(m1 £££ m2) == detNN(m1) * detNN(m2) 
 
 -- ElimOp and determinant
 
