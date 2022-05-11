@@ -236,12 +236,24 @@ bigBoi = CSR {
     col = [0,1..9999],
     row = [0,1..10000]}
 
+
 -- Large
-denseCSR :: CSR Double 500 500
-denseCSR = CSR {
+denseCSR5 :: CSR Double 5 5
+denseCSR5 = CSR {
+    elems = [1..25],
+    col = concat $ replicate 5 [0..4],
+    row = [0,5..5*5]}
+
+-- Large
+denseCSR500 :: CSR Double 500 500
+denseCSR500 = CSR {
     elems = [1..500*500],
-    col = [0,1..(500*500 - 1)],
+    col = concat $ replicate 500 [0..499],
     row = [0,500..500*500]}
+
+repeatList :: Int -> [Int] -> [Int]
+repeatList i [a] = replicate i a
+repeatList i (a:as) = replicate i a ++ repeatList i as 
 
 -- Large in one row
 bigBoi2 :: CSR Double 10000 10000

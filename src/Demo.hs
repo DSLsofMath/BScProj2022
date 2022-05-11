@@ -93,16 +93,15 @@ testC5001 = M.identity :: CSR Double 500 500
 testQ51 =  M.identity :: QuadM Double 5 5
 testQ5001 = M.identity :: QuadM Double 500 500
 
---Less sparse matrixes, tridiagonal matrix
+--dense sparse matrixes, tridiagonal matrix
 
-testM5 = M.pjMat :: Matrix Double 5 5
-testM500 = M.pjMat :: Matrix Double 500 500
+testC5 = denseCSR5
+testC500 = denseCSR500
 
-testC5 = M.pjMat :: CSR Double 5 5
-testC500 = M.pjMat :: CSR Double 500 500
+-- to slow, takes long time constructing
 
-testQ5 =  M.pjMat :: QuadM Double 5 5
-testQ500 =  M.pjMat :: QuadM Double 500 500
+testQ5 =  M.toSparse testC5 :: QuadM Double 5 5
+testQ500 =  M.toSparse testC500 :: QuadM Double 500 500
 
 -- Performance test functions
 -- Designed to avoid GHCi prints when running m + m,
@@ -193,8 +192,8 @@ augmentedM :: MatR 3 4
 augmentedM = aM `append` bM
 
 
-solvedSystem :: MatR 3 1
-solvedSystem = toMat [solvesys augmentedM]
+--solvedSystem :: MatR 3 1
+--solvedSystem = toMat [solvesys augmentedM]
 {- 
 -- A matrix
 aM :: Matrix Double 3 3
@@ -213,4 +212,4 @@ trMiM = utf augM
 -}
 
 main :: IO()
-main = putStrLn $ show solvedSystem
+main = putStrLn "" -- $ show solvedSystem
