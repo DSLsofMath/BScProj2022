@@ -15,6 +15,7 @@ import Prelude hiding ((+), (-), (/), recip, sum, product, (**), span)
 
 import Algebra
 import ListVector
+import Eigen
 import HiddenNat
 
 import Test.QuickCheck
@@ -95,8 +96,8 @@ prop_matMatmul2 m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3
 
 -- Test on determinant
 
-prop_detHomomorphism :: (KnownNat a, Field f,Eq f) => Matrix f a a -> Matrix f a a -> Bool
-prop_detHomomorphism m1 m2 = detNN(m1 £££ m2) == detNN(m1) * detNN(m2) 
+prop_detHomomorphism :: (KnownNat a, Field f, Mul f, Eq f) => Matrix f a a -> Matrix f a a -> Bool
+prop_detHomomorphism m1 m2 = detNN(m1 £££ m2) == detNN(m1) Algebra.* detNN(m2) 
 
 -- ElimOp and determinant
 
@@ -112,8 +113,8 @@ prop_detHomomorphism m1 m2 = detNN(m1 £££ m2) == detNN(m1) * detNN(m2)
 prop_transpose :: Eq f => Matrix f m n -> Bool
 prop_transpose m = transpose (transpose m) == m
 
-prop_onUnpackedTrans :: Eq f => Matrix f m n -> Bool
-prop_onUnpackedTrans m = onUnpackedTrans id m == m
+--prop_onUnpackedTrans :: Eq f => Matrix f m n -> Bool
+--prop_onUnpackedTrans m = onUnpackedTrans id m == m
 
 prop_funMatComp :: (KnownNat b, KnownNat a, Field f, Eq f) => 
     (Vector f b -> Vector f a) -> Matrix f b c -> Vector f c -> Bool
