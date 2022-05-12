@@ -78,34 +78,42 @@ orth = dot v2 (cross v2 v3) == dot v3 (cross v2 v3)
                             && dot v2 (cross v2 v3) == 0
 
 
+-- creates keyvaluepairs for a maximum density matrix
+-- for the given size
+
+keyvalueDense n = M.tabulate [ ((i,j),1) | i <- [1..n], j <- [1..n]]
+
 --Functions and example matrixes for performance tests.
 
 -- use :set +s and :set +r when running tests
 
 --Sparse matrixes, identity matrix
 
-testM51 = M.identity :: Matrix Double 5 5
-testM5001 = M.identity :: Matrix Double 500 500
+testSM5 = M.identity :: Matrix Double 5 5
+testSM500 = M.identity :: Matrix Double 500 500
 
-testC51 = M.identity :: CSR Double 5 5
-testC5001 = M.identity :: CSR Double 500 500
+testSC5 = M.identity :: CSR Double 5 5
+testSC500 = M.identity :: CSR Double 500 500
 
-testQ51 =  M.identity :: QuadM Double 5 5
-testQ5001 = M.identity :: QuadM Double 500 500
+testSQ5 =  M.identity :: QuadM Double 5 5
+testSQ500 = M.identity :: QuadM Double 500 500
 
---dense sparse matrixes, tridiagonal matrix
+--dense sparse matrices
 
-testC5 = denseCSR5
-testC500 = denseCSR500
+testM5 =  keyvalueDense 5 :: Matrix Double 5 5
+testC5 =  keyvalueDense 5 :: CSR Double 5 5
+testQ5 =  keyvalueDense 5 :: QuadM Double 5 5
 
--- to slow, takes long time constructing
+m500 = toMat $ replicate 500 [1..500] :: Matrix Double 500 500
 
-testQ5 =  M.toSparse testC5 :: QuadM Double 5 5
-testQ500 =  M.toSparse testC500 :: QuadM Double 500 500
+testM500 =  let q = keyvalueDense 500 in q :: Matrix Double 500 500
+testC500 =  keyvalueDense 500 :: CSR Double 500 500
+testQ500 =  let q = keyvalueDense 500 in q :: QuadM Double 500 500
+
 
 -- Performance test functions
 -- Designed to avoid GHCi prints when running m + m,
--- will add the equal time to solution which could be
+-- will add the equality time to solution which could be
 -- deducted manually or ignored as it still gives a 
 -- general idea of which is fast. 
 
@@ -121,8 +129,8 @@ performmultest m = a == a
 
 -- note, add mulgroup for QuadM
 
-testquadperf = a == a
-    where a = testQ5001 ** testQ5001 
+testquadperf m = a == a
+    where a = m ** m 
 
 -- test transpose
 m1 :: Matrix Double 3 3
