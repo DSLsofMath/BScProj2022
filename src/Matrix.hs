@@ -175,6 +175,11 @@ purge = toSparse
 toSparse :: (Matrix mat1, Matrix mat2, Eq f, AddGroup f, AddGroup (mat2 f m n)) => mat1 f m n -> mat2 f m n
 toSparse = tabulate . purgeToList
 
+
+toConst :: (KnownNats m n, Matrix mat, AddGroup (mat Exp m n)) => mat R m n -> mat Exp m n
+toConst = tabulate . map (\(i,a) -> (i, Const a)) . values
+
+
 ----------------------------------------------------------------------------------------
 -- Instances of Matrix
 

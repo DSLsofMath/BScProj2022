@@ -23,14 +23,15 @@ data ElimOp n a = Swap (Fin n) (Fin n)
                 | MulAdd (Fin n) (Fin n) a
               deriving (Eq)
 
-instance Show a => Show (ElimOp n a) where show = showElimOp
+instance Show a => Show (ElimOp n a) where 
+    show = showElimOp
 
 -- | Prettier show function for ElimOp a
 showElimOp :: Show a => ElimOp n a -> String
 showElimOp op = concat $ case op of 
-        Swap    (Fin i) (Fin j)   -> [         row i,              " <-> ", row j ]
-        Mul     (Fin i)         s -> [ show s, row i,               " -> ", row i ]
-        MulAdd  (Fin i) (Fin j) s -> [ show s, row i, " + ", row j, " -> ", row j ]
+        Swap    (Fin i) (Fin j)   -> [ " ",              row i,              " <-> ", row j ]
+        Mul     (Fin i)         s -> [ " ", show s, "*", row i,              " -> ", row i ]
+        MulAdd  (Fin i) (Fin j) s -> [ " ", show s, "*", row i, " + ", row j, " -> ", row j ]
     where row i = "R(" ++ show i ++ ")"
 
 

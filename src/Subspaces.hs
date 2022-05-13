@@ -98,6 +98,11 @@ range :: (Eq f, Field f) => Matrix f m n -> Subspace (Vector f m)
 range = Sub . makeLinIndep . matToList
 
 
+-- | The dimension of a Subspace
+dim :: Subspace v -> Int
+dim (Sub vs) = length vs
+
+
           
 -- | A quotient space is a subspace translated by a vector
 data QuotientSpace v = Quot v (Subspace v) deriving (Show)
