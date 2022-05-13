@@ -96,7 +96,7 @@ prop_matMatmul2 m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3
 
 -- Test on determinant
 
-prop_detHomomorphism :: (KnownNat a, Field f, Mul f, Eq f) => Matrix f a a -> Matrix f a a -> Bool
+prop_detHomomorphism :: (KnownNat n, Field f, Eq f) => Matrix f n n -> Matrix f n n -> Bool
 prop_detHomomorphism m1 m2 = detNN(m1 £££ m2) == detNN(m1) * detNN(m2) 
 
 -- ElimOp and determinant
