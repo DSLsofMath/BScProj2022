@@ -26,7 +26,7 @@ import QuadTree (QuadM)
 import qualified QuadTree as Q
 import SparseCSR (CSR)
 import qualified SparseCSR as C
-import ListVector (Vector, type (^), vec, dot, cross, Matrix, ToMat (..))
+import ListVector (Vector, type (^), vec, dot, cross, Matrix, ToMat (..), toMatT)
 import qualified ListVector as L
 import ListVecGauss (particularSol)
 
