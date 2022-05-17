@@ -52,20 +52,18 @@ instance forall m n f. (KnownNat m, KnownNat n, Arbitrary f) =>
 -- tests that addition is associative for R^5
 --
 
--- | Tests vector addition properties for a given vector lenght
-
+--  Tests vector addition properties for a given vector lenght
 prop_vectorAddZero :: KnownNat n => Vector R n -> Bool
 prop_vectorAddZero v = v + zero == v
 
 prop_vectorAddComm :: KnownNat n => Vector R n -> Vector R n -> Bool
 prop_vectorAddComm v1 v2 = v1 + v2 == v2 + v1
 
-prop_vectorAddAssoc :: KnownNat n => Vector R n -> 
-                        Vector R n -> Vector R n -> Bool
+prop_vectorAddAssoc :: KnownNat n => Vector Rational n -> 
+                        Vector Rational n -> Vector Rational n -> Bool
 prop_vectorAddAssoc v1 v2 v3 = (v1 + v2) + v3 == v1 + (v2 + v3)
 
 -- | Tests cross product properties for a given vector lenght
-
 prop_crossDot :: Vector Rational 3 -> Vector Rational 3 -> Bool
 prop_crossDot v1 v2 = dot v1 (cross v1 v2) == dot v2 (cross v1 v2)
                             && dot v1 (cross v1 v2) == 0
@@ -73,25 +71,19 @@ prop_crossDot v1 v2 = dot v1 (cross v1 v2) == dot v2 (cross v1 v2)
 prop_crossProduct :: Vector Rational 3 -> Vector Rational 3 -> Bool
 prop_crossProduct v1 v2 = cross v1 v2 == neg (cross v2 v1)                            
 
--- | Tests vector dot product properties for a given vector lenght
-
+--  Tests vector dot product properties for a given vector lenght
 prop_dotProduct :: KnownNat n => Vector R n -> Vector R n -> Bool
 prop_dotProduct v1 v2 = dot v1 v2 == dot v2 v1
 
--- | Tests matrix multipliciation properties
--- | for a given matrix/vector lenght
-
-prop_matVecmul :: (KnownNat m, Field f,Eq f) =>
-                    Matrix f m n -> Vector f n -> Bool
-prop_matVecmul m v = (m ££ v) == (m ££ v)
-
-prop_matMatmul :: (KnownNat a, KnownNat b, Field f,Eq f) =>
+--  Tests matrix multipliciation properties
+--  for a given matrix/vector lenght
+prop_matMatmulIdm :: (KnownNat a, KnownNat b, Field f,Eq f) =>
                     Matrix f a b -> Bool
-prop_matMatmul m1 = m1 £££ idm == idm £££ m1 && m1 £££ idm == m1
+prop_matMatmulIdm m1 = m1 £££ idm == idm £££ m1 && m1 £££ idm == m1
 
-prop_matMatmul2 :: (KnownNat a,KnownNat b, KnownNat c, Field f,Eq f) =>
+prop_matMatmulAssoc :: (KnownNat a,KnownNat b, KnownNat c, Field f,Eq f) =>
                     Matrix f a b -> Matrix f b c -> Matrix f c d -> Bool
-prop_matMatmul2 m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3 
+prop_matMatmulAssoc m1 m2 m3 = m1 £££ (m2 £££ m3) == (m1 £££ m2) £££ m3 
 
 
 -- Test on determinant
