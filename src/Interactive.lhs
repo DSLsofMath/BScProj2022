@@ -26,7 +26,7 @@ import QuadTree (QuadM)
 import qualified QuadTree as Q
 import SparseCSR (CSR)
 import qualified SparseCSR as C
-import ListVector (Vector, type (^), vec, dot, cross, Matrix, ToMat (..), toMatT)
+import ListVector (Vector, type (^), vec, dot, cross, Matrix, ToMat (..), toMatT, append', appendV)
 import qualified ListVector as L
 import ListVecGauss (particularSol)
 
@@ -174,8 +174,12 @@ m4 = fromKeyValue [(1,1,1),(1,2,2),(1,3,3),(1,4,4),
     Returns a list of elements and positions corresponding to a row
 \item \textbf{getCol :: mat f m n $\to$ Fin n $\to$ [(Fin m, f)]}\\
     Returns a list of elements and positions corresponding to a column
+\item \textbf{size :: mat f m n $\to$ (Int, Int)}\\
+    Returns the size of a matrix in the form of (#rows, #columns)
 \item \textbf{append :: mat f m n1 $\to$ mat f m n2 $\to$ mat f m (n1 + n2)}\\
     Appends two matrices, analogous to (++)
+\item \textbf{append' :: mat f m1 n $\to$ mat f m2 n $\to$ mat f (m1 + m2) n}\\
+    Like appends but places the second matrix under the first
 \item \textbf{set :: mat f m n $\to$ (Fin m, Fin n) $\to$ f $\to$ mat f m n }\\
     Sets the value at a given position
 \item \textbf{setRow :: mat f m n $\to$ Fin m $\to$ [(Fin n, f)] $\to$ mat f m n}\\
@@ -221,6 +225,8 @@ m7 = toSparse m1
     dotproduct of two vectors
 \item \textbf{cross :: Vector f 3 $\to$ Vector f 3 $\to$ Vector f 3}\\
     crossproduct of two vectors
+\item \textbf{appendV :: Matrix f m n $\to$ Vector f m $\to$ Matrix f m (n+1)}\\
+    Appends a vector to the right of a matrix
 \item \textbf{gauss :: mat f m n $\to$ mat f m n}\\
     Transforms a given matrix into row echelon form
 \item \textbf{gaussTrace :: mat f m n $\to$ [ElimOp m f]}\\
@@ -235,7 +241,7 @@ m7 = toSparse m1
 \item \textbf{solveQ :: Matrix f m n $\to$ Vector f m $\to$ QuotientSpace (Vector f n)}\\
     Returns the set of solutions to Ax=v
 \item \textbf{solveQ' :: Matrix f m (n+1)  $\to$ QuotientSpace (Vector f n)}\\
-    Equivalent to solveQ but takes a matrix A `append` v representing Ax=v
+    Equivalent to solveQ but takes a matrix A `appendV` v representing Ax=v
 \item \textbf{elimOpToMat :: ElimOp n f $\to$ mat f n n}\\
     Representation of an elementary row operation as a matrix 
 \item \textbf{elimOpToFunc :: ElimOp m f $\to$ (mat f m n $\to$ mat f m n)}\\

@@ -28,6 +28,7 @@ fin i = finite
 instance KnownNat n => Show (Fin n) where
     show n = show (finToInt n) ++ " of " ++ show (natVal n)
 
+-- | Num (Fin n) is only used to get fromInteger
 instance KnownNat n => Num (Fin n) where
     fromInteger = fin . fromInteger
     (+) = undefined
@@ -35,6 +36,7 @@ instance KnownNat n => Num (Fin n) where
     abs = undefined 
     signum = undefined 
     negate = undefined
+
 -- Enum and Bounded allows for list sequencing 
 -- i.e. [Fin 2 .. maxBound]
 instance KnownNat n => Enum (Fin n) where
@@ -142,12 +144,27 @@ setRow m i r = extend m [ ((i, j), a) | (j, a) <- r ]
 --     where old = filter ((i /=) . fst . fst) $ values m
 --           new = [ ((i, j), a) | (j, a) <- r ]
 
+-- | Returns the size of a matrix in the form of (#rows, #columns)
+size :: forall m n mat f. KnownNats m n => mat f m n -> (Int, Int) 
+size _ = (m, n)
+    where m = fromInteger $ natVal (undefined :: undefined m)
+          n = fromInteger $ natVal (undefined :: undefined n)
+
 -- | Appends two matrices, analogous to (++)
-append :: (KnownNat n1, Matrix mat, AddGroup (mat f m (n1 + n2)) ) => mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)
+append :: (KnownNats m n1, Matrix mat, AddGroup (mat f m (n1 + n2)) ) => 
+                            mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)
 append m1 m2 = tabulate $ m1' ++ m2'
     where m1' = [ ((i, Fin j),       a) | ((i, Fin j), a) <- values m1 ]
           m2' = [ ((i, Fin (n + j)), a) | ((i, Fin j), a) <- values m2 ]
-          n = fromInteger (natVal m1)
+          (_,n) = size m1
+
+-- | Like appends but places the second matrix under the first 
+append' :: (KnownNats m1 n, Matrix mat, AddGroup (mat f (m1 + m2) n )) => 
+                            mat f m1 n -> mat f m2 n -> mat f (m1 + m2) n
+append' m1 m2 = tabulate $ m1' ++ m2'
+    where m1' = [ ((Fin  i,      j), a) | ((Fin i, j), a) <- values m1 ]
+          m2' = [ ((Fin (n + i), j), a) | ((Fin i, j), a) <- values m2 ]
+          (n,_) = size m1
 
 transpose :: (Matrix mat, AddGroup (mat f n m)) => mat f m n -> mat f n m
 transpose = tabulate . map (\((i,j),a) -> ((j,i),a)) . values
@@ -195,4 +212,9 @@ pjMat = tabulate $ concat [ f i | i <- [minBound .. maxBound] ]
               | otherwise     =        stencil i
           stencil i = [ ((pred i, i), one), ((i,i), neg (one+one)), ((succ i, i), one) ]
 
+-- | Represents derivation on polynomials
+deriveMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) => mat f n n
+deriveMat = tabulate $ inc one [ (i, succ i) | i <- init [minBound .. maxBound] ]
+    where inc _ []     = []
+          inc v (i:is) = (i, v) : inc (v + one) is
 
