@@ -112,7 +112,7 @@ solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix f m n -> Vector 
 solveQ m v = Quot (particularSol $ m `appendV` v) (nullSpace m)
 
 
--- | Equivalent to solveQ but takes a matrix A `append` v representing Ax=v
+-- | Equivalent to solveQ but takes a matrix A `appendV` v representing Ax=v
 solveQ' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix f m (n+1)  -> QuotientSpace (Vector f n)
 solveQ' m = let (v', m') = last $ separateCols m in solveQ m' v'
 

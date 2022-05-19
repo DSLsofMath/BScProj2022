@@ -109,6 +109,11 @@ Mtx x x₁ x₂ x₃ *q Mtx y y₁ y₂ y₃ =
                               (zipQ' _*q_              X  (prmDiagSqsh Y)))
 
 
+_ᵀ : Quad A n → Quad A n
+Zero ᵀ = Zero
+Scalar x ᵀ = Scalar x
+Mtx x x₁ x₂ x₃ ᵀ = Mtx (x ᵀ) (x₂ ᵀ) (x₁ ᵀ) (x₃ ᵀ)
+
 
 -- Example Quad
 
@@ -121,7 +126,7 @@ q2 = Mtx q1 q1 Zero (Mtx (Scalar 1) Zero Zero (Scalar 1))
 
 
 -- Proofs
-
+ 
 quad-refl : { a : Quad Carrier n } → a =q a
 quad-refl { n } { Zero } = eq-Zero
 quad-refl { n } { (Scalar x) } = eq-Scalar refl
@@ -144,7 +149,11 @@ quad-zeror (Mtx x x₁ x₂ x₃) = quad-refl
 -- Need a proof that Zero is left and right +q-identity
 -- Should be some kind of (quad-zerol, quad-zeror)
 
-
+quad-transp : ( x : Quad Carrier n ) → ( (x ᵀ) ᵀ) =q x 
+quad-transp Zero = quad-refl
+quad-transp (Scalar x) = quad-refl
+quad-transp (Mtx x x₁ x₂ x₃) = eq-Mtx (quad-transp x) (quad-transp x₁)
+                                      (quad-transp x₂) (quad-transp x₃)
 
 quad-comm : ( a b : Quad Carrier n ) → ( a +q b) =q ( b +q a )
 quad-comm Zero b = quad-sym (quad-zeror b)
