@@ -215,7 +215,7 @@ instance (KnownNat n, Ring f) => Mul (Matrix f n n) where
 -- | Row first alternative of toMat
 --   toMatT [[1,2,3],
 --           [4,5,6]]
-toMatT :: ToMat m n x => x -> Matrix (Under' x) n m
+toMatT :: (KnownNats m n, ToMat n m x) => x -> Matrix (Under' x) m n
 toMatT = transpose . toMat
 
 -- | Converts objects to and from Matrices.
