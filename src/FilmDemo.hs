@@ -49,7 +49,7 @@ f1c = dim (range a1)
 a2 ::  Matrix R 3 3
 a2 = toMatT [[1, 0, 1], 
              [2, 1, 2], 
-             [1, 1, 1]]
+             [0, 1, 1]]
 
 u2 :: (Field a, Num a) => Vector a 3
 u2 = vec [1, 2, -5]
