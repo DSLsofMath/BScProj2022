@@ -14,58 +14,111 @@ import QuadTree (QuadM)
 import qualified QuadTree as Q
 import SparseCSR (CSR)
 import qualified SparseCSR as C
-import ListVector (Vector, vec, dot, cross, Matrix, ToMat (..), toMatT)
+import ListVector (Vector, vec, dot, cross, Matrix, ToMat (..), toMatT, appendV)
 import qualified ListVector as L
 import ListVecGauss (particularSol)
 
 import Prelude hiding ((+), (-), (*), (/), (^), (**), sum, product, recip, fromRational, span, elem)
 import qualified Prelude as P
 
--- 1 
-
-a1 :: Matrix Rational 3 3
-a1 = toMatT [[ 1, -1,  5],
-             [ 2,  0,  7],
-             [-3, -5, -3]]
-
-u1 :: Vector Rational 3
-u1 = vec [1, 2, -5]
+-- Starta med DataKinds, TypeApplications och :set +t
 
 
--- (a) Tillhör u1 nollrummet till matrisen a1? 
-f1a = u1 `elem` nullSpace a1
 
--- (b) Tillhör u1 kolumnrummet till matrisen a1? 
-f1b = u1 `elem` range a1
+-- Vektorer
 
--- (c) Vilken rang har a1?
-f1c = dim (range a1)
+v3, w3 :: Vector R 3
+v3 = vec [1,2,3]
+w3 = vec [2,2,3]
+
+-- Stödjer addition, skalär- och kryss-produkt
+
+-- Kan också skapas interaktivt
+-- > vec @2 [3,1]
+
+-- Notera att vektorer av olika längd inte kan adderas
 
 
 
 
--- 2 
 
-a2 ::  Matrix R 3 3
-a2 = toMatT [[1, 0, 1], 
-             [2, 1, 2], 
-             [0, 1, 1]]
 
-u2 :: (Field a, Num a) => Vector a 3
-u2 = vec [1, 2, -5]
+-- LIL Matriser
 
--- (a) Använd Gaussalgoritmen för att omforma matrisen A till trappstegsform.
-f2a = gauss a2
+m42 :: Matrix R 3 2
+m42 = toMatT [[2,0],
+              [1,1],
+              [0,3]]
 
--- (b) Visa alla elementära radoperationer använda i uppgift (a). 
-f2b = gaussTrace a2
+m23 :: Matrix R 2 3
+m23 = toMatT [[2,0,0],
+              [0,2,1]]
 
--- (c) Hitta lösningen till ekvationssystemet Ax = u
-f2c = solveQ a2 u2
+-- Matris vektor multiplication
+-- > m23 ** v3
+
+-- Multiplication av matriser med olika storlekar
+
+m33 :: Matrix R 3 3
+m33 = m42 ** m23
+
+-- Kan också skapas interaktivt
+-- > toMatT @2 @2 [[1,2],
+--                [3,4]]
+
+
+-- identity, zero och typsignaturer
+-- > identity :: Matrix R 3 3
+-- > zero :: Matrix R 2 6
+
+-- > identity `appendV` v3
+
+
+
+
+
+
+
+
+-- Delrum 
+
+f1a = nullSpace m33
+
+f1b = range m33
+
+-- Visa igen att m33*x=w3 kan lösas
+-- > w3 `elem` range m33
+
+f1c = dim (range m33)
+
+
+
+
+
+
+
+-- Ekvationssystem m33*x = w3
+
+-- Använd Gaussalgoritmen för att omforma matrisen A till trappstegsform.
+f2a = gauss m33
+
+-- Visa alla elementära radoperationer använda i uppgift (a). 
+f2b = gaussTrace m33
+
+-- Hitta lösningen till ekvationssystemet Ax = u
+f2c = solveQ m33 w3
+
+-- Visa att det är lösning
+
+
+
+
+
+
+
 
 
 -- 3 
-
 a3 :: (Fractional f, Field f) => Matrix f 2 2
 a3 = toMatT [[  1, -1 ], 
              [ -2,  0 ]] 

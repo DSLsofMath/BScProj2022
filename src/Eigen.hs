@@ -18,7 +18,6 @@ import qualified Data.List as L
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
-import Subspaces
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
 -- The implementation here is based on lists and should be replaced.
