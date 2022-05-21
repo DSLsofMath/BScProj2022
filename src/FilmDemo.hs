@@ -45,8 +45,8 @@ w3 = vec [2,2,3]
 
 -- LIL Matriser
 
-m42 :: Matrix R 3 2
-m42 = toMatT [[2,0],
+m32 :: Matrix R 3 2
+m32 = toMatT [[2,0],
               [1,1],
               [0,3]]
 
@@ -60,7 +60,7 @@ m23 = toMatT [[2,0,0],
 -- Multiplication av matriser med olika storlekar
 
 m33 :: Matrix R 3 3
-m33 = m42 ** m23
+m33 = m32 ** m23
 
 -- Kan också skapas interaktivt
 -- > toMatT @2 @2 [[1,2],
