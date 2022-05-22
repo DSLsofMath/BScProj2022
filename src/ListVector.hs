@@ -65,8 +65,12 @@ zeroVec :: (KnownNat n, AddGroup f) => Vector f n
 zeroVec = let v = V $ replicate (vecLen v) zero in v
 
 -- | converts a list to a vector with a typed size
-vec :: (KnownNat n, AddGroup f) => [f] -> Vector f n
-vec ss = V (ss ++ repeat zero) + zero
+vec :: KnownNat n => [f] -> Vector f n
+vec ss = if (vecLen v == length ss) then v
+                                    else error errorMsg
+    where v = V ss
+          errorMsg = "Vector is of dimension " ++ show (vecLen v) ++ 
+                     " but was given a list of length " ++ show (length ss)
 
 -- | e i is the i:th basis vector
 e :: (KnownNat n, Ring f) => Int -> Vector f n
@@ -246,12 +250,12 @@ instance (KnownNat n, Field f) => ToMat n n (Vector f n) where
     toMat (V ss) = M . V $ zipWith (\s i-> s £ e i) ss [1..]
     fromMat m = vec $ zipWith (!!) (fromMat m) [0..]
 
-instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [Vector f m] where
+instance (KnownNats m n) => ToMat m n [Vector f m] where
     type Under' [Vector f m] = f
     toMat vs = M . vec $ vs
     fromMat = matToList
 
-instance (KnownNat m, KnownNat n, AddGroup f) => ToMat m n [[f]] where
+instance (KnownNats m n) => ToMat m n [[f]] where
     type Under' [[f]] = f
     toMat = M . vec . map vec
     fromMat = unpack

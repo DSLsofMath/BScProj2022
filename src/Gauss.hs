@@ -47,27 +47,27 @@ elimOpToMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) =>
                 ElimOp n f -> mat f n n
 elimOpToMat e = elimOpToFunc e identity
 
-swap :: (Matrix mat, AddGroup (mat f m n)) => 
+swap :: (KnownNats m n, Matrix mat, AddGroup (mat f m n)) => 
           Fin m -> Fin m -> mat f m n -> mat f m n
 swap i j m = setRow (setRow m i (getRow m j)) j (getRow m i) 
 
-mul :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+mul :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Ring f) => 
         Fin m -> f -> mat f m n -> mat f m n
 mul i s m = setRow m i (s £ getRow m i) 
 
-mulAdd :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+mulAdd :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Ring f) => 
             Fin m -> Fin m -> f -> mat f m n -> mat f m n
 mulAdd i j s m = setRow m j (s £ getRow m i + getRow m j)
 
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+elimOpToFunc :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Ring f) => 
                   ElimOp m f -> (mat f m n -> mat f m n)
 elimOpToFunc e m = case e of Swap   i j   -> swap i j m
                              Mul    i   s -> mul i s m
                              MulAdd i j s -> mulAdd i j s m
 
 -- | Reduces a trace of elimOps to a single function
-foldElimOpsFunc :: (Matrix mat, AddGroup (mat f m n), Ring f) => 
+foldElimOpsFunc :: (KnownNats m n,Matrix mat, AddGroup (mat f m n), Ring f) => 
                     [ElimOp m f] -> (mat f m n -> mat f m n)
 foldElimOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
@@ -83,7 +83,7 @@ gaussTrace :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Field f, Ord f, 
 gaussTrace m = fst $ gauss' m [] [minBound .. maxBound] [minBound .. maxBound] 
 
 
-gauss' :: (Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) => 
+gauss' :: (KnownNats m n, Matrix mat, AddGroup (mat f m n), Field f, Ord f, Fractional f) => 
             mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
 gauss' m t (_) [] = (t, m)
 gauss' m t [] (_) = (t, m)
@@ -96,7 +96,7 @@ gauss' m t (i:is) (j:js) = case getCol' j of
           filterZ (_,s) = s > 0.0001 || s < -0.0001
 
 
-jordan :: (Matrix mat, Composable (ElimOp  m f) (mat f m n) (mat f m n), Ord f, Field f, Fractional f) => 
+jordan :: (KnownNat m, Matrix mat, Composable (ElimOp  m f) (mat f m n) (mat f m n), Ord f, Field f, Fractional f) => 
             mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
 jordan m t (_) [] = (t, m)
 jordan m t [] (_) = (t, m)

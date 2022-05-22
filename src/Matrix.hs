@@ -24,7 +24,7 @@ fin :: KnownNat n => Int -> Fin n
 fin i = finite
     where finite | 1 <= i && i <= fromInteger (natVal finite) = Fin i
                  | otherwise = error $ "Index is out of bounds, got: " ++ 
-                   show i ++ " in constraint 0<=" ++ show i ++ "<=" ++ show (natVal finite)
+                   show i ++ " in constraint 0<" ++ show i ++ "<=" ++ show (natVal finite)
 
 instance KnownNat n => Show (Fin n) where
     show n = show (finToInt n) ++ " of " ++ show (natVal n)
@@ -139,11 +139,10 @@ getDiagonal :: Matrix mat => mat f n n -> [(Fin n, f)]
 getDiagonal m = [ (i, a) | ((i, j), a) <- values m, i == j ]
 
 -- | Sets a given row in a matrix into the given values
-setRow :: (Matrix mat, AddGroup (mat f m n)) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
-setRow m i r = extend m [ ((i, j), a) | (j, a) <- r ]
--- setRow m i r = tabulate $ new ++ old
---     where old = filter ((i /=) . fst . fst) $ values m
---           new = [ ((i, j), a) | (j, a) <- r ]
+setRow :: (KnownNats m n, Matrix mat, AddGroup (mat f m n)) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
+setRow m i r = tabulate $ new ++ old
+    where old = filter ((i /=) . fst . fst) $ values m
+          new = [ ((i, j), a) | (j, a) <- r ]
 
 -- | Returns the size of a matrix in the form of (#rows, #columns)
 size :: forall m n mat f. KnownNats m n => mat f m n -> (Int, Int) 
