@@ -21,22 +21,33 @@ import ListVecGauss (particularSol)
 import Prelude hiding ((+), (-), (*), (/), (^), (**), sum, product, recip, fromRational, span, elem)
 import qualified Prelude as P
 
+
+
+
 -- Starta med DataKinds, TypeApplications och :set +t
+
+
 
 
 
 -- Vektorer
 
+v4 :: Vector R 4
+v4 = vec [1,0,5,2]
+
 v3, w3 :: Vector R 3
 v3 = vec [1,2,3]
 w3 = vec [2,2,3]
 
--- Stödjer addition, skalär- och kryss-produkt
+-- Stödjer skalning, addition, 
+-- skalär- och kryss-produkt
 
 -- Kan också skapas interaktivt
 -- > vec @2 [3,1]
 
 -- Notera att vektorer av olika längd inte kan adderas
+
+
 
 
 
@@ -64,12 +75,13 @@ m33 = m32 ** m23
 
 -- Kan också skapas interaktivt
 -- > toMatT @2 @2 [[1,2],
---                [3,4]]
+--                 [3,4]]
 
 
 -- identity, zero och typsignaturer
 -- > identity :: Matrix R 3 3
 -- > zero :: Matrix R 2 6
+
 
 -- > identity `appendV` v3
 
@@ -80,16 +92,33 @@ m33 = m32 ** m23
 
 
 
+
+
+
+
+
 -- Delrum 
 
+-- { x | m33 ** x == 0 }
 f1a = nullSpace m33
 
+-- { v | m33 ** x == v }
 f1b = range m33
 
--- Visa igen att m33*x=w3 kan lösas
+-- Visa att m33*x = w3 kan lösas
 -- > w3 `elem` range m33
 
 f1c = dim (range m33)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -109,6 +138,15 @@ f2b = gaussTrace m33
 f2c = solveQ m33 w3
 
 -- Visa att det är lösning
+
+
+
+
+
+
+
+
+
 
 
 

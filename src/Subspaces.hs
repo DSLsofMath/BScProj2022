@@ -107,6 +107,11 @@ dim (Sub vs) = length vs
 -- | A quotient space is a subspace translated by a vector
 data QuotientSpace v = Quot v (Subspace v) deriving (Show)
 
+-- | Checks if a vector exists within a quotient space, 
+--   i.e. is a solution to a Ax=v  
+elemQ :: (KnownNat n, Eq f, Field f) => Vector f n -> QuotientSpace (Vector f n) -> Bool
+elemQ v (Quot p sub) = (v - p) `elem` sub 
+
 -- | Returns the set of solutions to Ax=v
 solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix f m n -> Vector f m -> QuotientSpace (Vector f n)
 solveQ m v = Quot (particularSol $ m `appendV` v) (nullSpace m)
