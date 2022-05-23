@@ -70,9 +70,11 @@ instance (Sized n, Arbitrary f, Arbitrary (Quad n f)) => Arbitrary (Quad (Suc n)
 prop_vectorAddZero :: KnownNat n => Vector R n -> Bool
 prop_vectorAddZero v = v + zero == v
 
+-- Vector addition is commutative
 prop_vectorAddComm :: KnownNat n => Vector R n -> Vector R n -> Bool
 prop_vectorAddComm v1 v2 = v1 + v2 == v2 + v1
 
+-- Vector addition is associative
 prop_vectorAddAssoc :: KnownNat n => Vector Rational n -> 
                         Vector Rational n -> Vector Rational n -> Bool
 prop_vectorAddAssoc v1 v2 v3 = (v1 + v2) + v3 == v1 + (v2 + v3)
