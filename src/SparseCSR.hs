@@ -145,10 +145,12 @@ cSRAdd m1@(CSR e1 c1 r1)
             bs = opRows m1 m2 cSRAddRow
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a b
 
--- Could move this to be apart of cSRAdd
+-- applies a given operation row by row,
+-- between rows from two given matrices.
 opRows :: (AddGroup f) => CSR f a b -> CSR f a b -> ([(Int,f)] -> [(Int,f)]  -> [(Int,f)]) -> [[(Int, f)]]
 opRows m1@(CSR e1 c1 r1) m2 op =  [ (op (getRow m1 a) (getRow m2 a)) | a <- [0..length r1 - 2]]
 
+-- Adds one csr vector with another, useful for sparse vectors.
 cSRAddRow :: AddGroup f => [(Int,f)] -> [(Int,f)]  -> [(Int,f)]
 cSRAddRow [] [] = []
 cSRAddRow [] as = as
@@ -164,25 +166,16 @@ csrTranspose m1@(CSR e1 c1 r1) =  foldl comb emptyCSR $ bs
                 qs = [ zip (map fst as) (zip (repeat rs) (map snd as))| (rs, as) <- zip [0..] [getRow m1 a | a <- [0..length r1 - 2]] ]
                 emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
 
--- Slow/bad transpose
-csrTranspose2 :: CSR f a b -> CSR f a b
-csrTranspose2 m1@(CSR e1 c1 r1) =  foldl comb emptyCSR bs
-             where
-                bs = [getColumn m1 a | a <- [0..maximum c1]]
-                emptyCSR = CSR [] [] (scanl (+) 0 (map length bs))
-
--- toList :: CSR a m n -> [(Int, Int a)]
--- toCSR  :: [(Int, Int a)] -> CSR a m n
-
--- Test values/functions
-
+-- Appends two csr matrices.
 comb :: CSR f x y -> [(Int, f)] -> CSR f x y
 comb csr [] = csr
 comb (CSR e1 c1 r1) as = CSR (e1++es) (c1++cs) r1
     where
         (cs, es) = unzip as
 
+--
 -- Matrix Vector Multiplication
+--
 
 -- Multiplies a CSR matrix with a Vector 
 smV :: (Ring f) => CSR f a b -> Vector f b  -> Vector f a
@@ -201,7 +194,9 @@ smv (CSR elems col (r:row)) v = dotL (take j elems) (map (v!!) (take j col)) :
 csrMV :: (Ring f) => CSR f a b -> [(Int,f)]  -> [(Int,f)]
 csrMV m1@(CSR e1 c1 r1) v1 = [(a,dotCsr (getRow m1 a) v1)| a <- [0..length r1 - 2]]
 
---- Test values/functions
+--
+-- Test values/example matrices
+--
 
 test :: CSR Double 4 4
 test = CSR {
@@ -211,43 +206,23 @@ test = CSR {
 
 test1 :: CSR Double 4 4
 test1 = CSR {
-    elems = [ 2, 7],
-    col = [ 3,3 ],
-    row = [ 0, 1, 1, 2, 2 ]}
-
--- Large
-bigBoi :: CSR Double 10000 10000
-bigBoi = CSR {
-    elems = [1..10000],
-    col = [0,1..9999],
-    row = [0,1..10000]}
-
--- Large
-denseCSR :: CSR Double 500 500
-denseCSR = CSR {
-    elems = [1..500*500],
-    col = [0,1..(500*500 - 1)],
-    row = [0,500..500*500]}
-
--- Large in one row
-bigBoi2 :: CSR Double 10000 10000
-bigBoi2 = CSR {
-    elems = [1..10000],
-    col = [0,1..9999],
-    row = 0 : replicate 10000 10000}
-
-mediumBoi :: CSR Double 1000 1000
-mediumBoi = CSR {
-    elems   = [1..1000],
-    col     = [0..999 ],
-    row     = [0..1000]
-}
-
-test2 :: CSR Double 4 4
-test2 = CSR {
     elems = [ 5, 4, 8, 3, 6 ],
     col = [ 0, 1, 1, 2, 1 ],
     row = [ 0, 2, 3, 4, 5 ]}
+
+-- Large
+denseCSR5 :: CSR Double 5 5
+denseCSR5 = CSR {
+    elems = [1..25],
+    col = concat $ replicate 5 [0..4],
+    row = [0,5..5*5]}
+
+-- Large
+denseCSR500 :: CSR Double 500 500
+denseCSR500 = CSR {
+    elems = [1..500*500],
+    col = concat $ replicate 500 [0..499],
+    row = [0,500..500*500]}
 
 colVecTest :: CSR Double 4 1
 colVecTest = CSR {
@@ -262,13 +237,6 @@ rowVecTest = CSR {
     col = [0, 1, 2],
     row = [0, 3, 3, 3]
 }
-
-v11, v22 :: Vector Double 4
-v11 = V [5,4,0,0]::VecR 4
-v22 = V [8,2,8,3]::VecR 4
-
-bigVec :: Vector Double 10000
-bigVec = V [1,2..10000]
 
 -- tridiagonal with -2 on diagonal and +1 above and below diagonal
 triCSR :: (Ring f, Num f, KnownNat m) => CSR f m m

@@ -106,12 +106,25 @@ data Quad (n :: Nat4) a where
 instance (Sized n, Ring a, Show a) => Show (Quad n a) where
     show = show . toDense
 
-instance (Eq a) => Eq (Quad n a) where
-    Zero == Zero = True
-    Scalar a == Scalar b = a == b
-    Mtx nw1 ne1 sw1 se1 == Mtx nw2 ne2 sw2 se2 = nw1 == nw2 && ne1 == ne2 
-                                              && sw1 == sw2 && se1 == se2 
-    _ == _ = False
+-- | Removes nested zeros in the Quad 
+simplifyQ :: (Eq a, AddGroup a) => Quad n a -> Quad n a
+simplifyQ Zero = Zero
+simplifyQ (Scalar s) | s == zero = Zero
+                     | otherwise = Scalar s
+simplifyQ (Mtx nw ne sw se) = case (simplifyQ nw, simplifyQ ne, 
+                                    simplifyQ sw, simplifyQ se) of
+                                (Zero, Zero, Zero, Zero) -> Zero
+                                (nw, ne, sw, se)         -> Mtx nw ne sw se
+
+eqQ :: Eq a => Quad n a -> Quad n a -> Bool
+Zero                `eqQ` Zero                = True
+Scalar a            `eqQ` Scalar b            = a == b
+Mtx nw1 ne1 sw1 se1 `eqQ` Mtx nw2 ne2 sw2 se2 = nw1 `eqQ` nw2 && ne1 `eqQ` ne2 
+                                             && sw1 `eqQ` sw2 && se1 `eqQ` se2 
+_ `eqQ` _ = False
+
+instance (Eq a, AddGroup a) => Eq (Quad n a) where
+    a == b = simplifyQ a `eqQ` simplifyQ b
 
 getQ :: AddGroup a => Quad n a -> (Int, Int) -> a
 getQ Zero       _ = zero

@@ -98,16 +98,26 @@ range :: (Eq f, Field f) => Matrix f m n -> Subspace (Vector f m)
 range = Sub . makeLinIndep . matToList
 
 
+-- | The dimension of a Subspace
+dim :: Subspace v -> Int
+dim (Sub vs) = length vs
+
+
           
 -- | A quotient space is a subspace translated by a vector
 data QuotientSpace v = Quot v (Subspace v) deriving (Show)
+
+-- | Checks if a vector exists within a quotient space, 
+--   i.e. is a solution to a Ax=v  
+elemQ :: (KnownNat n, Eq f, Field f) => Vector f n -> QuotientSpace (Vector f n) -> Bool
+elemQ v (Quot p sub) = (v - p) `elem` sub 
 
 -- | Returns the set of solutions to Ax=v
 solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix f m n -> Vector f m -> QuotientSpace (Vector f n)
 solveQ m v = Quot (particularSol $ m `appendV` v) (nullSpace m)
 
 
--- | Equivalent to solveQ but takes a matrix A `append` v representing Ax=v
+-- | Equivalent to solveQ but takes a matrix A `appendV` v representing Ax=v
 solveQ' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix f m (n+1)  -> QuotientSpace (Vector f n)
 solveQ' m = let (v', m') = last $ separateCols m in solveQ m' v'
 

@@ -151,7 +151,6 @@ solve m = foldr next [last (last m)] (init m)
 
 -- | apply when solving systems of equations
 --   each element in list represents variable values
---   TODO: handle case when there is no solution, return Maybe 
+--   Recommend using showSol from eigen to verify result, or v `elem` range m
 particularSol :: (Eq f, Field f) => Matrix f m n -> Vector f (n -1)
 particularSol = V . solve . unpack . transpose . gauss
-

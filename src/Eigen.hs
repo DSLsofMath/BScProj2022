@@ -18,7 +18,6 @@ import qualified Data.List as L
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
-import Subspaces
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
 -- The implementation here is based on lists and should be replaced.
@@ -125,10 +124,10 @@ Gauss $ evalMat matrix 1 `append` zeroVec => Solution = eigenvector
 -}
 
 eigen05 :: Matrix Double 2 3
-eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0,0]] -- gauss eigen05 => x = -y 
+eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0]] -- gauss eigen05 => x = -y 
 
 eigen1 :: Matrix Double 2 3
-eigen1 = (evalMat matrix1 1) `append` toMat [[0,0,0]]    -- gauss eigen1  => x = y
+eigen1 = (evalMat matrix1 1) `append` toMat [[0,0]]    -- gauss eigen1  => x = y
 
 ----------------
 
@@ -169,15 +168,19 @@ showVariableValues r var_names
   | not (null other_coefficients) = var_str ++ other_vars_str
   | otherwise = var_str
   where
+    noSol = "This system has no solution"
     index = leadingZeros r
-    coefficient = r !! index
+    coefficient = (r !! index)                       
     value = last r
     raw_row = reverse . drop 1 . reverse $ r -- row coefficients, except the free member
     elements_count = length raw_row
     other_coefficients = filter (\(k, k_idx) -> k /= 0 && k_idx /= index) (zip raw_row [0 .. elements_count])
     subtract_coefficient k = if k < 0 then " + " ++ show (- k) else " - " ++ show k
     other_vars_str = concatMap (\(k, k_idx) -> subtract_coefficient k ++ " * " ++ (var_names !! k_idx)) other_coefficients
-    var_str = (var_names !! index) ++ " = " ++ show (value / coefficient)
+    var_str = if(index < length var_names) then (var_names !! index) ++ " = " ++ show (value / coefficient)
+                                        else error noSol
+        
+         
 
 
 
@@ -196,9 +199,15 @@ showColnRow (x:xs) vars | skipRow == length x = showColnRow xs vars
 -- showSol $ gauss eigen1
 -- showSOl $ gauss eigen05
 
+-- if no solution exists for the system, error message thrown
 showSol :: (Field f, Num f, Ord f, Show f, KnownNats m n) => Matrix f m n -> IO()
 showSol m = putStr $ showColnRow (unpack $ transpose m) vars
     where
         rows     = unpack $ transpose m
         nrOfVars = length(unpack m) - 1
-        vars     = take (nrOfVars) variables 
+        vars     = take (nrOfVars) variables
+
+
+                                
+            
+

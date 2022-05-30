@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {-# LANGUAGE QuantifiedConstraints #-}
 
@@ -27,11 +28,12 @@ fin :: KnownNat n => Int -> Fin n
 fin i = finite
     where finite | 1 <= i && i <= fromInteger (natVal finite) = Fin i
                  | otherwise = error $ "Index is out of bounds, got: " ++ 
-                   show i ++ " in constraint 0<=" ++ show i ++ "<=" ++ show (natVal finite)
+                   show i ++ " in constraint 0<" ++ show i ++ "<=" ++ show (natVal finite)
 
 instance KnownNat n => Show (Fin n) where
     show n = show (finToInt n) ++ " of " ++ show (natVal n)
 
+-- | Num (Fin n) is only used to get fromInteger
 instance KnownNat n => Num (Fin n) where
     fromInteger = fin . fromInteger
     (+) = undefined
@@ -39,6 +41,7 @@ instance KnownNat n => Num (Fin n) where
     abs = undefined 
     signum = undefined 
     negate = undefined
+
 -- Enum and Bounded allows for list sequencing 
 -- i.e. [Fin 2 .. maxBound]
 instance KnownNat n => Enum (Fin n) where
@@ -127,18 +130,30 @@ getDiagonal :: Matrix mat => mat f n n -> [(Fin n, f)]
 getDiagonal m = [ (i, a) | ((i, j), a) <- values m, i == j ]
 
 -- | Sets a given row in a matrix into the given values
-setRow :: (Matrix mat, AddGroup f) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
-setRow m i r = extend m [ ((i, j), a) | (j, a) <- r ]
--- setRow m i r = tabulate $ new ++ old
---     where old = filter ((i /=) . fst . fst) $ values m
---           new = [ ((i, j), a) | (j, a) <- r ]
+setRow :: (KnownNats m n, Matrix mat, AddGroup f) => mat f m n -> Fin m -> [(Fin n, f)] -> mat f m n
+setRow m i r = tabulate $ new ++ old
+    where old = filter ((i /=) . fst . fst) $ values m
+          new = [ ((i, j), a) | (j, a) <- r ]
+
+-- | Returns the size of a matrix in the form of (#rows, #columns)
+size :: forall m n mat f. KnownNats m n => mat f m n -> (Int, Int) 
+size _ = (m, n)
+    where m = fromInteger $ natVal (undefined :: undefined m)
+          n = fromInteger $ natVal (undefined :: undefined n)
 
 -- | Appends two matrices, analogous to (++)
 append :: (KnownNats m (n1 + n2), KnownNat n1, Matrix mat, AddGroup f) => mat f m n1 -> mat f m n2 -> mat f m (n1 + n2)
 append m1 m2 = tabulate $ m1' ++ m2'
     where m1' = [ ((i, Fin j),       a) | ((i, Fin j), a) <- values m1 ]
           m2' = [ ((i, Fin (n + j)), a) | ((i, Fin j), a) <- values m2 ]
-          n = fromInteger (natVal m1)
+          (_,n) = size m1
+
+-- | Like appends but places the second matrix under the first 
+append' :: (KnownNats (m1 + m2) n, KnownNat m1, Matrix mat, AddGroup f) => mat f m1 n -> mat f m2 n -> mat f (m1 + m2) n
+append' m1 m2 = tabulate $ m1' ++ m2'
+    where m1' = [ ((Fin  i,      j), a) | ((Fin i, j), a) <- values m1 ]
+          m2' = [ ((Fin (n + i), j), a) | ((Fin i, j), a) <- values m2 ]
+          (n,_) = size m1
 
 transpose :: (KnownNats m n, Matrix mat, AddGroup f) => mat f m n -> mat f n m
 transpose = tabulate . map (\((i,j),a) -> ((j,i),a)) . values
@@ -172,6 +187,11 @@ purge = toSparse
 toSparse :: (Matrix mat2, KnownNats m n, Matrix mat1, Eq f, AddGroup f) => mat1 f m n -> mat2 f m n
 toSparse = tabulate . purgeToList
 
+
+toConst :: (KnownNats m n, Matrix mat, AddGroup (mat Exp m n)) => mat R m n -> mat Exp m n
+toConst = tabulate . map (\(i,a) -> (i, Const a)) . values
+
+
 ----------------------------------------------------------------------------------------
 -- Instances of Matrix
 
@@ -196,4 +216,9 @@ pjMat = tabulate $ concat [ f i | i <- [minBound .. maxBound] ]
               | otherwise     =        stencil i
           stencil i = [ ((pred i, i), one), ((i,i), neg (one+one)), ((succ i, i), one) ]
 
+-- | Represents derivation on polynomials
+deriveMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) => mat f n n
+deriveMat = tabulate $ inc one [ (i, succ i) | i <- init [minBound .. maxBound] ]
+    where inc _ []     = []
+          inc v (i:is) = (i, v) : inc (v + one) is
 

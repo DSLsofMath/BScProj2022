@@ -23,14 +23,15 @@ data ElimOp n a = Swap (Fin n) (Fin n)
                 | MulAdd (Fin n) (Fin n) a
               deriving (Eq)
 
-instance Show a => Show (ElimOp n a) where show = showElimOp
+instance Show a => Show (ElimOp n a) where 
+    show = showElimOp
 
 -- | Prettier show function for ElimOp a
 showElimOp :: Show a => ElimOp n a -> String
 showElimOp op = concat $ case op of 
-        Swap    (Fin i) (Fin j)   -> [         row i,              " <-> ", row j ]
-        Mul     (Fin i)         s -> [ show s, row i,               " -> ", row i ]
-        MulAdd  (Fin i) (Fin j) s -> [ show s, row i, " + ", row j, " -> ", row j ]
+        Swap    (Fin i) (Fin j)   -> [ " ",              row i,              " <-> ", row j ]
+        Mul     (Fin i)         s -> [ " ", show s, "*", row i,              " -> ", row i ]
+        MulAdd  (Fin i) (Fin j) s -> [ " ", show s, "*", row i, " + ", row j, " -> ", row j ]
     where row i = "R(" ++ show i ++ ")"
 
 
@@ -46,27 +47,27 @@ elimOpToMat :: (KnownNat n, Matrix mat, AddGroup (mat f n n), Ring f) =>
                 ElimOp n f -> mat f n n
 elimOpToMat e = elimOpToFunc e identity
 
-swap :: (Matrix mat, AddGroup f) => 
+swap :: (KnownNats m n, Matrix mat, AddGroup f) => 
           Fin m -> Fin m -> mat f m n -> mat f m n
 swap i j m = setRow (setRow m i (getRow m j)) j (getRow m i) 
 
-mul :: (Matrix mat, AddGroup f, Ring f) => 
+mul :: (KnownNats m n, Matrix mat, Ring f) => 
         Fin m -> f -> mat f m n -> mat f m n
 mul i s m = setRow m i (s £ getRow m i) 
 
-mulAdd :: (Matrix mat, AddGroup f, Ring f) => 
+mulAdd :: (KnownNats m n, Matrix mat, Ring f) => 
             Fin m -> Fin m -> f -> mat f m n -> mat f m n
 mulAdd i j s m = setRow m j (s £ getRow m i + getRow m j)
 
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: (Matrix mat, Ring f) => 
+elimOpToFunc :: (KnownNats m n, Matrix mat, Ring f) => 
                   ElimOp m f -> (mat f m n -> mat f m n)
-elimOpToFunc e m = case e of Swap   i j   -> swap i j m
-                             Mul    i   s -> mul i s m
-                             MulAdd i j s -> mulAdd i j s m
+elimOpToFunc e = case e of Swap   i j   -> swap i j 
+                           Mul    i   s -> mul i s 
+                           MulAdd i j s -> mulAdd i j s 
 
 -- | Reduces a trace of elimOps to a single function
-foldElimOpsFunc :: (Matrix mat, Ring f) => 
+foldElimOpsFunc :: (KnownNats m n,Matrix mat, Ring f) => 
                     [ElimOp m f] -> (mat f m n -> mat f m n)
 foldElimOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
@@ -82,7 +83,7 @@ gaussTrace :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) =>
 gaussTrace m = fst $ gauss' m [] [minBound .. maxBound] [minBound .. maxBound] 
 
 
-gauss' :: (Matrix mat, Field f, Ord f, Fractional f) => 
+gauss' :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) => 
             mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
 gauss' m t _      []     = (t, m)
 gauss' m t []     _      = (t, m)
@@ -95,7 +96,7 @@ gauss' m t (i:is) (j:js) = case getCol' j of
           filterZ (_,s) = s > 0.0001 || s < -0.0001
 
 
-jordan :: (Matrix mat, Composable (ElimOp  m f) (mat f m n) (mat f m n), Ord f, Field f, Fractional f) => 
+jordan :: (KnownNat m, Matrix mat, Composable (ElimOp  m f) (mat f m n) (mat f m n), Ord f, Field f, Fractional f) => 
             mat f m n -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat f m n)
 jordan m t (_) [] = (t, m)
 jordan m t [] (_) = (t, m)

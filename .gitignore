@@ -1,6 +1,7 @@
 dist/
 dist-newstyle/
 .stack-work/
+*lock
 stack.yaml
 *~
 *.hi
