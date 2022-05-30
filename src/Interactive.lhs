@@ -99,31 +99,31 @@ Some examples of these functions being used:
 
 \begin{code}
 
-v1,v2 :: Vector Double 3
+v1,v2 :: Vector 3 Double
 v1 = vec [2,7,1] 
 v2 = vec [8,2,8]
 
-m1 :: Matrix Double 4 4
+m1 :: Matrix 4 4 Double
 m1 = toMat [[1,0,0,3],[2,0,8,0],[3,0,3,1],[4,0,2,0]]
 
-m1T :: Matrix Double 4 4
+m1T :: Matrix 4 4 Double
 m1T = toMatT [
             [1,2,3,4],
             [0,0,0,0],
             [0,8,3,2],
             [3,0,1,0]]
 
-m2 :: Matrix Double 4 4
+m2 :: Matrix 4 4 Double
 m2 = fromKeyValue [(1,1,1),(1,2,2),(1,3,3),(1,4,4),
                     (3,2,8),(3,3,3),(3,4,2),
                     (4,1,3),(4,3,1)]
 
-m3 :: QuadM Double 4 4
+m3 :: QuadM 4 4 Double
 m3 = fromKeyValue [(1,1,1),(1,2,2),(1,3,3),(1,4,4),
                     (3,2,8),(3,3,3),(3,4,2),
                     (4,1,3),(4,3,1)]
 
-m4 :: CSR Double 4 4
+m4 :: CSR 4 4 Double
 m4 = fromKeyValue [(1,1,1),(1,2,2),(1,3,3),(1,4,4),
                     (3,2,8),(3,3,3),(3,4,2),
                     (4,1,3),(4,3,1)]
@@ -193,13 +193,13 @@ Some code examples:
 
 \begin{code}
 
-m5 :: CSR Double 4 4
+m5 :: CSR 4 4 Double
 m5 = changeRep m1 
 
-m6 :: CSR Double 4 4
+m6 :: CSR 4 4 Double
 m6 = toSparse m1 
 
-m7 :: QuadM Double 4 4
+m7 :: QuadM 4 4 Double
 m7 = toSparse m1 
 
 \end{code}

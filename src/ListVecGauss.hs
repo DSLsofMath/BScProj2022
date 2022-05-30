@@ -24,6 +24,7 @@ import Data.Function
 -- Elementary row operations definition 
 -- Reduction and equation solver functions
 
+type Index = Int
 
 -- | Represents elementary row operations
 data ElimOp a = Swap Index Index 
@@ -43,7 +44,7 @@ showElimOp op = concat $ case op of
 
 
 -- | Shows step by step how a matrix is transformed by a ElimOp trace
-showElimOnMat :: (Field f, Show f) => [ElimOp f] -> Matrix f m n -> String
+showElimOnMat :: (Field f, Show f) => [ElimOp f] -> Matrix m n f -> String
 showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t 
                      in unlines [ show m ++ "\n" ++ show op | (m, op) <- zip matTrace t ]
                         ++ show (last matTrace)
@@ -52,18 +53,18 @@ showElimOnMat t m0 = let matTrace = scanl (flip elimOpToFunc) m0 t
 --   It might be better to define the as (Vector f n -> Vector f n) e.g. a linear map. 
 --   If we want to apply it to a matrix we can then use onCols. 
 --   Doing so will also remove the need for transpose.
-swap :: Index -> Index -> Matrix f m n -> Matrix f m n
+swap :: Index -> Index -> Matrix m n f -> Matrix m n f
 swap i j = onCols $ \(V v) -> 
     let (i', j') = (min i j - 1, max i j - 1)
         (m1,x:xs) = splitAt i' v
         (xs',y:m2) = splitAt (j' - i'-1) xs
     in V $ m1++y:xs'++x:m2
 
-mul :: Mul f => Index -> f -> Matrix f m n -> Matrix f m n
+mul :: Mul f => Index -> f -> Matrix m n f -> Matrix m n f
 mul i s = onCols $ \(V v) -> 
     let (m1,x:m2) = splitAt (i-1) v in V $ m1++(s*x): m2
 
-muladd :: Ring f => Index -> Index -> f -> Matrix f m n -> Matrix f m n
+muladd :: Ring f => Index -> Index -> f -> Matrix m n f -> Matrix m n f
 muladd i j s = onCols $ \(V v) -> 
     let (i', j') = (i - 1, j - 1)
         (_,x:_) = splitAt i' v
@@ -71,44 +72,44 @@ muladd i j s = onCols $ \(V v) ->
         y' = (s*x) + y
     in V $ m1++y':m2
 
-instance (Ring f, f ~ f') => Composable (ElimOp f') (Matrix f m n) (Matrix f m n) where
+instance (Ring f, f ~ f') => Composable (ElimOp f') (Matrix m n f) (Matrix m n f) where
     (Swap i j) ** m = swap i j m
     (Mul i s) ** m = mul i s m
     (MulAdd i j s) ** m = muladd i j s m
 
 
-instance (Ring f, n ~ n', f ~ f') => Composable (G.ElimOp n' f') (Matrix f m n) (Matrix f m n) where
+instance (Ring f, n ~ n', f ~ f') => Composable (G.ElimOp n' f') (Matrix m n f) (Matrix m n f) where
     (G.Swap (Fin i) (Fin j)) ** m = swap i j m
     (G.Mul (Fin i) s) ** m = mul i s m
     (G.MulAdd (Fin i) (Fin j) s) ** m = muladd i j s m
 
 
 -- | Representation of an elementary row operation as a matrix 
-elimOpToMat :: (KnownNat n, Ring f) => ElimOp f -> Matrix f n n
+elimOpToMat :: (KnownNat n, Ring f) => ElimOp f -> Matrix n n f
 elimOpToMat e = elimOpToFunc e idm
 
-foldElemOps :: (KnownNat n, Ring f) => [ElimOp f] -> Matrix f n n
+foldElemOps :: (KnownNat n, Ring f) => [ElimOp f] -> Matrix n n f
 foldElemOps = product . map elimOpToMat . reverse
 
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: Ring f => ElimOp f -> (Matrix f m n -> Matrix f m n)
+elimOpToFunc :: Ring f => ElimOp f -> (Matrix m n f -> Matrix m n f)
 elimOpToFunc (Swap   i j  ) = swap   i j
 elimOpToFunc (Mul    i   s) = mul    i   s
 elimOpToFunc (MulAdd i j s) = muladd i j s
                          
 -- | Reduces a trace of elimOps to a single function
 --   TODO: We should add a rewrite rule such that fold elemOpToFunc only packs and unpacks once
-foldElemOpsFunc :: Ring f => [ElimOp f] -> (Matrix f m n -> Matrix f m n)
+foldElemOpsFunc :: Ring f => [ElimOp f] -> (Matrix m n f -> Matrix m n f)
 foldElemOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
 
 -- | Applies a function on a unpacked and transposed matrix before transposing it back
 --   UNSAFE: The function can not change the dimension of the matrix 
-onUnpackedTrans :: ([[f]] -> [[f]]) -> Matrix f m n -> Matrix f m n
+onUnpackedTrans :: ([[f]] -> [[f]]) -> Matrix m n f -> Matrix m n f
 onUnpackedTrans f = pack . L.transpose . f . L.transpose . unpack
 
 -- | Transform a matrix to upper echelon form
-gauss :: (Eq f, Field f) => Matrix f m n -> Matrix f m n
+gauss :: (Eq f, Field f) => Matrix m n f -> Matrix m n f
 gauss = onUnpackedTrans (sort . f) 
     where
           f []     = []
@@ -121,7 +122,7 @@ gauss = onUnpackedTrans (sort . f)
           sort = L.sortOn (length . takeWhile (==zero))
 
 -- | Generate a trace of ElimOps from reducing a matrix to upper echelon form
-gaussTrace :: (Field f, Eq f) => Matrix f m n -> [ElimOp f]
+gaussTrace :: (Field f, Eq f) => Matrix m n f -> [ElimOp f]
 gaussTrace m0 = case separateCols m0 of
       []               -> []
       (V (x:xs), m):_  -> let 
@@ -152,5 +153,5 @@ solve m = foldr next [last (last m)] (init m)
 -- | apply when solving systems of equations
 --   each element in list represents variable values
 --   Recommend using showSol from eigen to verify result, or v `elem` range m
-particularSol :: (Eq f, Field f) => Matrix f m n -> Vector f (n -1)
+particularSol :: (Eq f, Field f) => Matrix m n f -> Vector (n -1) f
 particularSol = V . solve . unpack . transpose . gauss

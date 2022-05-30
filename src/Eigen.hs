@@ -26,13 +26,14 @@ import ListVecGauss
 -- type ":set -XDataKinds" in the ghci prompt
 --
 
-m44 = toMat [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]] :: MatR 4 4
-mtest = transpose $ toMat [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]] :: MatR 4 4
+m44, mtest :: Matrix 4 4 R
+m44 = toMat [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]] 
+mtest = transpose $ toMat [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]] 
 
 -- | Determinant for any nxn matrix 
 --   The algorithm is based on Laplace expansion
 --   Note that the complexity is exponantial since it calls itself n times per iteration
-detNN :: Field f => Matrix f n n -> f
+detNN :: Field f => Matrix n n f -> f
 detNN (M (V [V [x]])) = x
 detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do 
     (V (s:_), subM) <- separateCols m      -- All combinations of columns and their remaining matrix
@@ -42,7 +43,7 @@ detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do
 
 -- | Uses Guassian elimination to compute the determinant
 --   This algorithm is only O(n^3)
-detGauss :: (Field f, Eq f) => Matrix f n n -> f
+detGauss :: (Field f, Eq f) => Matrix n n f -> f
 detGauss m = let V diag = getDiagonal gaussM in product diag / traceProduct
     where trace = gaussTrace m 
           gaussM = foldElemOpsFunc trace m
@@ -50,14 +51,14 @@ detGauss m = let V diag = getDiagonal gaussM in product diag / traceProduct
 
 
 --tests, all give correct results
-idm33 = idm :: MatR 3 3 -- det33 = 1
-idm22 = idm :: MatR 2 2 -- det 22 = 1
+m22 :: Matrix 2 2 R
+m22   = toMat [[10,1],[1,10]] -- det22 = 99
 
-m22   = toMat [[10,1],[1,10]] :: MatR 2 2 -- det22 = 99
-m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] :: MatR 3 3 -- det33 = -15
+m33 :: Matrix 3 3 R
+m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] -- det33 = -15
 
 
-exp22 :: Matrix Exp 2 2
+exp22 :: Matrix 2 2 Exp
 exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Exp 2 2)
 
 
@@ -85,7 +86,7 @@ roots :: (Field a, Num a, Ord a, Enum a, Fractional a) => Exp -> [a] -> [a]
 roots f as = map (newton f 0.001) as
 
 -- Eigen values = 1, 1/2 
-matrix1 :: Matrix Exp 2 2
+matrix1 :: Matrix 2 2 Exp
 matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
 
 -- Using detNN, better for characteristic polynomial
@@ -93,7 +94,7 @@ eigenM1 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
 eigenM1 = roots(detNN matrix1) [0.0,0.5..2.0]
 
 -- Eigen values = -2, 2, 0
-matrix2 :: Matrix Exp 3 3
+matrix2 :: Matrix 3 3 Exp
 matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2, neg one]] - X £ idm
 
 eigenM2 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
@@ -111,7 +112,7 @@ evalColnRow :: (Field a, Num a, Ord a, Enum a, Fractional a) => [[Exp]] -> a -> 
 evalColnRow [] _       = []
 evalColnRow (x:xs) val = evalCol x val : evalColnRow xs val
 
-evalMat :: (Field f, Num f, Ord f, Enum f, Fractional f) => Matrix Exp m n -> f -> Matrix f m n
+evalMat :: (Field f, Num f, Ord f, Enum f, Fractional f) => Matrix m n Exp -> f -> Matrix m n f
 evalMat m val = pack $ evalColnRow (unpack m) val
 
 {-
@@ -123,10 +124,10 @@ Gauss $ evalMat matrix 1 `append` zeroVec => Solution = eigenvector
 
 -}
 
-eigen05 :: Matrix Double 2 3
+eigen05 :: Matrix 2 3 Double
 eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0]] -- gauss eigen05 => x = -y 
 
-eigen1 :: Matrix Double 2 3
+eigen1 :: Matrix 2 3 Double
 eigen1 = (evalMat matrix1 1) `append` toMat [[0,0]]    -- gauss eigen1  => x = y
 
 ----------------
@@ -152,7 +153,7 @@ pjFun x = detNN (pjM - scaleM x idm)
 
 
 -- TODO
--- toExpMat :: (Field f, Num f) => Matrix f m n -> Matrix Exp m n
+-- toExpMat :: (Field f, Num f) => Matrix m n f -> Matrix Exp m n
 -- toExpMat = tabulate . map (\(i,f) -> (i, Const f) . values
 
 
@@ -200,7 +201,7 @@ showColnRow (x:xs) vars | skipRow == length x = showColnRow xs vars
 -- showSOl $ gauss eigen05
 
 -- if no solution exists for the system, error message thrown
-showSol :: (Field f, Num f, Ord f, Show f, KnownNats m n) => Matrix f m n -> IO()
+showSol :: (Field f, Num f, Ord f, Show f, KnownNats m n) => Matrix m n f -> IO()
 showSol m = putStr $ showColnRow (unpack $ transpose m) vars
     where
         rows     = unpack $ transpose m

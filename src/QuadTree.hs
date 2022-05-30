@@ -61,22 +61,22 @@ type family Max (m :: Nat) (n :: Nat) :: Nat where
 type QuadMSize = ToNat4' 20000 
 
 -- | A wrapper for Quad, needed for Matrix instance
-data QuadM f (m :: Nat) (n :: Nat) = QuadM (Quad QuadMSize f)
+data QuadM (m :: Nat) (n :: Nat) f = QuadM (Quad QuadMSize f)
 
-instance (KnownNats m n, AddGroup f, Show f) => Show (QuadM f m n) where
+instance (KnownNats m n, AddGroup f, Show f) => Show (QuadM m n f) where
     show = show . toMat
-        where toMat :: QuadM f m n -> L.Matrix f m n
+        where toMat :: QuadM m n f -> L.Matrix m n f
               toMat = changeRep
     
 
 
-instance AddGroup f => AddGroup (QuadM f m n) where
+instance AddGroup f => AddGroup (QuadM m n f) where
     QuadM m1 + QuadM m2 = QuadM (m1 + m2)
     QuadM m1 - QuadM m2 = QuadM (m1 - m2)
     zero = QuadM zero
 
-instance (Sized (ToNat4 m n), Ring f) => VectorSpace (QuadM f m n) where
-    type Under (QuadM f m n) = f
+instance (Sized (ToNat4 m n), Ring f) => VectorSpace (QuadM m n f) where
+    type Under (QuadM m n f) = f
     s £ (QuadM q) = QuadM $ s £ q
     
 
@@ -247,7 +247,7 @@ x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+)
 mulQ' :: Ring a => Quad n a -> Quad m a -> Quad (Max' m n) a
 mulQ' a b = Zero
 
-mulQM ::  Ring f => QuadM f m n -> QuadM f n c -> QuadM f m c
+mulQM ::  Ring f => QuadM m n f -> QuadM n c f -> QuadM m c f
 mulQM (QuadM q1) (QuadM q2) =  QuadM $ mulQ q1 q2
 
 
@@ -268,7 +268,7 @@ transposeQ (Mtx nw ne sw se) = Mtx (transposeQ nw) (transposeQ sw)
 --
 --   TODO: zero requires a KnownNat constraint but we cannot deduce 
 --   KnownNat in the recursive call even though ToNat is trivial.
-toDense :: (Sized n, Ring a) => Quad n a -> L.Matrix a (ToNat n) (ToNat n) 
+toDense :: (Sized n, Ring a) => Quad n a -> L.Matrix (ToNat n) (ToNat n) a
 toDense z@Zero = let n = quadSize z in L.pack $ replicate n (replicate n zero)
 toDense (Scalar a) = a £ L.idm    -- Will always be of size 1x1
 toDense (Mtx nw ne sw se) = (toDense nw `L.append` toDense ne) `L.append'` 
