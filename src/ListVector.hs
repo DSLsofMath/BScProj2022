@@ -8,6 +8,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+
 module ListVector where
 
 import GHC.TypeLits hiding (type (^))
@@ -39,7 +42,8 @@ import Data.Function
 -- to make the code more general
 
 -- | Dependent typed vector
-newtype Vector (n :: Nat) f = V [f] deriving (Eq)
+newtype Vector (n :: Nat) f = V [f] 
+    deriving (Eq, Functor, Foldable)
 
 instance Show f => Show (Vector n f) where
     show v = show . M $ V [v]
@@ -52,9 +56,13 @@ type f ^ n = Vector n f
 vecLen :: forall n f. KnownNat n => Vector n f -> Int
 vecLen _ = fromInteger $ natVal (Proxy @n)
 
+-- | Vector containing a single term
+pureVec :: KnownNat n => f -> Vector n f
+pureVec f = let v = V $ replicate (vecLen v) f in v
+
 -- | Vector that is all zero
 zeroVec :: (KnownNat n, AddGroup f) => Vector n f
-zeroVec = let v = V $ replicate (vecLen v) zero in v
+zeroVec = pureVec zero
 
 -- | converts a list to a vector with a typed size
 vec :: KnownNat n => [f] -> Vector n f
@@ -68,14 +76,13 @@ vec ss = if (vecLen v == length ss) then v
 e :: (KnownNat n, Ring f) => Int -> Vector n f
 e i = V (replicate (i-1) zero ++ (one : repeat zero)) + zero
 
+-- Applies a funcion pairwise on two vectors of same length
 zipWithV :: (a -> b -> c) -> Vector n a -> Vector n b -> Vector n c
 zipWithV op (V as) (V bs) = V $ zipWith op as bs
 
-mapV :: (a->b) -> Vector n a -> Vector n b
-mapV f (V l) = V (map f l)
-
-instance Functor (Vector n) where
-    fmap = mapV
+instance KnownNat n => Applicative (Vector n) where
+    pure = pureVec
+    (<*>) = zipWithV ($)
 
 -- Vector is a vector space over a field
 instance (KnownNat n, AddGroup f) => AddGroup (Vector n f) where
@@ -85,7 +92,7 @@ instance (KnownNat n, AddGroup f) => AddGroup (Vector n f) where
 
 instance (KnownNat n, Ring f) => VectorSpace (Vector n f) where
     type Under (Vector n f) = f
-    s £ v = mapV (s*) v
+    s £ v = fmap (s*) v
 
 -- | Vector is further a finite Vector Field
 instance (KnownNat n, Ring f) => Finite (Vector n f) where
@@ -101,7 +108,7 @@ v2 = V [8,2,8]
 testdot = dot v1 v2 == 2*8 + 7*2 + 8*1
 
 dot :: Ring f => Vector n f -> Vector n f -> f
-V v1 `dot` V v2 = sum $ zipWith (*) v1 v2
+v1 `dot` v2 = sum $ zipWithV (*) v1 v2
 
 -- | Cross product of two vectors of size 3
 -- test cross product
@@ -115,7 +122,7 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 
 -- | Takes a Vector and a List of vectors and returns the linear combination
 linComb :: VectorSpace v => Vector n v -> Vector n (Under v) -> v
-linComb (V vs) (V fs) = sum $ zipWith (£) fs vs
+linComb vs fs = sum $ zipWithV (£) fs vs
 
 -- | Takes a Vector and a List of vectors and returns the linear combination
 --   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
@@ -129,6 +136,7 @@ eval (V fs) (L vs) = sum $ zipWith (£) fs vs
 -- | Matrix as a vector of vectors
 --   note that the outmost vector is not matimatically a vector 
 newtype Matrix (m :: Nat) (n :: Nat) f = M (Vector n (Vector m f)) 
+    deriving (Functor)
 
 instance Show f => Show (Matrix m n f) where
     show = showMat
@@ -142,6 +150,8 @@ showMat = ("\n"++) . unlines . map formatRow . L.transpose . map padCol . unpack
         padCol l = let s = map show l in map (padString (getLongest s)) s
         formatRow s = "| " ++ unwords s ++ "|"
 
+zipWithM :: (a -> b -> c) -> Matrix m n a -> Matrix m n b -> Matrix m n c
+zipWithM op (M as) (M bs) = M $ zipWithV (zipWithV op) as bs
 
 -- | Identity matrix
 idm :: (KnownNat n, Ring f) => Matrix n n f
@@ -153,13 +163,13 @@ M vs ££ v = linComb vs v
 
 -- | Matrix matrix multiplication
 (£££) :: (KnownNat a, Ring f) => Matrix a b f -> Matrix b c f -> Matrix a c f
-a £££ b = (a££) `onCols` b
+a £££ b = (a ££) `onCols` b
 
 
 -- | Applies a function on each column vector
 --   Represents composition f M 
 onCols :: (Vector b f -> Vector a f) -> Matrix b c f -> Matrix a c f
-onCols f (M v) = M $ mapV f v
+onCols f (M v) = M $ fmap f v
 
 -- | Returns the matrix representation of a linear function
 --   We should have that
@@ -171,22 +181,18 @@ funToMat f = f `onCols` idm
 -- | Puts all element in the diagonal in a vector
 getDiagonal :: Matrix n n f -> Vector n f
 getDiagonal m = V $ zipWith (!!) (unpack m) [0..]
-  
--- Matrices also forms a vector space
-instance (KnownNat m, KnownNat n, AddGroup f) => AddGroup (Matrix m n f) where
-    M as + M bs = M $ zipWithV (+) as bs
-    M as - M bs = M $ zipWithV (-) as bs
-    zero = let v = V $ replicate (vecLen v) zero in M v
 
-instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (Matrix m n f) where
-    type Under (Matrix m n f) = f
-    s £ m = (s£) `onCols` m
+zeroMat :: (KnownNats m n, AddGroup f) => Matrix m n f
+zeroMat = M (pureVec zeroVec)
 
+set :: Matrix m n f -> ((Fin m, Fin n), f) -> Matrix m n f
+set (M (V vs)) ((Fin i, Fin j), a) = M . V $ as ++ V (as' ++ a:bs') : bs
+    where (as, V v:bs) = splitAt (j-1) vs
+          (as', _:bs') = splitAt (i-1) v
 
 instance M.Matrix Matrix where 
-    set (M (V vs)) (Fin i, Fin j) a = M . V $ as ++ V (as' ++ a:bs') : bs
-        where (as, V v:bs) = splitAt (j-1) vs
-              (as', _:bs') = splitAt (i-1) v
+    
+    tabulate = foldl set zeroMat 
 
     -- extend listM = tabulate' . merge' (M.values listM)
     --    where merge' as bs = map (\x -> last x : []) . groupBy ((==) `on` fst) $ sortOn fst (as ++ bs)
@@ -198,6 +204,8 @@ instance M.Matrix Matrix where
                                               , (i, a)   <- zip [1..] v ]
 
     mulMat = (£££)
+
+    addMat = zipWithM (+)
 
 -- Composition on matrices
 -- Note that we write n ~ n' instead of writing n on both places. 
@@ -311,10 +319,4 @@ separateRow = head . separateRows
 separateRows :: Matrix m n f -> [(Vector n f, Matrix (m-1) n f)]
 separateRows = map (\(v, m) -> (v, transpose m)) . separateCols . transpose
 
-
-scaleM :: Ring f => f -> Matrix m n f -> Matrix m n f
-scaleM c (M vs) = M (mapV (scaleV c) vs)
-
-scaleV :: Ring f => f -> Vector m f -> Vector m f
-scaleV c = mapV (c*)
 

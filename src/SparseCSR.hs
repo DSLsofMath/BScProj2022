@@ -33,33 +33,21 @@ data CSR (m :: Nat) (n :: Nat) f = CSR { elems :: [f],
 
 deriving instance Show f => Show (CSR m n f)
 
-
-instance forall m n f. (KnownNat n, AddGroup f) => AddGroup (CSR m n f) where
-    (+) = cSRAdd
-    (-) = cSRSub
-    neg (CSR e c r) = CSR (map neg e) c r 
-    zero = CSR [] [] (replicate (n + 1) 0) -- size from type
-        where n = fromInteger $ natVal (Proxy @n)
+zeroCSR :: forall m n f. KnownNat n => CSR m n f
+zeroCSR = CSR [] [] (replicate (n + 1) 0) -- size from type
+    where n = fromInteger $ natVal (Proxy @n)
 
 instance (Ring f, f ~ f', n ~ n') => Composable (CSR m n f) (Vector n' f') (Vector m f) where
     (**) = (smV)
 
-instance (KnownNat m, KnownNat n, Ring f) => VectorSpace (CSR m n f) where
-    type Under (CSR m n f) = f
-    s £ m = s `scaleCSR` m
-
 instance M.Matrix CSR where
 
-    extend csr = tabulate' . merge' (values csr)
-        where merge' as bs = map last . groupBy ((==) `on` fst) $ sortOn fst (as ++ bs)
-              count [] i | i >= length (row csr) = [] 
-              count [] i = 0 : count [] (i+1)
-              count cs i = let (t, d) = span ((Fin i==) . fst . fst) cs in
-                  length t : count d (i+1)
-              tabulate' xs = CSR elems col row
-                  where sorted = sortOn fst xs
-                        (col, elems) = unzip $ map (\((_,Fin i),a) -> (i - 1, a)) sorted
-                        row = scanl (+) 0 (count sorted 1)
+    tabulate xs = CSR elems col row
+        where sorted = sortOn fst xs
+              (col, elems) = unzip $ map (\((_,Fin i),a) -> (i - 1, a)) sorted
+              perRow = map (pred . length) . group . sort $ map (fst . fst) xs 
+                                                        ++ [minBound .. maxBound]
+              row = scanl (+) 0 perRow
 
     values (CSR elems col row) = concat $ merge (zip col elems) perRow
         where perRow = zip [1..] $ zipWith (-) (tail row) row 
@@ -68,6 +56,8 @@ instance M.Matrix CSR where
                     [ ((Fin i,Fin (j+1)), a) | (j,a) <- cur ] : merge next ys
 
     mulMat = cSRMM
+
+    addMat = cSRAdd
 
 -- | returns size of the sparse matrix
 csrSize :: forall m n f. KnownNats m n => CSR m n f -> (Int,Int)
@@ -138,10 +128,7 @@ cSRMM m1@(CSR e1 c1 r1)
             bs = [(csrMV m1 (getColumn m2 b)) | b <- [0..maximum c1]]
             emptyCSR = CSR [] [] (scanl (+) 0 (map length bs)) :: CSR f a c
 
-cSRSub :: (KnownNat a, AddGroup f) => CSR b a f -> CSR b a f  -> CSR b a f
-cSRSub m1 m2 = cSRAdd m1 (neg m2)
-
-cSRAdd :: (AddGroup f) => CSR b a f -> CSR b a f  -> CSR b a f
+cSRAdd :: AddGroup f => CSR b a f -> CSR b a f  -> CSR b a f
 cSRAdd (CSR e1 c1 [r]) _ = CSR [] [] [r]
 cSRAdd m1@(CSR e1 c1 r1) 
        m2@(CSR e2 c2 r2) = foldl comb emptyCSR bs
@@ -151,7 +138,7 @@ cSRAdd m1@(CSR e1 c1 r1)
 
 -- applies a given operation row by row,
 -- between rows from two given matrices.
-opRows :: (AddGroup f) => CSR b a f -> CSR b a f -> ([(Int,f)] -> [(Int,f)]  -> [(Int,f)]) -> [[(Int, f)]]
+opRows :: AddGroup f => CSR b a f -> CSR b a f -> ([(Int,f)] -> [(Int,f)]  -> [(Int,f)]) -> [[(Int, f)]]
 opRows m1@(CSR e1 c1 r1) m2 op =  [ (op (getRow m1 a) (getRow m2 a)) | a <- [0..length r1 - 2]]
 
 -- Adds one csr vector with another, useful for sparse vectors.

@@ -63,21 +63,13 @@ type QuadMSize = ToNat4' 20000
 -- | A wrapper for Quad, needed for Matrix instance
 data QuadM (m :: Nat) (n :: Nat) f = QuadM (Quad QuadMSize f)
 
+zeroQM :: QuadM m n f
+zeroQM = QuadM Zero
+
 instance (KnownNats m n, AddGroup f, Show f) => Show (QuadM m n f) where
     show = show . toMat
         where toMat :: QuadM m n f -> L.Matrix m n f
               toMat = changeRep
-    
-
-
-instance AddGroup f => AddGroup (QuadM m n f) where
-    QuadM m1 + QuadM m2 = QuadM (m1 + m2)
-    QuadM m1 - QuadM m2 = QuadM (m1 - m2)
-    zero = QuadM zero
-
-instance (Sized (ToNat4 m n), Ring f) => VectorSpace (QuadM m n f) where
-    type Under (QuadM m n f) = f
-    s £ (QuadM q) = QuadM $ s £ q
     
 
 instance Matrix QuadM where 
@@ -86,10 +78,12 @@ instance Matrix QuadM where
     values (QuadM q) = map toFin $ valuesQ q 
         where toFin ((i,j),a) = ((Fin (i+1), Fin (j+1)), a)
 
-    extend (QuadM m) xs = QuadM $ setMultipleQ m (map removeFin xs)
+    tabulate xs = QuadM $ setMultipleQ Zero (map removeFin xs)
         where removeFin ((Fin i, Fin j), a) = ((i-1, j-1), a) 
 
     mulMat = mulQM
+
+    addMat (QuadM a) (QuadM b) = QuadM $ a + b
 
 -- | A matrix representation based on QuadTrees
 --   Represents a matrix of size n*n where n = 2^Nat4

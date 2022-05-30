@@ -1,12 +1,11 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
-{-# LANGUAGE QuantifiedConstraints #-}
 
 module Matrix where
 
@@ -16,6 +15,7 @@ import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRationa
 
 import Data.List (sortOn, groupBy)
 import Data.Function 
+import Data.Proxy 
 
 import Algebra
 
@@ -84,28 +84,22 @@ instance (Ord i, Ring a) => VectorSpace [(i,a)] where
 --   However we make some changes to better suite sparse matrices,
 --   most notably we only allow implementations for two dimensions.
 --   
-class (forall f m n. (KnownNats m n, AddGroup f) => AddGroup (mat m n f) ) => Matrix (mat :: Nat -> Nat -> * -> *) where
-    {-# MINIMAL (set | extend), values, mulMat#-}
+class Matrix (mat :: Nat -> Nat -> * -> *) where
+    {-# MINIMAL tabulate, values, mulMat, addMat #-}
 
     -- | Returns all values with corresponding index 
     values :: mat m n f -> [((Fin m, Fin n), f)]
 
     -- | Builds a matrix from a list of positions and values
-    --   Initializes with the zero matrix
     tabulate :: (KnownNats m n, AddGroup f) => [((Fin m, Fin n), f)] -> mat m n f
-    tabulate = extend zero
-
-    -- | Sets the value at a given position
-    set :: mat m n f -> (Fin m, Fin n) -> f -> mat m n f 
-    set m i f = extend m [(i,f)]
-
-    -- | Creates a matrix given a list of keyvalue pairs
-    extend :: mat m n f -> [((Fin m, Fin n), f)] -> mat m n f
-    extend = foldl (\m (i, a) -> set m i a) 
 
     -- | Matrix multiplication is needed in the class to 
     --   define Composable for matrices in a nice way.
     mulMat :: (KnownNat a, Ring f) => mat a b f -> mat b c f -> mat a c f
+
+    -- | Addition of multiplication
+    --   Needed to define Add- instances for all matrices
+    addMat :: AddGroup f => mat m n f -> mat m n f -> mat m n f
 
 
 -- | Transforms keyvalue pairs into a matrix
@@ -138,8 +132,8 @@ setRow m i r = tabulate $ new ++ old
 -- | Returns the size of a matrix in the form of (#rows, #columns)
 size :: forall m n mat f. KnownNats m n => mat m n f -> (Int, Int) 
 size _ = (m, n)
-    where m = fromInteger $ natVal (undefined :: undefined m)
-          n = fromInteger $ natVal (undefined :: undefined n)
+    where m = fromInteger $ natVal (Proxy @m)
+          n = fromInteger $ natVal (Proxy @n)
 
 -- | Appends two matrices, analogous to (++)
 append :: (KnownNats m (n1 + n2), KnownNat n1, Matrix mat, AddGroup f) => mat m n1 f -> mat m n2 f -> mat m (n1 + n2) f
@@ -196,7 +190,16 @@ toConst = changeUnder Const
 
 
 ----------------------------------------------------------------------------------------
--- Instances of Matrix
+-- Instances for Matrix
+
+instance (KnownNats m n, Matrix mat, AddGroup f) => AddGroup (mat m n f) where
+    (+) = addMat
+    neg = changeUnder neg
+    zero = zeroMat
+
+instance (KnownNats m n, Matrix mat, Ring f) => VectorSpace (mat m n f) where
+    type Under (mat m n f) = f
+    s £ m = changeUnder (s *) m
 
 instance (Matrix mat, AddGroup f, Eq f ) => Eq (mat m n f) where
     m1 == m2 = purgeToList m1 == purgeToList m2
