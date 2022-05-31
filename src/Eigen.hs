@@ -58,12 +58,12 @@ m33 :: Matrix 3 3 R
 m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] -- det33 = -15
 
 
-exp22 :: Matrix 2 2 Exp
+exp22 :: Matrix 2 2 (Exp R)
 exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Exp 2 2)
 
 
 -- Use newton to find the zeros of the characteristic equation = the eigen values
-newton :: (Field a, Num a, Ord a) => Exp -> a -> a -> a
+newton :: (Field a, Num a, Ord a) => Exp a -> a -> a -> a
 newton f eps x = if abs fx < eps then x
                               else if fx' /= 0 then newton f eps next
                                                        else  newton f eps (x+eps)
@@ -71,10 +71,10 @@ newton f eps x = if abs fx < eps then x
             fx' = evalExp' f x
             next = x - (fx/fx')
 
-newtonLast :: (Field a, Num a, Ord a) => Exp -> a -> a -> a
+newtonLast :: (Field a, Num a, Ord a) => Exp a -> a -> a -> a
 newtonLast f eps x = last (newtonList f eps x)
 
-newtonList :: (Field a, Num a, Ord a) => Exp -> a -> a -> [a]
+newtonList :: (Field a, Num a, Ord a) => Exp a -> a -> a -> [a]
 newtonList f eps x = x : if abs fx < eps then [ ]
                                   else if fx' /= 0 then newtonList f eps next
                                                            else newtonList f eps (x+eps)
@@ -82,38 +82,30 @@ newtonList f eps x = x : if abs fx < eps then [ ]
             fx' = evalExp' f x
             next = x - (fx/fx')
 
-roots :: (Field a, Num a, Ord a, Enum a, Fractional a) => Exp -> [a] -> [a]
+roots :: (Field a, Num a, Ord a, Enum a, Fractional a) => Exp a -> [a] -> [a]
 roots f as = map (newton f 0.001) as
 
 -- Eigen values = 1, 1/2 
-matrix1 :: Matrix 2 2 Exp
+matrix1 :: Matrix 2 2 (Exp R)
 matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
 
 -- Using detNN, better for characteristic polynomial
-eigenM1 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
+eigenM1 :: [R]
 eigenM1 = roots(detNN matrix1) [0.0,0.5..2.0]
 
 -- Eigen values = -2, 2, 0
-matrix2 :: Matrix 3 3 Exp
+matrix2 :: Matrix 3 3 (Exp R)
 matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2, neg one]] - X £ idm
 
-eigenM2 :: (Field a, Num a, Ord a, Enum a, Fractional a) => [a]
+eigenM2 :: [R]
 eigenM2 = roots(detNN matrix2) [0.0,0.5..2.0]
 
 
 -- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
 -- 
 
-evalCol :: (Field a, Num a, Ord a, Enum a, Fractional a) => [Exp] -> a -> [a]
-evalCol [] _ = []
-evalCol (x:xs) val = [evalExp x val] ++ evalCol xs val
-
-evalColnRow :: (Field a, Num a, Ord a, Enum a, Fractional a) => [[Exp]] -> a -> [[a]]
-evalColnRow [] _       = []
-evalColnRow (x:xs) val = evalCol x val : evalColnRow xs val
-
-evalMat :: (Field f, Num f, Ord f, Enum f, Fractional f) => Matrix m n Exp -> f -> Matrix m n f
-evalMat m val = pack $ evalColnRow (unpack m) val
+evalMat :: Field f => Matrix m n (Exp f) -> f -> Matrix m n f
+evalMat m val = fmap (\x -> evalExp x val) m
 
 {-
 For matrix1 => Eigenvalues = 0.5 & 1

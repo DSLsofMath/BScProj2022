@@ -185,7 +185,7 @@ toSparse :: (Matrix mat2, KnownNats m n, Matrix mat1, Eq f, AddGroup f) => mat1 
 toSparse = tabulate . purgeToList
 
 
-toConst :: (KnownNats m n, Matrix mat) => mat m n R -> mat m n Exp 
+toConst :: (KnownNats m n, Matrix mat, AddGroup f) => mat m n f -> mat m n (Exp f)
 toConst = changeUnder Const
 
 
