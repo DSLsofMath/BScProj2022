@@ -7,6 +7,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 
 module Algebra where 
@@ -28,14 +30,16 @@ mapL :: (a -> b) -> List a n -> List b n
 mapL f (L xs) = L (map f xs)
 
 -- | Datatype for field expressions of one variable
-data Exp a =  Const a
-           |  X
-           |  Exp a :+: Exp a
-           |  Negate (Exp a)
-           |  Exp a :*: Exp a
-           |  Recip (Exp a)
-    deriving (Eq, Ord)
+data Exp a where
+    Const  :: a -> Exp a
+    X      :: Exp a
+    (:+:)  :: AddGroup a => Exp a -> Exp a -> Exp a
+    Negate :: AddGroup a => Exp a -> Exp a
+    (:*:)  :: Mul a      => Exp a -> Exp a -> Exp a
+    Recip  :: Field a    => Exp a -> Exp a
+    -- (:£:)  :: VectorSpace a => Exp (Under a) -> Exp a -> Exp a
 
+deriving instance Eq a => Eq (Exp a)
 
 -- Remove + const 0 from Exp matrices
 -------------------------------------Only to simplify how to view matrix expressions and determinants--------------------------------
@@ -64,7 +68,7 @@ showFactor e            = showE e
 -- Eval functions for expressions
 
 -- Eval for expressions, apply a value for X
-evalExp :: Field a => Exp a -> a -> a
+evalExp :: Exp a -> a -> a
 evalExp (Const a)   = const a
 evalExp X           = id
 evalExp (e1 :+: e2) = evalExp e1 + evalExp e2
@@ -73,7 +77,7 @@ evalExp (Negate e)  = neg (evalExp e)
 evalExp (Recip e)   = recip (evalExp e)
 
 -- derive  ::  FunExp        ->  FunExp
-derive :: Field a => Exp a -> Exp a
+derive :: Ring a => Exp a -> Exp a
 derive (Const _)   = Const zero
 derive X           = Const one
 derive (e1 :+: e2) = derive e1 :+: derive e2
@@ -81,10 +85,10 @@ derive (e1 :*: e2) = (derive e1 :*: e2) :+: (e1 :*: derive e2)
 derive (Negate e)  = neg (derive e)
 derive (Recip e)   = neg (derive e :*: (recip (e^2)))
 
-evalExp' :: Field a => Exp a -> a -> a
+evalExp' :: Ring a => Exp a -> a -> a
 evalExp' =  evalExp . derive
 
-evalExp'' :: Field a => Exp a -> a -> a
+evalExp'' :: Ring a => Exp a -> a -> a
 evalExp'' = evalExp' . derive
 
 
@@ -97,7 +101,7 @@ simplifyE (Recip x)   = simplifyRec (simplifyE x)
 simplifyE X           = X
 simplifyE (Const c)   = Const c
 
-simplifyAdd :: (Field a, Num a, Eq a) => Exp a -> Exp a -> Exp a
+simplifyAdd :: (Ring a, Num a, Eq a) => Exp a -> Exp a -> Exp a
 simplifyAdd (Const a)   (Const b)   = Const (a+b)
 simplifyAdd (Const 0)   x           = x
 simplifyAdd x           (Const 0)   = x
@@ -107,7 +111,7 @@ simplifyAdd x           y             = case scaledEq x y of
     Left    (a,b,x) -> simplifyMul (Const (a+b)) x
     Right   (x,y)   -> x :+: y
 
-simplifyMul :: (Field a, Num a, Eq a) => Exp a -> Exp a -> Exp a
+simplifyMul :: (Ring a, Num a, Eq a) => Exp a -> Exp a -> Exp a
 simplifyMul (Const a)  (Const b)  = Const (a*b)
 simplifyMul x          (Const c)  = simplifyMul (Const c) x
 simplifyMul (Const 0)  _          = Const 0
@@ -126,7 +130,7 @@ scaledEq (Const a:*:x)            y  | x==y = Left (a,1,x)
 scaledEq (Const a:*:x) (Const b:*:y) | x==y = Left (a,b,x)
 scaledEq x y = Right (x,y)
 
-simplifyNeg :: Field a => Exp a -> Exp a
+simplifyNeg :: AddGroup a => Exp a -> Exp a
 simplifyNeg (Const c)   = Const (neg c)
 simplifyNeg (Negate x)  = x
 simplifyNeg x           = Negate x
