@@ -188,6 +188,9 @@ a ^ n = product $ replicate n a
 
 type Ring a = (AddGroup a, Mul a)
 
+two :: Ring a => a
+two = one+one
+
 class (Ring a) => Field a where
     (/) :: a -> a -> a
     a / b = a * recip b

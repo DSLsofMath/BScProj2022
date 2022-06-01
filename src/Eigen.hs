@@ -1,12 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE TypeApplications #-}
-
 
 module Eigen where
 
@@ -14,21 +6,15 @@ import GHC.TypeLits
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 
-import qualified Data.List as L
+import Data.List (sort, groupBy)
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
 
--- This file contains an example of using TypeLits to handle vectors with a given size. 
--- The implementation here is based on lists and should be replaced.
---
--- To try the code in ghci the DataKinds language extension needs to be enabled:
--- type ":set -XDataKinds" in the ghci prompt
---
 
 m44, mtest :: Matrix 4 4 R
 m44 = toMat [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]] 
-mtest = transpose $ toMat [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]] 
+mtest = toMatT [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]] 
 
 -- | Determinant for any nxn matrix 
 --   The algorithm is based on Laplace expansion
@@ -63,27 +49,26 @@ exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Ex
 
 
 -- Use newton to find the zeros of the characteristic equation = the eigen values
+
+-- | Returns a root of the expression
+--   TODO: Handle case when no root is found
 newton :: (Field a, Num a, Ord a) => Exp a -> a -> a -> a
-newton f eps x = if abs fx < eps then x
-                              else if fx' /= 0 then newton f eps next
-                                                       else  newton f eps (x+eps)
-      where fx  = evalExp f x
-            fx' = evalExp' f x
-            next = x - (fx/fx')
+newton f eps = last . newtonList f eps 
 
-newtonLast :: (Field a, Num a, Ord a) => Exp a -> a -> a -> a
-newtonLast f eps x = last (newtonList f eps x)
-
+-- | Returns a sequence of approximations from finding a root 
 newtonList :: (Field a, Num a, Ord a) => Exp a -> a -> a -> [a]
-newtonList f eps x = x : if abs fx < eps then [ ]
-                                  else if fx' /= 0 then newtonList f eps next
-                                                           else newtonList f eps (x+eps)
-      where fx  = evalExp f x
-            fx' = evalExp' f x
-            next = x - (fx/fx')
+newtonList exp eps = go
+      where (f, f')  = (evalExp exp, evalExp' exp)
+            next = id - (f / f')
+            go x | abs (f  x) < eps = [x]
+                 | abs (f' x) > eps = x : go (next x) 
+                 | otherwise        = x : go (x + eps)
 
-roots :: (Field a, Num a, Ord a, Enum a, Fractional a) => Exp a -> [a] -> [a]
-roots f as = map (newton f 0.001) as
+-- | Returns a list of found roots, based on a list of guesses
+roots :: (Field a, Fractional a, Ord a) => Exp a -> [a] -> [a]
+roots f = map head . groupBy (=~) . sort . map (newton f eps) 
+    where eps = 0.00001
+          a =~ b = abs (a - b) < two * eps
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix 2 2 (Exp R)
@@ -123,9 +108,6 @@ eigen1 :: Matrix 2 3 Double
 eigen1 = (evalMat matrix1 1) `append` toMat [[0,0]]    -- gauss eigen1  => x = y
 
 ----------------
-
-two :: Ring a => a
-two = one+one
 
 {-
 pjM :: Ring f => Matrix f 2 2
