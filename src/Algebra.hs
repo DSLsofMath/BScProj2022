@@ -66,7 +66,7 @@ fromRational x  =  fromInteger (Data.Ratio.numerator x) / fromInteger (Data.Rati
 
 
 -- Eval for expressions, apply a value for X
-evalExp :: (Field a, Num a) => Exp -> a -> a
+evalExp :: Exp -> R -> R
 evalExp (Const alpha)  =  const (fromRational (toRational alpha))
 evalExp X              =  id
 evalExp (e1 :+: e2)    =  evalExp e1 + evalExp e2
@@ -83,10 +83,10 @@ derive      (e1 :*: e2)    =  (derive e1 :*: e2) :+: (e1 :*: derive e2)
 derive      (Negate e)     =  neg (derive e)
 derive      (Recip e)      =  neg (derive e :*: (recip (e^2)))
 
-evalExp' :: (Field a, Num a) => Exp -> a -> a
+evalExp' ::  Exp -> R -> R
 evalExp' =  evalExp . derive
 
-evalExp'' :: (Field a, Num a) => Exp -> a -> a
+evalExp'' :: Exp -> R -> R
 evalExp'' = evalExp'.derive
 
 
