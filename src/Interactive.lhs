@@ -17,7 +17,7 @@ import Algebra (VectorSpace(..))
 import Eigen (detNN, detGauss, newton, roots, showSol, evalMat)
 import qualified Eigen as E
 import Gauss (ElimOp(..), elimOpToMat, elimOpToFunc, foldElimOpsFunc, gauss, gaussTrace)
-import Subspaces hiding (mEx, QuotientSpace(..), Subspace(..))
+import Subspaces hiding (mEx, Quot, Sub)
 
 
 import Matrix hiding (Matrix, pjMat)

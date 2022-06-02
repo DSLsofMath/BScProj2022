@@ -6,7 +6,8 @@ import GHC.TypeLits
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 
-import Data.List (sort, groupBy)
+import Data.List (sort, groupBy, find)
+import Data.Maybe (mapMaybe)
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
@@ -30,7 +31,7 @@ detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do
 -- | Uses Guassian elimination to compute the determinant
 --   This algorithm is only O(n^3)
 detGauss :: (Field f, Eq f) => Matrix n n f -> f
-detGauss m = let V diag = getDiagonal gaussM in product diag / traceProduct
+detGauss m = let diag = getDiagonal gaussM in product diag / traceProduct
     where trace = gaussTrace m 
           gaussM = foldElemOpsFunc trace m
           traceProduct = product [ s | Mul _ s <- trace ]
@@ -50,25 +51,20 @@ exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Ex
 
 -- Use newton to find the zeros of the characteristic equation = the eigen values
 
--- | Returns a root of the expression
---   TODO: Handle case when no root is found
-newton :: (Field a, Num a, Ord a) => Exp a -> a -> a -> a
-newton f eps = last . newtonList f eps 
+-- | Returns a root of the expression if found
+newton :: (Field a, Approx a) => Exp a -> a  -> Maybe a
+newton exp x = find (\x -> f x ~= zero) xs
+    where xs = take 50 $ newtonList exp x
+          f = evalExp exp
 
--- | Returns a sequence of approximations from finding a root 
-newtonList :: (Field a, Num a, Ord a) => Exp a -> a -> a -> [a]
-newtonList exp eps = go
-      where (f, f')  = (evalExp exp, evalExp' exp)
-            next = id - (f / f')
-            go x | abs (f  x) < eps = [x]
-                 | abs (f' x) > eps = x : go (next x) 
-                 | otherwise        = x : go (x + eps)
+-- | An infinite sequence approaching a root of the expression
+newtonList :: Field a => Exp a -> a  -> [a]
+newtonList exp = iterate (\x -> x - f x / f' x)
+    where (f, f') = (evalExp exp, evalExp' exp)
 
--- | Returns a list of found roots, based on a list of guesses
-roots :: (Field a, Fractional a, Ord a) => Exp a -> [a] -> [a]
-roots f = map head . groupBy (=~) . sort . map (newton f eps) 
-    where eps = 0.00001
-          a =~ b = abs (a - b) < two * eps
+-- | Returns a list of found roots based on a list of guesses
+roots :: (Field a, Approx a) => Exp a -> [a] -> [a]
+roots exp = map head . groupBy (~=) . mapMaybe (newton exp) 
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix 2 2 (Exp R)
@@ -89,7 +85,7 @@ eigenM2 = roots(detNN matrix2) [0.0,0.5..2.0]
 -- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
 -- 
 
-evalMat :: Field f => Matrix m n (Exp f) -> f -> Matrix m n f
+evalMat :: Matrix m n (Exp f) -> f -> Matrix m n f
 evalMat m val = fmap (\x -> evalExp x val) m
 
 {-
@@ -135,7 +131,7 @@ pjFun x = detNN (pjM - scaleM x idm)
 -- | Idea for visualizing the answers of systems of equations as strings
 --   Try running showSol on an row echelon form matrix (gauss matrix)
 
-leadingZeros :: (Field f, Eq f, Num f) => [f] -> Int
+leadingZeros :: (Eq f, Num f) => [f] -> Int
 leadingZeros = length . takeWhile (== 0)
 
 showVariableValues :: (Field f, Num f, Ord f, Show f) => [f] -> [String] -> String

@@ -89,7 +89,7 @@ isBasis m = spansSpace m && linIndep m
 -- | The null space of a linear transformation is the set of vectors that maps to 0
 --   In terms of linear equations it is the solution to Ax=0
 nullSpace :: (KnownNat n, Field f, Eq f) =>  Matrix m n f -> Subspace (Vector n f)
-nullSpace m = Sub $ [ V b | (a,b) <- splitAt height <$> reduceCol m, all (== zero) a]
+nullSpace m = Sub [ V b | (a,b) <- splitAt height <$> reduceCol m, all (== zero) a]
     where height = length (head $ unpack m)
           reduceCol m = unpack $ transpose $ gauss (transpose m `append` idm)
 
