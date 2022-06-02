@@ -219,6 +219,20 @@ class VectorSpace x => Finite x where
 basis :: forall x. (Finite x, AddGroup x, x ~ BasisVec x) => List x (Dim x)
 basis = basis' (zero :: x)
 
+
+-- | Approximated equality
+--   Mostly useful for Double 
+--
+--   It might be useful to have two kinds of equalities,
+--   one for absolute and one for relative.
+--   For example 100001 and 100004 are "relatively" but not "absolute" equal.
+--   Meanwhile 0.0001 and 0.000001 are "absolute" but not "relatively" equal
+class Approx a where
+    (~=) :: a -> a -> Bool
+
+(~/=) :: Approx a => a -> a -> Bool
+a ~/= b = not $ a ~= b
+
 -- Instance definitions
 instance AddGroup Int       where (+) = (P.+); (-) = (P.-); zero = 0
 instance AddGroup Integer   where (+) = (P.+); (-) = (P.-); zero = 0
@@ -244,5 +258,7 @@ instance Ring b => VectorSpace (a -> b) where
     type Under (a -> b) = b
     s £ f = \x -> s * f x
 
+instance Approx Double   where a ~= b = abs (a - b) < 0.00001
+instance Approx Rational where a ~= b = abs (a - b) < 0.00001
 
 

@@ -84,6 +84,9 @@ instance KnownNat n => Applicative (Vector n) where
     pure = pureVec
     (<*>) = zipWithV ($)
 
+instance Approx f => Approx (Vector n f) where
+    a ~= b = and $ zipWithV (~=) a b
+
 -- Vector is a vector space over a field
 instance (KnownNat n, AddGroup f) => AddGroup (Vector n f) where
     (+) = zipWithV (+)
@@ -152,6 +155,9 @@ showMat = ("\n"++) . unlines . map formatRow . L.transpose . map padCol . unpack
 
 zipWithM :: (a -> b -> c) -> Matrix m n a -> Matrix m n b -> Matrix m n c
 zipWithM op (M as) (M bs) = M $ zipWithV (zipWithV op) as bs
+
+instance Approx f => Approx (Matrix m n f) where
+    M a ~= M b = a ~= b
 
 -- | Identity matrix
 idm :: (KnownNat n, Ring f) => Matrix n n f
