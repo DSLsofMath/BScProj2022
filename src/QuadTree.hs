@@ -1,15 +1,10 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ExplicitForAll #-}
 
 module QuadTree where
 
@@ -17,6 +12,7 @@ import Prelude hiding ((+), (-), (*), (/), sum, )
 import GHC.TypeLits
 import Data.Type.Bool
 import Data.Kind
+import Data.Proxy
 
 import Data.List
 
@@ -150,7 +146,8 @@ setMultipleQ' (SSuc n) a xs = Mtx (setM nw nws) (setM ne nes)
     where ((nws, nes), (sws, ses)) = splitOn snd `onBoth` splitOn fst xs
           ( nw,  ne,    sw,  se)   = case a of Zero            -> (Zero, Zero, Zero,Zero)
                                                Mtx nw ne sw se -> (nw,   ne,   sw,   se)
-          splitOn f = span (\(i,_) -> f i < m) . sortOn (f . fst) -- TODO: get rid of sort
+          splitOn f = partition (\(i, _) -> f i < m) 
+
           f `onBoth` (a,b) = (f a, f b)
           setM q = setMultipleQ' n q . map (\(i,a) -> ((`mod` m) `onBoth` i, a)) 
           m = toInt n
@@ -178,10 +175,10 @@ instance forall n. Sized n => Sized (Suc n) where
 -- | Returns the size of the Quad matrix, since a Quad
 --   is always square we only return one value
 quadSize :: forall n a. Sized n => Quad n a -> Int
-quadSize _ = toInt (undefined :: undefined n)
+quadSize _ = toInt (Proxy @n)
 
 sNatQ :: forall n a. Sized n => Quad n a -> SNat4 n
-sNatQ _ = toSNat4 (undefined :: undefined n)
+sNatQ _ = toSNat4 (Proxy @n)
 
 -- | Applies a function on the Quads scalars
 mapQuad :: (a -> b) -> Quad n a -> Quad n b
@@ -214,14 +211,15 @@ instance Ring a => VectorSpace (Quad n a) where
 
 -- | Identity matrix in Quad representation
 idQ :: forall n a. (Sized n, Ring a) => Quad n a
-idQ = case toSNat4 (undefined :: undefined n) of 
+idQ = case toSNat4 (Proxy @n) of 
     SOne   -> Scalar one
-    SSuc _ -> Mtx idQ Zero Zero idQ
+    SSuc _ -> Mtx idQ  Zero 
+                  Zero idQ
 
 -- | Multiplication on Quad matrices
 mulQ :: Ring a => Quad n a -> Quad n a -> Quad n a
-Zero `mulQ` _ = Zero
-_ `mulQ` Zero = Zero
+Zero     `mulQ` _        = Zero
+_        `mulQ` Zero     = Zero
 Scalar a `mulQ` Scalar b = Scalar (a * b)
 x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+) 
                         (zipQuad mulQ (colExchange x) (offDiagSqsh y))
@@ -238,12 +236,8 @@ x@(Mtx _ _ _ _) `mulQ` y@(Mtx _ _ _ _) = case zipQuad (+)
           zipQuad :: (Quad n a -> Quad n a -> Quad n a) -> Quad (Suc n) a -> Quad (Suc n) a -> Quad (Suc n) a
           zipQuad (*) (Mtx a b c d) (Mtx e f g h) = Mtx (a*e) (b*f) (c*g) (d*h)
 
-mulQ' :: Ring a => Quad n a -> Quad m a -> Quad (Max' m n) a
-mulQ' a b = Zero
-
 mulQM ::  Ring f => QuadM m n f -> QuadM n c f -> QuadM m c f
 mulQM (QuadM q1) (QuadM q2) =  QuadM $ mulQ q1 q2
-
 
 
 instance (Sized n, Ring a) => Mul (Quad n a) where
@@ -268,13 +262,6 @@ toDense (Scalar a) = a £ L.idm    -- Will always be of size 1x1
 toDense (Mtx nw ne sw se) = (toDense nw `L.append` toDense ne) `L.append'` 
                             (toDense sw `L.append` toDense se)
 
-
--- Potentally use parallelism for big enough Quads
--- class Mul a where
--- 
--- instance (n <= 50) => Mul (Quad n a) where
--- 
--- instance (12 <= n) => Mul (Quad n a) where
 
 
 testQ :: Quad (Suc (Suc One)) R
