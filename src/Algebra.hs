@@ -90,7 +90,7 @@ deriveExp (Negate e)  = neg (deriveExp e)
 deriveExp (Recip e)   = neg (deriveExp e :*: (recip (e^2)))
 
 evalExp' :: Ring a => Exp a -> a -> a
-evalExp' =  evalExp . deriveExp
+evalExp' = evalExp . deriveExp
 
 evalExp'' :: Ring a => Exp a -> a -> a
 evalExp'' = evalExp' . deriveExp
