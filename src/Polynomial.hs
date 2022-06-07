@@ -38,6 +38,14 @@ instance Expr Poly where
     eval = evalP
     derive = deriveP
 
+-- | Allows us to evaluate polynomials with matrices as input
+--                        | 1 3 |       | 1 3 |       | 1 3 |^2   | 5 18 |
+--   evalOver (P [3,0,2]) | 0 2 | = 3 £ | 0 2 | + 2 £ | 0 2 |   = | 0 11 |
+evalOver :: (VectorSpace v, Ring v) => Poly (Under v) -> v -> v
+evalOver (P cs) m = sum $ zipWith (£) cs exps 
+    where exps = iterate (* m) one
+
+
 -----------------------------------------------------------
 -- Operations and values on Poly
 

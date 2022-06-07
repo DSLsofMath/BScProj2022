@@ -32,7 +32,7 @@ import qualified Gauss as G
 
 -- | A subspace is defined by a list of vectors that spans the space.
 --   We might want to add an invariant to the list such that it is linearly independent.
-newtype Subspace v = Sub [v] deriving (Show, Eq)
+newtype Subspace v = Sub { unSub :: [v] } deriving (Show, Eq)
 
 -- | We define Addgroup over a subspace as "sum of subsets"
 instance (AddGroup v) => AddGroup (Subspace v) where
@@ -86,6 +86,7 @@ makeLinIndep = foldl (\vs v -> if span' (M $ V vs) v then vs else v:vs) []
 -- | Checks if the vectors in a matrix forms a basis of their vectorSpace
 isBasis :: (KnownNat m, Eq f, Field f) => Matrix m n f -> Bool
 isBasis m = spansSpace m && linIndep m
+
 
 -- | The null space of a linear transformation is the set of vectors that maps to 0
 --   In terms of linear equations it is the solution to Ax=0

@@ -14,7 +14,7 @@ module Interactive where
 import Algebra
 import Algebra (VectorSpace(..))
 
-import Eigen (detNN, detGauss, newton, roots, showSol, evalMat)
+import Eigen (detNN, detGauss, newton, roots, showSol, evalMat, charPoly, eigenValues, eigenVectors, eigenValVec)
 import qualified Eigen as E
 import Gauss (ElimOp(..), elimOpToMat, elimOpToFunc, foldElimOpsFunc, gauss, gaussTrace)
 import Subspaces hiding (mEx, Quot, Sub)

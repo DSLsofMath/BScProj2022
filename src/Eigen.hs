@@ -8,14 +8,22 @@ import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 
 import Data.List (nubBy)
 import Data.Maybe (mapMaybe)
+import Data.Function (on)
+
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
+import Polynomial
+import Subspaces
 
 
 m44, mtest :: Matrix 4 4 R
 m44 = toMat [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]] 
 mtest = toMatT [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]] 
+
+--------------------------------------------------------------------------
+-- Determinants of matrices 
+--
 
 -- | Determinant for any nxn matrix 
 --   The algorithm is based on Laplace expansion
@@ -39,17 +47,17 @@ detGauss m = let diag = getDiagonal gaussM in product diag / traceProduct
 
 --tests, all give correct results
 m22 :: Matrix 2 2 R
-m22   = toMat [[10,1],[1,10]] -- det22 = 99
+m22   = toMat [[10,1],[1,10]] -- detNN = 99
 
 m33 :: Matrix 3 3 R
-m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] -- det33 = -15
+m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] -- detNN = -15
 
 
-exp22 :: Matrix 2 2 (Exp R)
-exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Exp 2 2)
-
-
+--------------------------------------------------------------------------
+-- Root solving algorithms 
+--
 -- Use newton to find the zeros of the characteristic equation = the eigen values
+-- 
 
 -- | Returns a root of the expression if found
 newton :: (Expr exp, Field a, Approx a) => exp a -> a -> Maybe a
@@ -74,20 +82,61 @@ roots :: (Expr exp, Field a, Approx a) => exp a -> [a] -> [a]
 roots exp = nubBy (~=) . mapMaybe (newton exp) 
 
 
--- Eigen values = 1, 1/2 
-matrix1 :: Matrix 2 2 (Exp R)
-matrix1 = toMat[[Const(3/4), Const(1/4)], [Const(1/4), Const(3/4)]] - X £ idm
+--------------------------------------------------------------------------
+-- Eigen-related functions
+--
+-- Note: In general our root finder, newton, struggles with roots  
+-- located on stationary points. To compensate for this we explicitly test 
+-- if 0 and +- 1 are eigenvalues, as these are common. A better solution 
+-- might be to check all stationary points. That however is costly and we
+-- might still encounter stationary points. 
+-- As a side note it would also be nice to not give instal guesses 
+-- when finding eigenvalues/vectors
 
--- Using detNN, better for characteristic polynomial
-eigenM1 :: [R]
-eigenM1 = roots(detNN matrix1) [0.0,0.5..2.0]
 
+-- | The characteristic polynomial
+--   The roots of this polynomial is the eigenvalues of the matrix
+--   It also has the property that:  
+--   prop_charPoly m = evalOver (charPoly m) m == zero
+charPoly :: (KnownNat n, Ring f) => Matrix n n f -> Poly f
+charPoly m = detNN (m' - polyX £ idm) 
+    where m' = fmap (\x -> P [x]) m
+
+-- | Computes the eigenvalues of a matrix
+eigenValues :: (KnownNat n, Field f, Approx f) => Matrix n n f -> [f] -> [f]
+eigenValues m = roots (charPoly m) 
+
+-- | Computes the eigenvectors of a matrix
+eigenVectors :: (KnownNat n, Field f, Approx f) => Matrix n n f -> [f] -> [Vector n f]
+eigenVectors m = map snd . eigenValVec m
+
+-- | Computes the eigen-pairs of a matrix
+eigenValVec :: (KnownNat n, Field f, Approx f) => Matrix n n f -> [f] -> [(f, Vector n f)]
+eigenValVec m = removeDuplicates . concatMap getVecs . (guesses++) . eigenValues m 
+    where getVecs x = (\v -> (x, v)) <$> unSub ( nullSpace' (m - x £ idm) )
+          removeDuplicates = nubBy ((~=) `on` snd)
+          guesses = [zero, one, neg one] -- Gives nicer results on common eigenvalues, 
+                                         -- see Note above
+
+
+
+-- Eigenvalues = 1, 1/2 
+matrix1 :: Matrix 2 2 R
+matrix1 = toMat [[3/4, 1/4], 
+                 [1/4, 3/4]] 
+
+-- Eigenpairs (1, [1,1]), (1/2, [-1, 1])
+eigenM1 :: [(R, Vector 2 R)]
+eigenM1 = eigenValVec matrix1 [-3, -2.5 .. 3.0]
+
+--
 -- Eigen values = -2, 2, 0
-matrix2 :: Matrix 3 3 (Exp R)
-matrix2 = toMat[[one, Const 2, one], [one , zero, neg one],[neg one, neg Const 2, neg one]] - X £ idm
+matrix2 :: Matrix 3 3 R
+matrix2 = toMat[[1, 2, 1], [1 , 0, -1],[-1, -2, -1]] 
 
-eigenM2 :: [R]
-eigenM2 = roots(detNN matrix2) [0.0,0.5..2.0]
+-- Eigenpairs (0, [1,0,1]), (-2, [0,1,1]), (2 [1,1,0])
+eigenM2 :: [(R, Vector 3 R)]
+eigenM2 = eigenValVec matrix2 [-3, -2.5 .. 3.0]
 
 
 -- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
@@ -95,44 +144,6 @@ eigenM2 = roots(detNN matrix2) [0.0,0.5..2.0]
 
 evalMat :: Matrix m n (Exp f) -> f -> Matrix m n f
 evalMat m val = fmap (\x -> evalExp x val) m
-
-{-
-For matrix1 => Eigenvalues = 0.5 & 1
-
-Gauss $ evalMat matrix 0.5 `append` zeroVec => Solution = eigenvector
-
-Gauss $ evalMat matrix 1 `append` zeroVec => Solution = eigenvector
-
--}
-
-eigen05 :: Matrix 2 3 Double
-eigen05 = (evalMat matrix1 0.5) `append` toMat [[0,0]] -- gauss eigen05 => x = -y 
-
-eigen1 :: Matrix 2 3 Double
-eigen1 = (evalMat matrix1 1) `append` toMat [[0,0]]    -- gauss eigen1  => x = y
-
-----------------
-
-{-
-pjM :: Ring f => Matrix f 2 2
-pjM = M (Vector (L [Vector (L [one,two]),
-                    Vector (L [two,one])]))
-      
-
-pjExp :: Exp
-pjExp = detNN (pjM - scaleM X idm)
-
-pjFun :: Field f => f -> f
-pjFun x = detNN (pjM - scaleM x idm)
--- zeroes in (-1) and 3
-
--- TODO pjPoly - using the polynomial instance from DSLsofMath
--}
-
-
--- TODO
--- toExpMat :: (Field f, Num f) => Matrix m n f -> Matrix Exp m n
--- toExpMat = tabulate . map (\(i,f) -> (i, Const f) . values
 
 
 
@@ -186,7 +197,4 @@ showSol m = putStr $ showColnRow (unpack $ transpose m) vars
         nrOfVars = length(unpack m) - 1
         vars     = take (nrOfVars) variables
 
-
-                                
-            
 
