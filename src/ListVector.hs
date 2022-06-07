@@ -127,12 +127,6 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 linComb :: VectorSpace v => Vector n v -> Vector n (Under v) -> v
 linComb vs fs = sum $ zipWithV (£) fs vs
 
--- | Takes a Vector and a List of vectors and returns the linear combination
---   For Example eval [a b c] [^0 ^1 ^2] returns the polinomial \x -> ax + bx + cx^2
-eval :: (VectorSpace v, Under v ~ f) => Vector n f -> List v n -> v
-eval (V fs) (L vs) = sum $ zipWith (£) fs vs
-
-
 -------------------------------------------
 -- Matrix definitions
 

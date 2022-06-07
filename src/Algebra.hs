@@ -67,6 +67,10 @@ showFactor e            = showE e
 
 -- Eval functions for expressions
 
+instance Expr Exp where
+    eval = evalExp
+    derive = deriveExp
+
 -- Eval for expressions, apply a value for X
 evalExp :: Exp a -> a -> a
 evalExp (Const a)   = const a
@@ -77,19 +81,19 @@ evalExp (Negate e)  = neg (evalExp e)
 evalExp (Recip e)   = recip (evalExp e)
 
 -- derive  ::  FunExp        ->  FunExp
-derive :: Ring a => Exp a -> Exp a
-derive (Const _)   = Const zero
-derive X           = Const one
-derive (e1 :+: e2) = derive e1 :+: derive e2
-derive (e1 :*: e2) = (derive e1 :*: e2) :+: (e1 :*: derive e2)
-derive (Negate e)  = neg (derive e)
-derive (Recip e)   = neg (derive e :*: (recip (e^2)))
+deriveExp :: Ring a => Exp a -> Exp a
+deriveExp (Const _)   = Const zero
+deriveExp X           = Const one
+deriveExp (e1 :+: e2) = deriveExp e1 :+: deriveExp e2
+deriveExp (e1 :*: e2) = (deriveExp e1 :*: e2) :+: (e1 :*: deriveExp e2)
+deriveExp (Negate e)  = neg (deriveExp e)
+deriveExp (Recip e)   = neg (deriveExp e :*: (recip (e^2)))
 
 evalExp' :: Ring a => Exp a -> a -> a
-evalExp' =  evalExp . derive
+evalExp' =  evalExp . deriveExp
 
 evalExp'' :: Ring a => Exp a -> a -> a
-evalExp'' = evalExp' . derive
+evalExp'' = evalExp' . deriveExp
 
 
 -- Added this implementation from DSLsofMath to simplify algebraic expressions
@@ -199,9 +203,21 @@ class (Ring a) => Field a where
     recip a = one / a
 
 
+-- | General class for Ring expression
+class Expr (exp :: * -> *) where
+    eval :: Ring a => exp a -> a -> a
+
+    derive :: Ring a => exp a -> exp a
+
+eval' :: (Expr exp, Ring a) => exp a -> a -> a
+eval' = eval . derive
+
+
 -- | Definition of a VectorSpace
 class (AddGroup v, Ring (Under v)) => VectorSpace v where
     type Under v -- The underlying type of the VectorSpace
+    type Under v = v
+
     (£) :: Under v -> v -> v
 
 -- | All finite vectorspaces has a dimension
@@ -233,6 +249,7 @@ class Approx a where
 (~/=) :: Approx a => a -> a -> Bool
 a ~/= b = not $ a ~= b
 
+
 -- Instance definitions
 instance AddGroup Int       where (+) = (P.+); (-) = (P.-); zero = 0
 instance AddGroup Integer   where (+) = (P.+); (-) = (P.-); zero = 0
@@ -254,6 +271,10 @@ instance Field Rational     where (/) = (P./)
 instance Field a => Field (Exp a)  where recip = Recip 
 instance Field b => Field (a -> b) where recip f = \x -> recip (f x)  
 
+instance VectorSpace Int      where (£) = (*)
+instance VectorSpace Integer  where (£) = (*)
+instance VectorSpace Double   where (£) = (*)
+instance VectorSpace Rational where (£) = (*)
 instance Ring b => VectorSpace (a -> b) where
     type Under (a -> b) = b
     s £ f = \x -> s * f x

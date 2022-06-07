@@ -20,7 +20,7 @@ mtest = toMatT [[-5,4,1,7],[-9,3,2,-5],[-2,0,-1,1],[1,14,0,3]]
 -- | Determinant for any nxn matrix 
 --   The algorithm is based on Laplace expansion
 --   Note that the complexity is exponantial since it calls itself n times per iteration
-detNN :: Field f => Matrix n n f -> f
+detNN :: Ring f => Matrix n n f -> f
 detNN (M (V [V [x]])) = x
 detNN m = sum $ zipWith (*) (cycle [one, neg one]) $ do 
     (V (s:_), subM) <- separateCols m      -- All combinations of columns and their remaining matrix
@@ -52,7 +52,7 @@ exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Ex
 -- Use newton to find the zeros of the characteristic equation = the eigen values
 
 -- | Returns a root of the expression if found
-newton :: (Field a, Approx a) => Exp a -> a -> Maybe a
+newton :: (Expr exp, Field a, Approx a) => exp a -> a -> Maybe a
 newton exp = converge . take 200 . newtonList exp
 
 -- | Returns, if found, the converging value of a sequence
@@ -65,13 +65,14 @@ converge (x:x':xs) | x ~= x'   = Just x'
 converge _ = Nothing
 
 -- | An infinite sequence approaching a root of the expression
-newtonList :: Field a => Exp a -> a  -> [a]
+newtonList :: (Expr exp, Field a) => exp a -> a  -> [a]
 newtonList exp = iterate (\x -> x - f x / f' x)
-    where (f, f') = (evalExp exp, evalExp' exp)
+    where (f, f') = (eval exp, eval' exp)
 
 -- | Returns a list of found roots based on a list of guesses
-roots :: (Field a, Approx a) => Exp a -> [a] -> [a]
+roots :: (Expr exp, Field a, Approx a) => exp a -> [a] -> [a]
 roots exp = nubBy (~=) . mapMaybe (newton exp) 
+
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix 2 2 (Exp R)
