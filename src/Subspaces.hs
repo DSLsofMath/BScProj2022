@@ -16,6 +16,7 @@ import Prelude hiding ((+), (-), (*), (/), recip, sum, product, (**), span, elem
 import Algebra
 import ListVector
 import ListVecGauss
+import qualified Gauss as G
 
 -- Mathematically, a subspace is a set and we would therefore like to represent a 
 -- given subspace as its own type -- in the same way we do with normal vector spaces.
@@ -83,7 +84,7 @@ makeLinIndep = foldl (\vs v -> if span' (M $ V vs) v then vs else v:vs) []
 -- A basis of V is a list of vectors in V that is linearly independent and spans V
 
 -- | Checks if the vectors in a matrix forms a basis of their vectorSpace
-isBasis :: (KnownNat m, KnownNat (n-1), Eq f, Field f) => Matrix m n f -> Bool
+isBasis :: (KnownNat m, Eq f, Field f) => Matrix m n f -> Bool
 isBasis m = spansSpace m && linIndep m
 
 -- | The null space of a linear transformation is the set of vectors that maps to 0
@@ -92,6 +93,11 @@ nullSpace :: (KnownNat n, Field f, Eq f) =>  Matrix m n f -> Subspace (Vector n 
 nullSpace m = Sub [ V b | (a,b) <- splitAt height <$> reduceCol m, all (== zero) a]
     where height = length (head $ unpack m)
           reduceCol m = unpack $ transpose $ gauss (transpose m `append` idm)
+
+nullSpace' :: (KnownNats m n, Field f, Approx f) => Matrix m n f -> Subspace (Vector n f)
+nullSpace' m = Sub [ b | (a,b) <- zip augM augId, a ~= zero ]
+    where (trace, augM) = matToList . transpose <$> G.gauss' (transpose m)
+          augId         = matToList . transpose  $  G.foldElimOpsFunc trace idm
 
 -- | The range of a linear map is the set of possible outputs
 range :: (Eq f, Field f) => Matrix m n f -> Subspace (Vector m f)

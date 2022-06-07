@@ -6,7 +6,7 @@ import GHC.TypeLits
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 
-import Data.List (sort, groupBy, find)
+import Data.List (nubBy)
 import Data.Maybe (mapMaybe)
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
@@ -52,10 +52,17 @@ exp22 = toMat [[X:*:Const 1,Const 2],[Const 2, zero]] --- (X £ idm :: Matrix Ex
 -- Use newton to find the zeros of the characteristic equation = the eigen values
 
 -- | Returns a root of the expression if found
-newton :: (Field a, Approx a) => Exp a -> a  -> Maybe a
-newton exp x = find (\x -> f x ~= zero) xs
-    where xs = take 50 $ newtonList exp x
-          f = evalExp exp
+newton :: (Field a, Approx a) => Exp a -> a -> Maybe a
+newton exp = converge . take 200 . newtonList exp
+
+-- | Returns, if found, the converging value of a sequence
+--   Note: there is probably a better way to check for convergence,
+--   but this is sufficient for newtonList.
+--   For performance, we could exit early if the sequence begins to "jump".
+converge :: Approx a => [a] -> Maybe a 
+converge (x:x':xs) | x ~= x'   = Just x'
+                   | otherwise = converge (x':xs)
+converge _ = Nothing
 
 -- | An infinite sequence approaching a root of the expression
 newtonList :: Field a => Exp a -> a  -> [a]
@@ -64,7 +71,7 @@ newtonList exp = iterate (\x -> x - f x / f' x)
 
 -- | Returns a list of found roots based on a list of guesses
 roots :: (Field a, Approx a) => Exp a -> [a] -> [a]
-roots exp = map head . groupBy (~=) . mapMaybe (newton exp) 
+roots exp = nubBy (~=) . mapMaybe (newton exp) 
 
 -- Eigen values = 1, 1/2 
 matrix1 :: Matrix 2 2 (Exp R)

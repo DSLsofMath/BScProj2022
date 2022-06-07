@@ -71,28 +71,32 @@ foldElimOpsFunc :: (KnownNats m n,Matrix mat, Ring f) =>
 foldElimOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
 -- | Transforms a given matrix into row echelon form
-gauss :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) =>
+gauss :: (KnownNats m n, Matrix mat, Field f, Approx f) =>
            mat m n f -> mat m n f
-gauss m = snd $ gauss' m [] [minBound .. maxBound] [minBound .. maxBound] 
+gauss = snd . gauss' 
 
 -- | Returns the required row operations to 
 -- transform a given matrix into row echelon form
-gaussTrace :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) =>
+gaussTrace :: (KnownNats m n, Matrix mat, Field f, Approx f) =>
                mat m n f -> [ElimOp m f]
-gaussTrace m = fst $ gauss' m [] [minBound .. maxBound] [minBound .. maxBound] 
+gaussTrace = fst . gauss' 
 
 
-gauss' :: (KnownNats m n, Matrix mat, Field f, Ord f, Fractional f) => 
+gauss' :: (KnownNats m n, Matrix mat, Field f, Approx f) => 
+                mat m n f -> ([ElimOp m f], mat m n f)
+gauss' m = gauss'' m [] [minBound .. maxBound] [minBound .. maxBound] 
+
+gauss'' :: (KnownNats m n, Matrix mat, Field f, Approx f) => 
             mat m n f -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat m n f)
-gauss' m t _      []     = (t, m)
-gauss' m t []     _      = (t, m)
-gauss' m t (i:is) (j:js) = case getCol' j of 
-              []           -> gauss' m t (i:is) js
-              (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ [Mul i (recip a)] ++ map mulAdd' rs 
-                              in  gauss' (foldElimOpsFunc xs m) (t ++ xs) is js
-    where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
+gauss'' m t _      []     = (t, m)
+gauss'' m t []     _      = (t, m)
+gauss'' m t (i:is) (j:js) = case getCol' j of 
+              []           -> gauss'' m t (i:is) js
+              (i', a) : rs -> let xs = swap' i' ++ [Mul i (recip a)] ++ map mulAdd' rs 
+                              in  gauss'' (foldElimOpsFunc xs m) (t ++ xs) is js
+    where getCol' j = sortOn fst [ (i', a) | (i', a) <- getCol m j, a ~/= zero, i' >= i ]
           mulAdd' (j,b) = MulAdd i j (neg (b))
-          filterZ (_,s) = s > 0.0001 || s < -0.0001
+          swap' j = if j /= i then [Swap i j] else []
 
 
 jordan :: (KnownNat m, Matrix mat, Composable (ElimOp  m f) (mat m n f) (mat m n f), Ord f, Field f, Fractional f) => 
