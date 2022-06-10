@@ -32,7 +32,11 @@ import qualified Gauss as G
 
 -- | A subspace is defined by a list of vectors that spans the space.
 --   We might want to add an invariant to the list such that it is linearly independent.
-newtype Subspace v = Sub { unSub :: [v] } deriving (Show, Eq)
+newtype Subspace v = Sub [v] deriving (Show, Eq)
+
+-- | Returns a list of vectors that spans the subspace
+unSub :: Subspace v -> [v]
+unSub (Sub vs) = vs
 
 -- | We define Addgroup over a subspace as "sum of subsets"
 instance (AddGroup v) => AddGroup (Subspace v) where
