@@ -1,13 +1,12 @@
 {-# language DataKinds #-}
-{-# language FlexibleContexts #-}
 
 module Gauss where
 
 import GHC.TypeLits 
-import qualified Prelude
-import Algebra 
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
-import Data.List 
+import Data.List (sortOn)
+
+import Control.Monad.State.Lazy
 
 import Algebra 
 import Matrix 
@@ -15,12 +14,12 @@ import Matrix
 
 -------------------------------------------
 -- Elementary row operations definition 
--- Reduction and equation solver functions
+--
 
--- | Represents elementary row operations
-data ElimOp n a = Swap (Fin n) (Fin n) 
-                | Mul (Fin n) a 
-                | MulAdd (Fin n) (Fin n) a
+-- | Represents elementary row operations 
+data ElimOp n a = Swap     (Fin n) (Fin n)
+                | Mul    a (Fin n)
+                | MulAdd a (Fin n) (Fin n)
               deriving (Eq)
 
 instance Show a => Show (ElimOp n a) where 
@@ -29,9 +28,9 @@ instance Show a => Show (ElimOp n a) where
 -- | Prettier show function for ElimOp a
 showElimOp :: Show a => ElimOp n a -> String
 showElimOp op = concat $ case op of 
-        Swap    (Fin i) (Fin j)   -> [ " ",              row i,              " <-> ", row j ]
-        Mul     (Fin i)         s -> [ " ", show s, "*", row i,              " -> ", row i ]
-        MulAdd  (Fin i) (Fin j) s -> [ " ", show s, "*", row i, " + ", row j, " -> ", row j ]
+        Swap   (Fin i) (Fin j)   -> [ " ",              row i,              " <-> ", row j ]
+        Mul    s (Fin i)         -> [ " ", show s, "*", row i,               " -> ", row i ]
+        MulAdd s (Fin i) (Fin j) -> [ " ", show s, "*", row i, " + ", row j, " -> ", row j ]
     where row i = "R(" ++ show i ++ ")"
 
 
@@ -51,65 +50,92 @@ swap :: (KnownNats m n, Matrix mat, AddGroup f) =>
 swap i j m = setRow (setRow m i (getRow m j)) j (getRow m i) 
 
 mul :: (KnownNats m n, Matrix mat, Ring f) => 
-        Fin m -> f -> mat m n f -> mat m n f
-mul i s m = setRow m i (s £ getRow m i) 
+        f -> Fin m -> mat m n f -> mat m n f
+mul s i m = setRow m i (s £ getRow m i)
 
 mulAdd :: (KnownNats m n, Matrix mat, Ring f) => 
-            Fin m -> Fin m -> f -> mat m n f -> mat m n f
-mulAdd i j s m = setRow m j (s £ getRow m i + getRow m j)
+            f -> Fin m -> Fin m -> mat m n f -> mat m n f
+mulAdd s i j m = setRow m j (s £ getRow m i + getRow m j)
 
 -- | Representation of an elementary row operation as a function 
-elimOpToFunc :: (KnownNats m n, Matrix mat, Ring f) => 
-                  ElimOp m f -> (mat m n f -> mat m n f)
-elimOpToFunc e = case e of Swap   i j   -> swap i j 
-                           Mul    i   s -> mul i s 
-                           MulAdd i j s -> mulAdd i j s 
+elimOpToFunc :: (KnownNats m n, Matrix mat, Ring f) => ElimOp m f -> mat m n f -> mat m n f
+elimOpToFunc e m = case e of Swap     i j -> swap i j m
+                             Mul    s i   -> mul s i m
+                             MulAdd s i j -> mulAdd s i j m
 
 -- | Reduces a trace of elimOps to a single function
-foldElimOpsFunc :: (KnownNats m n,Matrix mat, Ring f) => 
-                    [ElimOp m f] -> (mat m n f -> mat m n f)
+foldElimOpsFunc :: (KnownNats m n,Matrix mat, Ring f) => [ElimOp m f] -> (mat m n f -> mat m n f)
 foldElimOpsFunc = foldr (.) id . map elimOpToFunc . reverse
 
+
+--------------------------------------------------------------------------
+-- Gauss elimination 
+--
+
+
+data GaussState mat m n f = GS {
+            matrix :: mat m n f,
+            trace  :: [ElimOp m f],
+            pivotIndex :: (Fin m, Fin n)
+            }
+
+getTrace :: GaussState mar m n f -> [ElimOp m f]
+getTrace = reverse . trace
+
+type Gauss mat m n f a = State (GaussState mat m n f) a
+
+
+-- | initial state of the gauss algorithm
+initGauss :: (KnownNats m n, Matrix mat) => mat m n f -> GaussState mat m n f
+initGauss m = GS m [] (minBound, minBound)
+
+-- | Returns all nonzero elements of the column in sorted order
+getColumn :: (Matrix mat, Approx f, AddGroup f) => Fin n -> Gauss mat m n f [(Fin m, f)]
+getColumn j = sortOn fst . filter ((~/= zero) . snd) . flip getCol j <$> gets matrix
+
+-- | Performs an elementary row operation and adds it to the trace
+doRowOp :: (KnownNats m n, Matrix mat, Ring f) => ElimOp m f -> Gauss mat m n f ()
+doRowOp rowOp = modify $ \(GS mat trace p) -> 
+                    GS (elimOpToFunc rowOp mat) (rowOp : trace) p
+
+-- Sets the position of current pivot element
+setPivot :: (Fin m, Fin n) -> Gauss mat m n f ()
+setPivot i = modify $ \gs -> gs { pivotIndex = i }
+
+-- Gets the index of the current pivot element
+getPivot :: Gauss mat m n f (Fin m, Fin n)
+getPivot = gets pivotIndex
+
+succMaybe :: (Enum a, Bounded a, Eq a) => a -> Maybe a
+succMaybe i = if i /= maxBound then Just (succ i) else Nothing
+
+predMaybe :: (Enum a, Bounded a, Eq a) => a -> Maybe a
+predMaybe i = if i /= minBound then Just (pred i) else Nothing
+
+
 -- | Transforms a given matrix into row echelon form
-gauss :: (KnownNats m n, Matrix mat, Field f, Approx f) =>
-           mat m n f -> mat m n f
+gauss :: (KnownNats m n, Matrix mat, Field f, Approx f) => mat m n f -> mat m n f
 gauss = snd . gauss' 
 
--- | Returns the required row operations to 
--- transform a given matrix into row echelon form
-gaussTrace :: (KnownNats m n, Matrix mat, Field f, Approx f) =>
-               mat m n f -> [ElimOp m f]
+-- | Returns the row operations that transforms a given matrix into row echelon form
+gaussTrace :: (KnownNats m n, Matrix mat, Field f, Approx f) => mat m n f -> [ElimOp m f]
 gaussTrace = fst . gauss' 
 
+gauss' :: (KnownNats m n, Matrix mat, Field f, Approx f) => mat m n f -> ([ElimOp m f], mat m n f)
+gauss' m = (getTrace gaussed, matrix gaussed)
+    where gaussed = execState gauss'' (initGauss m) 
 
-gauss' :: (KnownNats m n, Matrix mat, Field f, Approx f) => 
-                mat m n f -> ([ElimOp m f], mat m n f)
-gauss' m = gauss'' m [] [minBound .. maxBound] [minBound .. maxBound] 
+gauss'' :: (KnownNats m n, Matrix mat, Field f, Approx f) => Gauss mat m n f () 
+gauss'' = do (i, j) <- getPivot
+             col <- filter ((>= i) . fst) <$> getColumn j
+             nextRowIndex <- case col of 
+                 []               -> return (Just i)
+                 ((i', s) : col') -> do 
+                         unless (i' == i  ) $ doRowOp (Swap i' i)
+                         unless (s  ~= one) $ doRowOp (Mul (recip s) i)
+                         mapM_ doRowOp [MulAdd (neg a) i j | (j, a) <- col']
+                         return (succMaybe i)
+             case (nextRowIndex, succMaybe j) of
+                 (Just i', Just j') -> setPivot (i', j') >> gauss''
+                 _                  -> return ()
 
-gauss'' :: (KnownNats m n, Matrix mat, Field f, Approx f) => 
-            mat m n f -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat m n f)
-gauss'' m t _      []     = (t, m)
-gauss'' m t []     _      = (t, m)
-gauss'' m t (i:is) (j:js) = case getCol' j of 
-              []           -> gauss'' m t (i:is) js
-              (i', a) : rs -> let xs = swap' i' ++ [Mul i (recip a)] ++ map mulAdd' rs 
-                              in  gauss'' (foldElimOpsFunc xs m) (t ++ xs) is js
-    where getCol' j = sortOn fst [ (i', a) | (i', a) <- getCol m j, a ~/= zero, i' >= i ]
-          mulAdd' (j,b) = MulAdd i j (neg (b))
-          swap' j = if j /= i then [Swap i j] else []
-
-
-jordan :: (KnownNat m, Matrix mat, Composable (ElimOp  m f) (mat m n f) (mat m n f), Ord f, Field f, Fractional f) => 
-            mat m n f -> [ElimOp m f] -> [Fin m] -> [Fin n] -> ([ElimOp m f], mat m n f)
-jordan m t (_) [] = (t, m)
-jordan m t [] (_) = (t, m)
-jordan m t (i:is) (j:js) = case getCol' j of 
-              [] -> jordan m t (i:is) js
-              (i', a) : rs -> let xs = (if i' /= i then [Swap i i'] else []) ++ map (mulAdd' i a) rs 
-                              in  jordan (foldr (**) m xs) (t ++ xs) is js
-    where getCol' = dropWhile ((<i) . fst) . sortOn fst . filter filterZ . getCol m
-          mulAdd' i a (j,b) = MulAdd i j (neg (b/a))
-          filterZ (_,s) = s > 0.0001 || s < -0.0001
-
--- PJ: some example(s), please. Or at least a comment pointing the
--- user/reader to where examples can be found.

@@ -80,8 +80,8 @@ instance (Ring f, f ~ f') => Composable (ElimOp f') (Matrix m n f) (Matrix m n f
 
 instance (Ring f, n ~ n', f ~ f') => Composable (G.ElimOp n' f') (Matrix m n f) (Matrix m n f) where
     (G.Swap (Fin i) (Fin j)) ** m = swap i j m
-    (G.Mul (Fin i) s) ** m = mul i s m
-    (G.MulAdd (Fin i) (Fin j) s) ** m = muladd i j s m
+    (G.Mul s (Fin i)) ** m = mul i s m
+    (G.MulAdd s (Fin i) (Fin j)) ** m = muladd i j s m
 
 
 -- | Representation of an elementary row operation as a matrix 
