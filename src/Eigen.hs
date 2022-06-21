@@ -13,7 +13,8 @@ import Data.Function (on)
 import Algebra
 import ListVector hiding (v1,v2,m1,m2)
 import ListVecGauss
-import Polynomial
+import Expression.Polynomial
+import Expression
 import Subspaces
 
 
@@ -142,8 +143,8 @@ eigenM2 = eigenValVec matrix2 [-3, -2.5 .. 3.0]
 -- Eigenvectors are solutions to (A − λI)x = 0 for eigen values
 -- 
 
-evalMat :: Matrix m n (Exp f) -> f -> Matrix m n f
-evalMat m val = fmap (\x -> evalExp x val) m
+evalMat :: (Expr exp, Ring f) => Matrix m n (exp f) -> f -> Matrix m n f
+evalMat m val = fmap (\x -> eval x val) m
 
 
 

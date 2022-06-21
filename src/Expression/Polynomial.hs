@@ -1,10 +1,12 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Polynomial where
+module Expression.Polynomial where
 
 import Prelude hiding ((+), (-), (*), (/), (^), (**), sum, product, recip, fromRational)
+
 import Algebra
+import Expression
 
 
 -- | Poly is a polynomial representation 

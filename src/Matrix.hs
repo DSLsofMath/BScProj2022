@@ -18,6 +18,7 @@ import Data.Function
 import Data.Proxy 
 
 import Algebra
+import Expression.Exp
 
 -- | Bounded integer
 --   A Fin n should always be in the range of (1,n) 

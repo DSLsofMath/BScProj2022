@@ -18,7 +18,10 @@ import Eigen (detNN, detGauss, newton, roots, showSol, evalMat, charPoly, eigenV
 import qualified Eigen as E
 import Gauss (ElimOp(..), elimOpToMat, elimOpToFunc, foldElimOpsFunc, gauss, gaussTrace)
 import Subspaces hiding (mEx, Quot, Sub)
-import Polynomial
+
+import Expression
+import Expression.Polynomial
+import Expression.Exp
 
 
 import Matrix hiding (Matrix, pjMat)
