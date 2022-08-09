@@ -27,7 +27,7 @@ newtype Fin (n :: Nat) = Fin Int deriving (Eq, Ord)
 -- | Safe constructor of Fin, checks that the value is in range
 fin :: KnownNat n => Int -> Fin n
 fin i = finite
-    where finite | 1 <= i && i <= fromInteger (natVal finite) = Fin i
+    where finite | 1 <= i && i <= natInt finite = Fin i
                  | otherwise = error $ "Index is out of bounds, got: " ++ 
                    show i ++ " in constraint 0<" ++ show i ++ "<=" ++ show (natVal finite)
 
@@ -51,7 +51,7 @@ instance KnownNat n => Enum (Fin n) where
     
 instance KnownNat n => Bounded (Fin n) where
     minBound = Fin 1
-    maxBound = let f = Fin (fromInteger (natVal f)) in f
+    maxBound = let f = Fin (natInt f) in f
 
 -- | Returns the corresponding Int
 finToInt :: Fin n -> Int
@@ -61,6 +61,11 @@ finToInt (Fin n) = n
 raiseBound :: n <= m => Fin n -> Fin m
 raiseBound (Fin n) = Fin n
 
+-- | Like raiseBound but also adds the difference to the index
+--   pushBound (3 :: Fin 4) :: Fin 6 => 5 :: Fin 6
+pushBound :: forall m n. (KnownNat (m - n), n <= m) => Fin n -> Fin m
+pushBound (Fin i) = Fin (diff + i)
+    where diff = natInt (Proxy @(m - n))
 
 -- | Merges two indexed lists, adding their values if they have the same index
 addL :: (Ord i, AddGroup a) => [(i, a)] -> [(i, a)] -> [(i, a)] 
@@ -133,8 +138,8 @@ setRow m i r = tabulate $ new ++ old
 -- | Returns the size of a matrix in the form of (#rows, #columns)
 size :: forall m n mat f. KnownNats m n => mat m n f -> (Int, Int) 
 size _ = (m, n)
-    where m = fromInteger $ natVal (Proxy @m)
-          n = fromInteger $ natVal (Proxy @n)
+    where m = natInt (Proxy @m)
+          n = natInt (Proxy @n)
 
 -- | Appends two matrices, analogous to (++)
 append :: (KnownNats m (n1 + n2), KnownNat n1, Matrix mat, AddGroup f) => mat m n1 f -> mat m n2 f -> mat m (n1 + n2) f

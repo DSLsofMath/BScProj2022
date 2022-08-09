@@ -54,7 +54,7 @@ type f ^ n = Vector n f
 
 -- | The length of the vector given by its type
 vecLen :: forall n f. KnownNat n => Vector n f -> Int
-vecLen _ = fromInteger $ natVal (Proxy @n)
+vecLen _ = natInt (Proxy @n)
 
 -- | Vector containing a single term
 pureVec :: KnownNat n => f -> Vector n f

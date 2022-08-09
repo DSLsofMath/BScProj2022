@@ -17,6 +17,11 @@ type R = Double
 
 type KnownNats m n = (KnownNat m, KnownNat n)
 
+-- | Returns the type level Nat as an Int
+--   Int wrapper for GHC.TypeLits natVal
+natInt :: forall proxy n. KnownNat n => proxy n -> Int
+natInt = fromInteger . natVal
+
 -- | A list with a given length
 newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
 

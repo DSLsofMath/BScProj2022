@@ -35,7 +35,7 @@ deriving instance Show f => Show (CSR m n f)
 
 zeroCSR :: forall m n f. KnownNat n => CSR m n f
 zeroCSR = CSR [] [] (replicate (n + 1) 0) -- size from type
-    where n = fromInteger $ natVal (Proxy @n)
+    where n = natInt (Proxy @n)
 
 instance (Ring f, f ~ f', n ~ n') => Composable (CSR m n f) (Vector n' f') (Vector m f) where
     (**) = (smV)
@@ -62,8 +62,8 @@ instance M.Matrix CSR where
 -- | returns size of the sparse matrix
 csrSize :: forall m n f. KnownNats m n => CSR m n f -> (Int,Int)
 csrSize _ = (m, n)
-    where m = fromInteger $ natVal (Proxy @m)
-          n = fromInteger $ natVal (Proxy @n)
+    where m = natInt (Proxy @m)
+          n = natInt (Proxy @n)
 
 -- | returns only column size, useful for square sparse matrixes
 csrLen :: KnownNat m => CSR m m f -> Int
