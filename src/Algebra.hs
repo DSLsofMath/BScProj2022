@@ -5,6 +5,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 
 module Algebra where 
@@ -12,6 +13,7 @@ module Algebra where
 import GHC.TypeLits hiding ( type (^) )
 import qualified Prelude as P
 import Prelude hiding ((+), (-), (*), (/), (^), (**), sum, product, recip)
+import Data.Proxy 
 
 type R = Double
 
@@ -21,6 +23,9 @@ type KnownNats m n = (KnownNat m, KnownNat n)
 --   Int wrapper for GHC.TypeLits natVal
 natInt :: forall proxy n. KnownNat n => proxy n -> Int
 natInt = fromInteger . natVal
+
+natInt' :: forall n. KnownNat n => Int
+natInt' = natInt (Proxy :: Proxy n)
 
 -- | A list with a given length
 newtype List a (n :: Nat) = L [a] deriving (Show, Eq)

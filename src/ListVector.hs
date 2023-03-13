@@ -7,6 +7,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE NoStarIsType #-}
 
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
@@ -54,7 +55,17 @@ type f ^ n = Vector n f
 
 -- | The length of the vector given by its type
 vecLen :: forall n f. KnownNat n => Vector n f -> Int
-vecLen _ = natInt (Proxy @n)
+vecLen _ = natInt' @n
+
+unVec :: Vector n a -> [a]
+unVec (V xs) = xs
+
+flatVec :: Vector m (Vector n a) -> Vector (n * m) a
+flatVec (V vs) = V . mconcat . map unVec $ vs
+    
+groupVec :: forall n m a. KnownNat n => Vector (n * m) a -> Vector m (Vector n a)
+groupVec (V xs) = coerce $ group (natInt' @n) xs
+    where group n xs = let (y, ys) = splitAt n xs in y : group n ys
 
 -- | Vector containing a single term
 pureVec :: KnownNat n => f -> Vector n f
@@ -65,11 +76,10 @@ zeroVec :: (KnownNat n, AddGroup f) => Vector n f
 zeroVec = pureVec zero
 
 -- | converts a list to a vector with a typed size
-vec :: KnownNat n => [f] -> Vector n f
-vec ss = if (vecLen v == length ss) then v
-                                    else error errorMsg
-    where v = V ss
-          errorMsg = "Vector is of dimension " ++ show (vecLen v) ++ 
+vec :: forall n f. KnownNat n => [f] -> Vector n f
+vec ss = if (natInt' @n == length ss) then V ss
+                                      else error errorMsg
+    where errorMsg = "Vector is of dimension " ++ show (natInt' @n) ++ 
                      " but was given a list of length " ++ show (length ss)
 
 -- | e i is the i:th basis vector
