@@ -7,6 +7,7 @@ import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 import Data.List (sortOn)
 
 import Control.Monad.State.Lazy
+import Control.Monad (unless)
 
 import Algebra 
 import Matrix 

@@ -1,19 +1,14 @@
 {-# LANGUAGE DataKinds #-} 
 {-# LANGUAGE TypeOperators #-} 
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-} -- Required by type family N
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE NoStarIsType #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE QualifiedDo #-}
 
-{-# LANGUAGE UndecidableSuperClasses #-}
-
-module TypedVector where
+module Hyper where
 
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), sum, (**), lookup)
@@ -26,10 +21,9 @@ import Data.Type.Equality
 import qualified Data.List as L 
 
 import Algebra
-import ListVector
+import qualified ListVector as LV
+import ListVector hiding ((!), append)
 import Matrix
-
-import Control.Applicative (liftA2)
 
 
 -- Vector inspired by Jeremy Gibbons paper APLicative Programming with Naperian Functors
@@ -58,20 +52,6 @@ import Control.Applicative (liftA2)
 -- efficient implementations on base functions such as multiplication and utf.
 --
 
--------------------------------------------
--- Help definitions
-
-data TList :: (Nat -> Type) -> [Nat] -> Type where
-    Nil  :: TList e '[]
-    (:>) :: (KnownNat n, Shapely ns) => e n -> TList e ns -> TList e (n:ns)
-
-data SomeVec v a = forall n. KnownNat n => Some (v n a)
-
--- deriving instance (forall i. Show     (v i a)) => Show     (Some v a)
--- deriving instance (forall i. Functor  (v i))   => Functor  (Some v)
--- deriving instance (forall i. Foldable (v i))   => Foldable (Some v)
-
-
 -----------------------------------------------------------------------------
 -- Hyper 
 
@@ -85,7 +65,6 @@ unPrism :: Hyper (n:ns) a -> Hyper ns (Vector n a)
 unPrism (Prism a) = a
 
 
-
 instance Show a => Show (Hyper ns a) where
     show (Scalar a) = show a
     show (Prism (Prism a)) = show $ fmap M a
@@ -93,21 +72,13 @@ instance Show a => Show (Hyper ns a) where
 
 deriving instance Functor (Hyper ns)
 
-class Shapely ns where
-    hreplicate :: a -> Hyper ns a
-    href       :: TList Proxy ns
-
-instance Shapely '[] where 
-    hreplicate = Scalar
-    href = Nil
-
-instance forall n ns. (KnownNat n, Shapely ns) => Shapely (n:ns) where 
-    hreplicate a = Prism (hreplicate (pure a))
-    href = Proxy @n :> href
+class    Shapely  ns                                where hreplicate :: a -> Hyper ns a
+instance Shapely '[]                                where hreplicate = Scalar
+instance (KnownNat n, Shapely ns) => Shapely (n:ns) where hreplicate = Prism . hreplicate . pure 
 
 hzipWith :: (a -> b -> c) -> Hyper ns a -> Hyper ns b -> Hyper ns c
-hzipWith f (Scalar a) (Scalar b) = Scalar (f a b)
-hzipWith f (Prism a)  (Prism b)  = Prism (hzipWith (zipWithV f) a b) 
+hzipWith f (Scalar a) (Scalar b) = Scalar $ f a b
+hzipWith f (Prism a)  (Prism b)  = Prism  $ hzipWith (zipWithV f) a b 
 
 instance Shapely ns => Applicative (Hyper ns) where
     pure  = hreplicate
@@ -125,29 +96,39 @@ hsum :: AddGroup a => Hyper (n:ns) a -> Hyper ns a
 hsum = hreduce (+) zero
 
 
-class (Shapely ms, Shapely ns) => Alignable ms ns where 
-    align :: Hyper ms a -> Hyper ns a
+class    (Shapely ms, Shapely ns) =>      Alignable ms     ns     where align :: Hyper ms a -> Hyper ns a
+instance                                  Alignable '[]    '[]    where align = id
+instance (KnownNat n, Alignable ms ns) => Alignable (n:ms) (n:ns) where align = Prism . align . unPrism
+instance (KnownNat n, Shapely ns) =>      Alignable '[]    (n:ns) where align (Scalar a) = hreplicate a
 
-instance Alignable '[] '[] where
-    align = id
-
-instance (KnownNat n, Alignable ns' ns) => Alignable (n:ns') (n:ns) where
-    align (Prism x) = Prism (align x)
-
-instance (KnownNat n, Shapely ns) => Alignable '[] (n:ns) where
-    align (Scalar a) = hreplicate a
 
 alignLeft :: (Alignable ns ms) => (a -> b -> c) -> Hyper ns a -> Hyper ms b -> Hyper ms c
-alignLeft f a = hzipWith f (align a)
+alignLeft f = hzipWith f . align 
 
 alignRight :: (Alignable ms ns) => (a -> b -> c) -> Hyper ns a -> Hyper ms b -> Hyper ns c
-alignRight f a b = hzipWith f a (align b)
+alignRight f a = hzipWith f a . align 
 
 
 -- | Matrix multiplication where the left argument can be a vector, matrix or higher dimensional 
 mul :: (Ring a, KnownNat m, Alignable '[] ns) => Hyper '[n, m] a -> Hyper (m:ns) a -> Hyper (n:ns) a
 mul (Prism m) v = Prism . hsum $ alignRight (£) v m
 
+
+appendBelow :: KnownNat (n + n') => Hyper (n:ns) a -> Hyper (n':ns) a -> Hyper (n + n':ns) a
+appendBelow (Prism a) (Prism b) = Prism $ hzipWith appendVecs a b
+
+appendRight :: KnownNat (n + n') => Hyper [m, n] a -> Hyper [m, n'] a -> Hyper [m, n + n'] a
+appendRight (Prism a) (Prism b) = Prism $ appendBelow a b
+
+
+----------------------------------------------------------------
+-- Indexing into Hyper
+
+(!) :: Hyper (n:ns) a -> Fin n -> Hyper (ns) a
+Prism a ! i = fmap (LV.! i) a
+
+(!-) :: Shapely ms => Hyper (m:n:ns) a -> (Hyper (n:ns) (Vector m a) -> Hyper ms (Vector m b)) -> Hyper (m:ms) b
+Prism a !- f = Prism $ f a
 
 
 ----------------------------------------------------------------
@@ -163,12 +144,36 @@ flatten (Scalar a) = pure a
 flatten (Prism a)  = flatVec (flatten a)
 
 inflate :: forall ms a. Shapely ms => Vector (Product ms) a -> Hyper ms a 
-inflate v = case href @ms of
-    Nil                  -> Scalar . head . unVec $ v -- head is safe since Product '[] = 1
-    (_ :: Proxy n) :> ns -> Prism (inflate $ groupVec @n v) 
+inflate = case hreplicate @ms () of
+    Scalar _   -> Scalar . head . unVec -- head is safe since Product '[] = 1
+    Prism @n _ -> Prism . inflate . groupVec @n 
 
 reShape :: (Shapely ns, Product ms ~ Product ns) => Hyper ms a -> Hyper ns a
 reShape = inflate . flatten
+
+----------------------------------------------------------------
+-- Polyvar building of Hyper
+
+
+instance (KnownNats n (n * Product ns), Shapely ns) => PolyVar a (Hyper (n:ns) a) where
+    retVec acc = inflate $ vec (acc [])
+
+hyper :: (Product ns ~ CountArgs r, PolyVar a r, r ~ '(a, Product ns) --> Hyper ns a ) => r
+hyper = retVec id
+
+hvec :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Hyper '[n] a ) => r
+hvec = retVec id
+
+col :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Hyper '[n,1] a ) => r
+col = retVec id
+
+row :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Hyper '[1,n] a ) => r
+row = retVec id
+
+
+-- needed for qualified do, see mat54
+(>>) :: KnownNat (n + n') => Hyper (n:ns) a -> Hyper (n':ns) a -> Hyper (n + n':ns) a
+(>>) = appendBelow
 
 
 ----------------------------------------------------------------
@@ -186,5 +191,18 @@ mat23 = Prism . Prism . Scalar $ vec [vec [1, 2], vec [4, 5], vec [7, 8]]
 
 mat222 :: Hyper '[2,2,2] Int
 mat222 = Prism . Prism . Prism . Scalar $ vec [vec [vec [1, 2], vec [4, 5]], zero]
+
+
+-- The type can be infered 
+-- mat54 :: Hyper '[5,3] Int
+mat54 = Hyper.do row 1 2 3
+                 row 5 6 7
+                 row 5 9 7
+                 row 5 0 7
+                 row 5 3 7
+
+test = Hyper.do row 4 3 23
+                row 2 5 1
+            `appendRight` mat23
 
 

@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
@@ -62,6 +63,9 @@ unVec (V xs) = xs
 
 flatVec :: Vector m (Vector n a) -> Vector (n * m) a
 flatVec (V vs) = V . mconcat . map unVec $ vs
+
+appendVecs :: Vector m a -> Vector n a -> Vector (m + n) a
+appendVecs (V as) (V bs) = V $ as ++ bs
     
 groupVec :: forall n m a. KnownNat n => Vector (n * m) a -> Vector m (Vector n a)
 groupVec (V xs) = coerce $ group (natInt' @n) xs
@@ -81,6 +85,9 @@ vec ss = if (natInt' @n == length ss) then V ss
                                       else error errorMsg
     where errorMsg = "Vector is of dimension " ++ show (natInt' @n) ++ 
                      " but was given a list of length " ++ show (length ss)
+
+(!) :: Vector n a -> Fin n -> a 
+V xs ! Fin i = xs !! (i - 1)
 
 -- | e i is the i:th basis vector
 e :: (KnownNat n, Ring f) => Int -> Vector n f
@@ -132,10 +139,38 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
                                        a3*b1-a1*b3,
                                        a1*b2-a2*b1]
 
-
 -- | Takes a Vector and a List of vectors and returns the linear combination
 linComb :: VectorSpace v => Vector n v -> Vector n (Under v) -> v
 linComb vs fs = sum $ zipWithV (£) fs vs
+
+
+-------------------------------------------
+-- Polyvariadic vector construction
+-- Intuitivly, we want vec to count the number of arguments supplied 
+-- and return a vector of that dimension.
+
+type family CountArgs f where
+            CountArgs (_ -> f') = 1 + CountArgs f'
+            CountArgs _         = 0
+
+type family xn --> v where
+            '(x, 0) --> v = v
+            '(x, n) --> v = x -> '(x,n-1) --> v
+
+
+class PolyVar a r | r -> a where
+  retVec :: ([a] -> [a]) -> r
+
+instance KnownNat n => PolyVar a (Vector n a) where
+  retVec acc = vec $ acc []
+  
+instance PolyVar a r => PolyVar a (a -> r) where
+  retVec acc x = retVec (acc . (x:))
+
+vec' :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Vector n a ) => r
+vec' = retVec id
+
+
 
 -------------------------------------------
 -- Matrix definitions
