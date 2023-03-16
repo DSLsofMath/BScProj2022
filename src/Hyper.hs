@@ -23,7 +23,8 @@ import qualified Data.List as L
 import Algebra
 import qualified ListVector as LV
 import ListVector hiding ((!), append)
-import Matrix
+
+import FiniteIndex
 
 
 -- Vector inspired by Jeremy Gibbons paper APLicative Programming with Naperian Functors

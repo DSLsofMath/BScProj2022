@@ -18,6 +18,7 @@ import Data.List
 
 import qualified ListVector as L
 import Matrix
+import FiniteIndex
 import Algebra
 
 

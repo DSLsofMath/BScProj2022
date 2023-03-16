@@ -2,21 +2,21 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FunctionalDependencies #-}
-module ListVecGauss where
+
 -- Old Gauss implementation, hard coded for ListVector
-import ListVector
+-- See Gauss for general version
+module ListVecGauss where
+
 import GHC.TypeLits
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
-import Data.Coerce
 
 import qualified Data.List as L
+
 import Algebra
-import qualified Matrix as M
-import Matrix (Fin(..))
+import ListVector
+import FiniteIndex
 import qualified Gauss as G
-import Data.List (sortOn, groupBy)
-import Data.Function 
 
 
 

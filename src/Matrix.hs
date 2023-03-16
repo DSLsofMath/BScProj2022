@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -10,79 +9,13 @@
 module Matrix where
 
 import GHC.TypeLits
+import Data.Kind (Type)
 import qualified Prelude as P
 import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRational)
 
-import Data.List (sortOn, groupBy)
-import Data.Function 
-import Data.Proxy 
-
 import Algebra
+import FiniteIndex
 import Expression.Exp
-
--- | Bounded integer
---   A Fin n should always be in the range of (1,n) 
-newtype Fin (n :: Nat) = Fin Int deriving (Eq, Ord) 
-
--- | Safe constructor of Fin, checks that the value is in range
-fin :: KnownNat n => Int -> Fin n
-fin i = finite
-    where finite | 1 <= i && i <= natInt finite = Fin i
-                 | otherwise = error $ "Index is out of bounds, got: " ++ 
-                   show i ++ " in constraint 0<" ++ show i ++ "<=" ++ show (natVal finite)
-
-instance KnownNat n => Show (Fin n) where
-    show n = show (finToInt n) ++ " of " ++ show (natVal n)
-
--- | Num (Fin n) is only used to get fromInteger
-instance KnownNat n => Num (Fin n) where
-    fromInteger = fin . fromInteger
-    (+) = undefined
-    (*) = undefined
-    abs = undefined 
-    signum = undefined 
-    negate = undefined
-
--- Enum and Bounded allows for list sequencing 
--- i.e. [Fin 2 .. maxBound]
-instance KnownNat n => Enum (Fin n) where
-    toEnum = fin
-    fromEnum = finToInt
-    
-instance KnownNat n => Bounded (Fin n) where
-    minBound = Fin 1
-    maxBound = let f = Fin (natInt f) in f
-
--- | Returns the corresponding Int
-finToInt :: Fin n -> Int
-finToInt (Fin n) = n
-
--- | Increases the max bound of the index
-raiseBound :: n <= m => Fin n -> Fin m
-raiseBound (Fin n) = Fin n
-
--- | Like raiseBound but also adds the difference to the index
---   pushBound (3 :: Fin 4) :: Fin 6 => 5 :: Fin 6
-pushBound :: forall m n. (KnownNat (m - n), n <= m) => Fin n -> Fin m
-pushBound (Fin i) = Fin (diff + i)
-    where diff = natInt (Proxy @(m - n))
-
--- | Merges two indexed lists, adding their values if they have the same index
-addL :: (Ord i, AddGroup a) => [(i, a)] -> [(i, a)] -> [(i, a)] 
-addL xs ys = map (foldl1 add) . groupBy ((==) `on` fst) $ sortOn fst (xs ++ ys)
-    where (i, a) `add` (_,b) = (i, a + b) 
-
-scaleL :: (Ord i, Mul a) => a -> [(i, a)] -> [(i, a)] 
-scaleL s l = [ (i, s*a) | (i,a) <- l ]
-
-instance (Ord i, Ring a) => AddGroup [(i, a)] where
-    (+) = addL
-    neg = scaleL (neg one)
-    zero = []
-
-instance (Ord i, Ring a) => VectorSpace [(i,a)] where
-    type Under [(i,a)] = a
-    (£) = scaleL
 
 -- | Generic class for a matrix with focus on sparse representations
 --   The class is roughly based on the paper "APLicative Programming with Naperian Functors"
@@ -90,7 +23,7 @@ instance (Ord i, Ring a) => VectorSpace [(i,a)] where
 --   However we make some changes to better suite sparse matrices,
 --   most notably we only allow implementations for two dimensions.
 --   
-class Matrix (mat :: Nat -> Nat -> * -> *) where
+class Matrix (mat :: Nat -> Nat -> Type -> Type) where
     {-# MINIMAL tabulate, values, mulMat, addMat #-}
 
     -- | Returns all values with corresponding index 
@@ -137,9 +70,8 @@ setRow m i r = tabulate $ new ++ old
 
 -- | Returns the size of a matrix in the form of (#rows, #columns)
 size :: forall m n mat f. KnownNats m n => mat m n f -> (Int, Int) 
-size _ = (m, n)
-    where m = natInt (Proxy @m)
-          n = natInt (Proxy @n)
+size _ = (natInt' @m, natInt' @n)
+
 
 -- | Appends two matrices, analogous to (++)
 append :: (KnownNats m (n1 + n2), KnownNat n1, Matrix mat, AddGroup f) => mat m n1 f -> mat m n2 f -> mat m (n1 + n2) f

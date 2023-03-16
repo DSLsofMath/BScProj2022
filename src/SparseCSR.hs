@@ -19,7 +19,7 @@ import Algebra
 import Prelude hiding ((+), (-), (*), (/), sum)
 import ListVector 
 import qualified Matrix as M
-import Matrix (values, Fin(..))
+import FiniteIndex
 
 import Data.Proxy
 import Data.Function

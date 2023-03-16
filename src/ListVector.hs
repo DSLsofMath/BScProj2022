@@ -19,15 +19,14 @@ import GHC.TypeLits hiding (type (^))
 import qualified Prelude
 import Prelude hiding ((+), (-), (*), (/), (^), recip, sum, product, (**), span)
 import Data.Coerce
-import Data.Proxy
 
 import qualified Data.List as L
-import Algebra
-import qualified Matrix as M
-import Matrix (Fin(..))
-import qualified Gauss as G
 import Data.List (sortOn, groupBy)
 import Data.Function 
+
+import Algebra
+import qualified Matrix as M
+import FiniteIndex 
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
 -- The implementation here is based on lists and should be replaced.

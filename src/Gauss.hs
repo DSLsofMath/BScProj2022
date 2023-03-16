@@ -11,6 +11,7 @@ import Control.Monad (unless)
 
 import Algebra 
 import Matrix 
+import FiniteIndex 
 
 
 -------------------------------------------
