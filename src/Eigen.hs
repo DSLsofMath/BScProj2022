@@ -54,58 +54,31 @@ m33 :: Matrix 3 3 R
 m33   = toMat [[1,-3,2],[3,-1,3],[2,-3,1]] -- detNN = -15
 
 
---------------------------------------------------------------------------
--- Root solving algorithms 
---
--- Use newton to find the zeros of the characteristic equation = the eigen values
--- 
-
--- | Returns a root of the expression if found
-newton :: (Expr exp, Field a, Approx a) => exp a -> a -> Maybe a
-newton exp = converge . take 200 . newtonList exp
-
--- | Returns, if found, the converging value of a sequence
---   Note: there is probably a better way to check for convergence,
---   but this is sufficient for newtonList.
---   For performance, we could exit early if the sequence begins to "jump".
-converge :: Approx a => [a] -> Maybe a 
-converge (x:x':xs) | x ~= x'   = Just x'
-                   | otherwise = converge (x':xs)
-converge _ = Nothing
-
--- | An infinite sequence approaching a root of the expression
-newtonList :: (Expr exp, Field a) => exp a -> a  -> [a]
-newtonList exp = iterate (\x -> x - f x / f' x)
-    where (f, f') = (eval exp, eval' exp)
-
--- | Returns a list of found roots based on a list of guesses
-roots :: (Expr exp, Field a, Approx a) => exp a -> [a] -> [a]
-roots exp = nubBy (~=) . mapMaybe (newton exp) 
-
 
 --------------------------------------------------------------------------
 -- Eigen-related functions
 --
--- Note: In general our root finder, newton, struggles with roots  
--- located on stationary points. To compensate for this we explicitly test 
--- if 0 and +- 1 are eigenvalues, as these are common. A better solution 
+-- Note: In general our root finder, newton (located in Expression), struggles 
+-- with roots located on stationary points. To compensate for this we explicitly 
+-- test if 0 and +- 1 are eigenvalues, as these are common. A better solution 
 -- might be to check all stationary points. That however is costly and we
 -- might still encounter stationary points. 
--- As a side note it would also be nice to not give instal guesses 
+--
+-- As a side note it would also be nice to not give initial guesses 
 -- when finding eigenvalues/vectors
 
 
 -- | The characteristic polynomial
 --   The roots of this polynomial is the eigenvalues of the matrix
 --   It also has the property that:  
---   prop_charPoly m = evalOver (charPoly m) m == zero
+--     prop_charPoly m = evalOver (charPoly m) m == zero
 charPoly :: (KnownNat n, Ring f) => Matrix n n f -> Poly f
 charPoly m = detNN (m' - polyX £ idm) 
     where m' = fmap (\x -> P [x]) m
 
 -- | Computes the eigenvalues of a matrix
 eigenValues :: (KnownNat n, Field f, Approx f) => Matrix n n f -> [f] -> [f]
-eigenValues m = roots (charPoly m) 
+eigenValues = roots . charPoly 
 
 -- | Computes the eigenvectors of a matrix
 eigenVectors :: (KnownNat n, Field f, Approx f) => Matrix n n f -> [f] -> [Vector n f]

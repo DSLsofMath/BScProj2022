@@ -142,8 +142,8 @@ gaussTrace m0 = case separateCols m0 of
 
 -- | Solve systems of equations
 --   Check in Demo.hs how to use
-solve :: (Eq f, Field f) => [[f]] -> [f]
-solve m = foldr next [last (last m)] (init m)
+solveList :: (Eq f, Field f) => [[f]] -> [f]
+solveList m = foldr next [last (last m)] (init m)
     where
         next row found = let
             subpart = init $ drop (length m - length found) row
@@ -154,4 +154,6 @@ solve m = foldr next [last (last m)] (init m)
 --   each element in list represents variable values
 --   Recommend using showSol from eigen to verify result, or v `elem` range m
 particularSol :: (Eq f, Field f) => Matrix m n f -> Vector (n -1) f
-particularSol = V . solve . unpack . transpose . gauss
+particularSol = V . solveList . unpack . transpose . gauss
+
+

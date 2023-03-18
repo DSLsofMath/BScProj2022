@@ -115,22 +115,23 @@ dim (Sub vs) = length vs
 
 
           
--- | A quotient space is a subspace translated by a vector
-data QuotientSpace v = Quot v (Subspace v) deriving (Show)
+-- | A affine subspace is a subspace translated by a vector
+--   More generaly, we allow affine to take any collection
+data Affine f v = Affine v (f v) deriving (Show)
 
--- | Checks if a vector exists within a quotient space, 
+-- | Checks if a vector exists within a affine space, 
 --   i.e. is a solution to a Ax=v  
-elemQ :: (KnownNat n, Eq f, Field f) => Vector n f -> QuotientSpace (Vector n f) -> Bool
-elemQ v (Quot p sub) = (v - p) `elem` sub 
+elemA :: (KnownNat n, Eq f, Field f) => Vector n f -> Affine Subspace (Vector n f) -> Bool
+elemA v (Affine p sub) = (v - p) `elem` sub 
 
 -- | Returns the set of solutions to Ax=v
-solveQ :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix m n f -> Vector m f -> QuotientSpace (Vector n f)
-solveQ m v = Quot (particularSol $ m `appendV` v) (nullSpace m)
+solve :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) => Matrix m n f -> Vector m f -> Affine Subspace (Vector n f)
+solve m v = Affine (particularSol $ m `appendV` v) (nullSpace m)
 
 
 -- | Equivalent to solveQ but takes a matrix A `appendV` v representing Ax=v
-solveQ' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix m (n+1) f  -> QuotientSpace (Vector n f)
-solveQ' m = let (v', m') = last $ separateCols m in solveQ m' v'
+solve' :: (KnownNat n, Field f, Eq f, (n ~ (n+1-1)) ) =>  Matrix m (n+1) f  -> Affine Subspace (Vector n f)
+solve' m = let (v', m') = last $ separateCols m in solve m' v'
 
 
 mEx :: Matrix 3 3 R
