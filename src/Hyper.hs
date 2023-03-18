@@ -25,6 +25,7 @@ import qualified ListVector as LV
 import ListVector hiding ((!), append)
 
 import FiniteIndex
+import Finite
 
 
 -- Vector inspired by Jeremy Gibbons paper APLicative Programming with Naperian Functors
@@ -84,11 +85,6 @@ hzipWith f (Prism a)  (Prism b)  = Prism  $ hzipWith (zipWithV f) a b
 instance Shapely ns => Applicative (Hyper ns) where
     pure  = hreplicate
     (<*>) = hzipWith (\f a -> f a)
-
-instance (AddGroup a, Shapely ns) => AddGroup (Hyper ns a) where
-    (+) = liftA2 (+)
-    (-) = liftA2 (-)
-    zero = pure zero
 
 hreduce :: (a -> a -> a) -> a -> Hyper (n:ns) a -> Hyper ns a
 hreduce f b (Prism as) = fmap (foldl f b ) as
@@ -152,23 +148,40 @@ inflate = case hreplicate @ms () of
 reShape :: (Shapely ns, Product ms ~ Product ns) => Hyper ms a -> Hyper ns a
 reShape = inflate . flatten
 
+
+----------------------------------------------------------------
+-- Vector instances for Hyper 
+
+
+instance (AddGroup a, Shapely ns) => AddGroup (Hyper ns a) where
+    (+) = liftA2 (+)
+    (-) = liftA2 (-)
+    zero = pure zero
+
+instance (Ring a, Shapely ns) => VectorSpace (Hyper ns a) where
+    type Under (Hyper ns a) = a
+    s £ h = fmap (s *) h 
+
+-- TODO optimize
+instance (KnownNat (Product ns), Ring a, Shapely ns) => Finite (Hyper ns a) where
+    type Dim (Hyper ns a) = Product ns
+    scalar       = scalar  . flatten 
+    fromIndexing = inflate . fromIndexing
+
 ----------------------------------------------------------------
 -- Polyvar building of Hyper
 
 
-instance (KnownNats n (n * Product ns), Shapely ns) => PolyVar a (Hyper (n:ns) a) where
-    retVec acc = inflate $ vec (acc [])
-
-hyper :: (Product ns ~ CountArgs r, PolyVar a r, r ~ '(a, Product ns) --> Hyper ns a ) => r
+hyper :: (Product ns ~ CountArgs a r, PolyVar a r, r ~ '(a, Product ns) --> Hyper ns a ) => r
 hyper = retVec id
 
-hvec :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Hyper '[n] a ) => r
+hvec :: (n ~ CountArgs a r, PolyVar a r, r ~ '(a,n) --> Hyper '[n] a ) => r
 hvec = retVec id
 
-col :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Hyper '[n,1] a ) => r
+col :: (n ~ CountArgs a r, PolyVar a r, r ~ '(a,n) --> Hyper '[n,1] a ) => r
 col = retVec id
 
-row :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Hyper '[1,n] a ) => r
+row :: (n ~ CountArgs a r, PolyVar a r, r ~ '(a,n) --> Hyper '[1,n] a ) => r
 row = retVec id
 
 
@@ -194,9 +207,9 @@ mat222 :: Hyper '[2,2,2] Int
 mat222 = Prism . Prism . Prism . Scalar $ vec [vec [vec [1, 2], vec [4, 5]], zero]
 
 
--- The type can be infered 
+-- The type can be infered (only if scalars are of known type?)
 -- mat54 :: Hyper '[5,3] Int
-mat54 = Hyper.do row 1 2 3
+mat54 = Hyper.do row 1 2 (3 :: Double)
                  row 5 6 7
                  row 5 9 7
                  row 5 0 7

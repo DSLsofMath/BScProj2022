@@ -148,27 +148,18 @@ instance (KnownNat n, Ring f) => Finite (Vector n f) where
 -- Polyvariadic vector construction
 -- Intuitivly, we want vec to count the number of arguments supplied 
 -- and return a vector of that dimension.
+--
+-- Note: The class PolyVar is defined in Finite
 
-type family CountArgs f where
-            CountArgs (_ -> f') = 1 + CountArgs f'
-            CountArgs _         = 0
-
-type family xn --> v where
-            '(x, 0) --> v = v
-            '(x, n) --> v = x -> '(x,n-1) --> v
-
-
-class PolyVar a r | r -> a where
-  retVec :: ([a] -> [a]) -> r
-
-instance KnownNat n => PolyVar a (Vector n a) where
-  retVec acc = vec $ acc []
-  
-instance PolyVar a r => PolyVar a (a -> r) where
-  retVec acc x = retVec (acc . (x:))
-
-vec' :: (n ~ CountArgs r, PolyVar a r, r ~ '(a,n) --> Vector n a ) => r
+vec' :: (n ~ CountArgs a r, PolyVar a r, r ~ '(a,n) --> Vector n a ) => r
 vec' = retVec id
+
+
+test :: Vector 4 R
+test = mk 1 2 3 4
+
+testR :: R
+testR = mk 2
 
 
 

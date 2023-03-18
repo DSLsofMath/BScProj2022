@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE NoStarIsType #-}
 
 module FiniteIndex where
 
@@ -64,6 +65,10 @@ raiseBound (Fin n) = Fin n
 pushBound :: forall m n. (KnownNat (m - n), n <= m) => Fin n -> Fin m
 pushBound (Fin i) = Fin (diff + i)
     where diff = natInt' @(m - n)
+
+splitFin :: forall m n. KnownNat n => Fin (m * n) -> (Fin m, Fin n)
+splitFin (Fin mn) = let (m, n) = divMod (mn - 1) (natInt' @n) in (Fin (m+1), Fin (n+1))
+
 
 -- | Merges two indexed lists, adding their values if they have the same index
 addL :: (Ord i, AddGroup a) => [(i, a)] -> [(i, a)] -> [(i, a)] 

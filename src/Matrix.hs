@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Matrix where
 
@@ -157,6 +159,13 @@ instance (KnownNats m n, Matrix mat, AddGroup f) => AddGroup (mat m n f) where
 instance (KnownNats m n, Matrix mat, Ring f) => VectorSpace (mat m n f) where
     type Under (mat m n f) = f
     s £ m = changeUnder (s *) m
+
+-- TODO optimize, 
+instance (KnownNats m n, KnownNat (m * n), Matrix mat, Ring f) => Finite (mat m n f) where
+    type Dim (mat m n f) = m * n
+    basis i = tabulate [((splitFin i), one)]
+    scalar mat i = get mat (splitFin i)
+    
 
 instance (Matrix mat, AddGroup f, Eq f ) => Eq (mat m n f) where
     m1 == m2 = purgeToList m1 == purgeToList m2
