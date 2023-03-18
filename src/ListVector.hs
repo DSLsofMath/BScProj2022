@@ -27,6 +27,7 @@ import Data.Function
 import Algebra
 import qualified Matrix as M
 import FiniteIndex 
+import Finite
 
 -- This file contains an example of using TypeLits to handle vectors with a given size. 
 -- The implementation here is based on lists and should be replaced.
@@ -47,7 +48,7 @@ newtype Vector (n :: Nat) f = V [f]
     deriving (Eq, Functor, Foldable)
 
 instance Show f => Show (Vector n f) where
-    show v = show . M $ V [v]
+    show = ('\n':) . unlines . map formatRow . padCol . map show . unVec
 
 -- | Nice type notation for vectors
 --   v = vec [1,2,3,4] :: R^4
@@ -86,7 +87,7 @@ vec ss = if (natInt' @n == length ss) then V ss
                      " but was given a list of length " ++ show (length ss)
 
 (!) :: Vector n a -> Fin n -> a 
-V xs ! Fin i = xs !! (i - 1)
+V xs ! i = xs !! (finToInt i - 1)
 
 -- | e i is the i:th basis vector
 e :: (KnownNat n, Ring f) => Int -> Vector n f
@@ -113,12 +114,6 @@ instance (KnownNat n, Ring f) => VectorSpace (Vector n f) where
     type Under (Vector n f) = f
     s £ v = fmap (s*) v
 
--- | Vector is further a finite Vector Field
-instance (KnownNat n, Ring f) => Finite (Vector n f) where
-    type Dim (Vector n f) = n
-    basis' _ = let M (V bs) = idm in L bs
-
-
 -- | Dot product of two vectors 
 v1, v2 :: Vector 3 Double
 v1 = V [2,7,1]
@@ -141,6 +136,12 @@ V [a1,a2,a3] `cross` V [b1,b2,b3] = V [a2*b3-a3*b2,
 -- | Takes a Vector and a List of vectors and returns the linear combination
 linComb :: VectorSpace v => Vector n v -> Vector n (Under v) -> v
 linComb vs fs = sum $ zipWithV (£) fs vs
+
+-- | Vector has a finite dimension
+instance (KnownNat n, Ring f) => Finite (Vector n f) where
+    type Dim (Vector n f) = n
+    basis i = e (finToInt i)
+    scalar = (!)
 
 
 -------------------------------------------
@@ -184,12 +185,12 @@ instance Show f => Show (Matrix m n f) where
 
 -- Show function for matrices 
 showMat :: (Show f) => Matrix m n f -> String
-showMat = ("\n"++) . unlines . map formatRow . L.transpose . map padCol . unpack 
-    where
-        getLongest = maximum . map length
-        padString n s = replicate (n-length s) ' ' ++ s ++ " "
-        padCol l = let s = map show l in map (padString (getLongest s)) s
-        formatRow s = "| " ++ unwords s ++ "|"
+showMat = showMat' . unpack . fmap show
+
+-- Assumes that the inner lists are equally sized 
+showMat' :: [[String]] -> String
+showMat' = ('\n':) . unlines . map (formatRow . unwords) . L.transpose . map padCol 
+
 
 zipWithM :: (a -> b -> c) -> Matrix m n a -> Matrix m n b -> Matrix m n c
 zipWithM op (M as) (M bs) = M $ zipWithV (zipWithV op) as bs
@@ -362,5 +363,6 @@ separateRow = head . separateRows
 -- | For each row vector in a matrix, returns the vector and the remaining matrix
 separateRows :: Matrix m n f -> [(Vector n f, Matrix (m-1) n f)]
 separateRows = map (\(v, m) -> (v, transpose m)) . separateCols . transpose
+
 
 

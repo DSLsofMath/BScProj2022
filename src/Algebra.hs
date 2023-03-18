@@ -27,13 +27,6 @@ natInt = fromInteger . natVal
 natInt' :: forall n. KnownNat n => Int
 natInt' = natInt (Proxy :: Proxy n)
 
--- | A list with a given length
-newtype List a (n :: Nat) = L [a] deriving (Show, Eq)
-
--- Type signature important to enforce the "unchanged length" invariant
-mapL :: (a -> b) -> List a n -> List b n
-mapL f (L xs) = L (map f xs)
-
 
 -------------------------------------------------------------------------------
 -- Algebraic definitions
@@ -99,22 +92,6 @@ class (AddGroup v, Ring (Under v)) => VectorSpace v where
     type Under v = v
 
     (£) :: Under v -> v -> v
-
--- | All finite vectorspaces has a dimension
---   and can be represented by a basis
---   To generate a basis for a vector space v we can use TypeApplications @:
---   basis @(v)
---   e.g. basis @(R^2) = V [V [1.0,0.0],V [0.0,1.0]]
--- **TODO: please use working example - "R^2" is not valid Haskell in this file (perhaps works in ListVector? - if so, instruct the reader)
-class VectorSpace x => Finite x where 
-    type Dim x :: Nat
-    type BasisVec x :: *
-    type BasisVec x = x 
-    basis' :: x -> List (BasisVec x) (Dim x)
-
-basis :: forall x. (Finite x, AddGroup x, x ~ BasisVec x) => List x (Dim x)
-basis = basis' (zero :: x)
-
 
 -- | Approximated equality
 --   Mostly useful for Double 

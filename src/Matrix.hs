@@ -15,6 +15,7 @@ import Prelude hiding ((+), (-), (*), (/), (^), sum, product, recip, fromRationa
 
 import Algebra
 import FiniteIndex
+import Finite
 import Expression.Exp
 
 -- | Generic class for a matrix with focus on sparse representations
@@ -32,6 +33,8 @@ class Matrix (mat :: Nat -> Nat -> Type -> Type) where
     -- | Builds a matrix from a list of positions and values
     tabulate :: (KnownNats m n, AddGroup f) => [((Fin m, Fin n), f)] -> mat m n f
 
+    
+
     -- | Matrix multiplication is needed in the class to 
     --   define Composable for matrices in a nice way.
     mulMat :: (KnownNat a, Ring f) => mat a b f -> mat b c f -> mat a c f
@@ -39,6 +42,12 @@ class Matrix (mat :: Nat -> Nat -> Type -> Type) where
     -- | Addition of multiplication
     --   Needed to define Add- instances for all matrices
     addMat :: AddGroup f => mat m n f -> mat m n f -> mat m n f
+
+    -- | Transforms a matrix into a linear map
+    --   The vector are represented as (Fin n -> f) to be compatible with module Finite.
+    --   TODO could be optimized a lot, and should be per instance
+    linMap' :: (Ring f, Matrix mat) => mat m n f -> (Fin n -> f) -> (Fin m -> f)
+    linMap' mat f = sum [ (\i -> if i == i' then f j * s else zero) | ((i', j), s) <- values mat]
 
 
 -- | Transforms keyvalue pairs into a matrix
@@ -125,6 +134,16 @@ toSparse = tabulate . purgeToList
 
 toConst :: (KnownNats m n, Matrix mat, AddGroup f) => mat m n f -> mat m n (Exp f)
 toConst = changeUnder Const
+
+
+----------------------------------------------------------------------------------------
+-- Composability with Finite 
+--
+-- Any matrix is a linear map between arbitrary finite vectorspaces of
+-- compatible dimensions
+
+linMap :: (Finite w, Finite v, Matrix mat, f ~ Under w, f ~ Under v) => mat (Dim w) (Dim v) f -> (v -> w)
+linMap mat = fromIndexing . linMap' mat . scalar 
 
 
 ----------------------------------------------------------------------------------------

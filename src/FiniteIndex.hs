@@ -48,6 +48,9 @@ instance KnownNat n => Bounded (Fin n) where
     minBound = Fin 1
     maxBound = Fin (natInt' @n)
 
+indices :: KnownNat n => [Fin n] 
+indices = [minBound .. maxBound]
+
 -- | Returns the corresponding Int
 finToInt :: Fin n -> Int
 finToInt (Fin n) = n
@@ -82,5 +85,6 @@ instance (Ord i, Ring a) => AddGroup [(i, a)] where
 instance (Ord i, Ring a) => VectorSpace [(i,a)] where
     type Under [(i,a)] = a
     (£) = scaleL
+
 
 
